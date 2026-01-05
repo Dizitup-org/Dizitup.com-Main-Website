@@ -36,55 +36,81 @@ const BentoCard = ({ title, desc, icon: Icon, span, delay }: any) => (
 );
 
 const Services: React.FC = () => {
+  const cards = [
+    {
+      span: 'lg:col-span-2',
+      title: 'AI Growth Retainer',
+      desc: '₹10,000/month. 8–12 posts + 4 reels, captions/hashtags, basic WhatsApp/DM follow‑up automation, monthly growth suggestion.',
+      icon: Cpu,
+    },
+    {
+      span: 'lg:col-span-1',
+      title: 'AI Business Kickstart',
+      desc: '₹7,000–₹12,000 (7 days). Choose ONE: AI landing page, social starter pack (10 posts + 5 reels), or brand visual refresh.',
+      icon: Box,
+    },
+    {
+      span: 'lg:col-span-1',
+      title: 'AI Automation Setup',
+      desc: '₹5,000–₹8,000 (one-time). WhatsApp auto-replies, lead capture → Google Sheet, follow-up flow, simple CRM logic.',
+      icon: Zap,
+    },
+    {
+      span: 'lg:col-span-1',
+      title: 'AI-Enhanced Website Development',
+      desc: 'Starting from ₹10,000. Conversion-first, AI-assisted copy + structure, clean responsive build.',
+      icon: Layers,
+    },
+    {
+      span: 'lg:col-span-1',
+      title: 'AI-Enhanced App Development',
+      desc: 'Starting from ₹30,000. AI-assisted UX + development for fast launches and iteration.',
+      icon: Cpu,
+    },
+    {
+      span: 'lg:col-span-1',
+      title: 'AI-Enhanced Content System',
+      desc: 'Starting from ₹25,000. Video edits, graphic design, thumbnails, and a systematic content workflow.',
+      icon: Eye,
+    },
+    {
+      span: 'lg:col-span-1',
+      title: 'AI Workflow Automations',
+      desc: 'Custom (based on your needs). Connect tools, reduce manual work, and keep leads moving automatically.',
+      icon: Zap,
+    },
+    {
+      span: 'lg:col-span-1',
+      title: 'AI Branding & Strategy',
+      desc: 'Custom (based on your needs). Brand direction, positioning, and growth strategy with AI speed + human taste.',
+      icon: Layers,
+    },
+  ];
+
   return (
     <section id="capabilities" className="py-40 px-6 lg:px-20 bg-black">
       <div className="container mx-auto">
         <div className="flex flex-col lg:flex-row justify-between items-start lg:items-end gap-10 mb-20">
           <div>
-            <span className="text-red-600 font-mono text-[10px] uppercase tracking-[0.5em] mb-4 block">System Capabilities</span>
-            <h2 className="text-5xl lg:text-7xl font-heading font-bold tracking-tighter">Bento Intelligence.</h2>
+            <span className="text-red-600 font-mono text-[10px] uppercase tracking-[0.5em] mb-4 block">Services</span>
+            <h2 className="text-5xl lg:text-7xl font-heading font-bold tracking-tighter">What We Sell.</h2>
           </div>
           <p className="text-white/30 max-w-sm text-sm font-light">
-            We don't offer services. We deploy modular growth components that integrate directly into your business logic.
+            Clear packages, clear outcomes — built with AI speed and human polish.
           </p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          <BentoCard 
-            span="lg:col-span-2" 
-            title="Strategic AI Logic" 
-            desc="The brain of your operation. We map and automate complex decision-making processes." 
-            icon={Cpu} 
-            delay={0.1}
-          />
-          <BentoCard 
-            span="lg:col-span-1" 
-            title="Visual Identity" 
-            desc="Branding that scales with machine speed but keeps human soul." 
-            icon={Eye} 
-            delay={0.2}
-          />
-          <BentoCard 
-            span="lg:col-span-1" 
-            title="Workflow Sync" 
-            desc="Deep integration between your CRM, ads, and lead intake." 
-            icon={Zap} 
-            delay={0.3}
-          />
-          <BentoCard 
-            span="lg:col-span-1" 
-            title="Asset Pipeline" 
-            desc="Continuous delivery of high-end video and social assets." 
-            icon={Layers} 
-            delay={0.4}
-          />
-          <BentoCard 
-            span="lg:col-span-1" 
-            title="Revenue Hub" 
-            desc="Conversion-first web experiences designed for ROI." 
-            icon={Box} 
-            delay={0.5}
-          />
+          {cards.map((card, i) => (
+            <BentoCard
+              key={card.title}
+              span={card.span}
+              title={card.title}
+              desc={card.desc}
+              icon={card.icon}
+              delay={(i + 1) * 0.1}
+            />
+          ))}
         </div>
       </div>
     </section>
