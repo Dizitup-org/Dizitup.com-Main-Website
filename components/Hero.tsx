@@ -59,7 +59,7 @@ const Hero: React.FC = () => {
                   to="/book" 
                   className="px-10 py-5 bg-white text-black rounded-full font-bold text-xs uppercase tracking-widest hover:bg-red-600 hover:text-white transition-all duration-500 flex items-center gap-2 shadow-[0_20px_50px_rgba(255,255,255,0.1)]"
                 >
-                  Initiate AI Audit <ArrowUpRight className="w-4 h-4" />
+                  Book a Free AI Strategy Call <ArrowUpRight className="w-4 h-4" />
                 </Link>
               </MagneticButton>
               <a 

@@ -18,9 +18,9 @@ const Footer: React.FC = () => {
           <div className="flex gap-12 text-sm font-medium">
             <div className="flex flex-col gap-3">
               <span className="text-white/20 uppercase tracking-widest text-[10px]">Navigation</span>
-              <a href="#how" className="text-white/60 hover:text-white transition-colors">How it Works</a>
-              <a href="#services" className="text-white/60 hover:text-white transition-colors">Capabilities</a>
-              <Link to="/book" className="text-white/60 hover:text-white transition-colors">Book a Call</Link>
+              <a href="#engine" className="text-white/60 hover:text-white transition-colors">How it Works</a>
+              <a href="#capabilities" className="text-white/60 hover:text-white transition-colors">Capabilities</a>
+              {/* Removed extra booking link to enforce two total CTAs */}
             </div>
             
             <div className="flex flex-col gap-3">

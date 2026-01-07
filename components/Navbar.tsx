@@ -50,14 +50,7 @@ const Navbar: React.FC = () => {
             <Link to="/admin/login" className="hover:text-red-500">Admin</Link>
           </div>
 
-          <MagneticButton>
-            <Link 
-              to="/book" 
-              className="px-6 py-2.5 bg-white text-black rounded-full text-[9px] font-black uppercase tracking-widest hover:bg-red-600 hover:text-white transition-all shadow-xl"
-            >
-              Collaborate
-            </Link>
-          </MagneticButton>
+          {/* Booking CTA removed here to avoid duplication; hero and near-bottom CTAs remain as primary actions */}
         </div>
       </motion.nav>
     </>

@@ -109,10 +109,7 @@ const Home: React.FC = () => {
                   </h2>
                   <div className="flex flex-col md:flex-row items-center justify-center gap-6">
                     <Link to="/book" className="px-12 py-6 bg-black text-white rounded-full font-bold hover:bg-white hover:text-black transition-all duration-500 uppercase tracking-widest text-xs">
-                      Initiate AI Audit
-                    </Link>
-                    <Link to="/book" className="px-12 py-6 bg-white/10 text-white backdrop-blur-md border border-white/20 rounded-full font-bold hover:bg-white/20 transition-all duration-500 uppercase tracking-widest text-xs">
-                      Talk to a Director
+                      Book a Free AI Strategy Call
                     </Link>
                   </div>
                 </div>

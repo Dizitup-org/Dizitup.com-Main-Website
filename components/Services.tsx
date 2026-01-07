@@ -28,9 +28,21 @@ const BentoCard = ({ title, desc, icon: Icon, span, delay }: any) => (
 
     <div className="relative z-10 pt-8 mt-auto flex justify-between items-center">
       <span className="text-[10px] font-mono uppercase tracking-[0.3em] text-white/20 group-hover:text-red-500/50 transition-colors">Phase_0{delay * 10 + 1}</span>
-      <Link to="/book" className="p-3 rounded-full bg-white/5 border border-white/10 opacity-0 group-hover:opacity-100 transition-all translate-y-4 group-hover:translate-y-0">
-        <MousePointer2 className="w-4 h-4" />
-      </Link>
+      {(() => {
+        const slug = String(title)
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, '-')
+          .replace(/(^-|-$)/g, '');
+        return (
+          <Link
+            to={`/book?service=${encodeURIComponent(slug)}`}
+            aria-label={`Proceed to booking for ${title}`}
+            className="p-3 rounded-full bg-white/5 border border-white/10 opacity-0 group-hover:opacity-100 transition-all translate-y-4 group-hover:translate-y-0 focus:outline-none focus:ring-2 focus:ring-red-600/40"
+          >
+            <MousePointer2 className="w-4 h-4" />
+          </Link>
+        );
+      })()}
     </div>
   </motion.div>
 );

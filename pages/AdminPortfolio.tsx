@@ -3,32 +3,31 @@ import React, { useState, useEffect } from 'react';
 import AdminLayout from '../components/AdminLayout';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Link as LinkIcon, ExternalLink, Trash2, Layout, CheckCircle2 } from 'lucide-react';
+import { getPortfolioProjects, setPortfolioProjects, type PortfolioProject } from '../utils/portfolioStore';
 
 const AdminPortfolio: React.FC = () => {
-  const [projects, setProjects] = useState<any[]>([]);
+  const [projects, setProjects] = useState<PortfolioProject[]>([]);
   const [newProject, setNewProject] = useState({ title: '', link: '', category: 'AI Architecture' });
   const [showSuccess, setShowSuccess] = useState(false);
 
   useEffect(() => {
-    const stored = JSON.parse(localStorage.getItem('dizitup_portfolio') || '[]');
-    setProjects(stored);
+    setProjects(getPortfolioProjects());
   }, []);
 
   const addProject = () => {
     if (!newProject.title || !newProject.link) return;
     
-    const projectToAdd = { 
+    const projectToAdd: PortfolioProject = { 
       ...newProject, 
       id: Date.now(),
       timestamp: new Date().toISOString()
     };
-    
-    const updated = [projectToAdd, ...projects];
-    setProjects(updated);
-    localStorage.setItem('dizitup_portfolio', JSON.stringify(updated));
-    
-    // Trigger a storage event so other tabs/components update instantly
-    window.dispatchEvent(new Event('storage'));
+
+    setProjects((prev) => {
+      const updated = [projectToAdd, ...prev];
+      setPortfolioProjects(updated);
+      return updated;
+    });
     
     setNewProject({ title: '', link: '', category: 'AI Architecture' });
     setShowSuccess(true);
@@ -36,10 +35,11 @@ const AdminPortfolio: React.FC = () => {
   };
 
   const removeProject = (id: number) => {
-    const updated = projects.filter(p => p.id !== id);
-    setProjects(updated);
-    localStorage.setItem('dizitup_portfolio', JSON.stringify(updated));
-    window.dispatchEvent(new Event('storage'));
+    setProjects((prev) => {
+      const updated = prev.filter((p) => p.id !== id);
+      setPortfolioProjects(updated);
+      return updated;
+    });
   };
 
   return (

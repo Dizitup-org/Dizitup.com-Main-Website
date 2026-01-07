@@ -82,13 +82,12 @@ const Pricing: React.FC = () => {
                 ))}
               </div>
 
-              <Link 
-                to="/book" 
-                className={`group relative w-full py-5 rounded-full font-bold text-center transition-all overflow-hidden ${tier.recommended ? 'bg-black text-white hover:bg-red-700' : 'bg-white/5 border border-white/10 text-white hover:bg-white hover:text-black'}`}
+              <div 
+                className={`relative w-full py-5 rounded-full font-bold text-center transition-all overflow-hidden ${tier.recommended ? 'bg-black text-white' : 'bg-white/5 border border-white/10 text-white'}`}
+                aria-label="Pricing action disabled to focus booking on primary CTAs"
               >
-                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700"></div>
                 Initiate Partnership
-              </Link>
+              </div>
             </motion.div>
           ))}
         </div>

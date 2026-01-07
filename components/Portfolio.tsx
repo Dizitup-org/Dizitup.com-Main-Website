@@ -2,9 +2,10 @@
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ExternalLink, ArrowRight, Globe, ShieldCheck, Activity } from 'lucide-react';
+import { getPortfolioProjects, subscribePortfolioProjects, type PortfolioProject } from '../utils/portfolioStore';
 
 // Explicitly type ProjectCard as React.FC to handle the reserved 'key' prop correctly in TypeScript
-const ProjectCard: React.FC<{ project: any, index: number }> = ({ project, index }) => {
+const ProjectCard: React.FC<{ project: PortfolioProject; index: number }> = ({ project, index }) => {
   const [isHovered, setIsHovered] = useState(false);
 
   return (
@@ -86,25 +87,15 @@ const ProjectCard: React.FC<{ project: any, index: number }> = ({ project, index
 };
 
 const Portfolio: React.FC = () => {
-  const [projects, setProjects] = useState<any[]>([]);
+  const [projects, setProjects] = useState<PortfolioProject[]>([]);
 
   const loadProjects = () => {
-    const stored = JSON.parse(localStorage.getItem('dizitup_portfolio') || '[]');
-    if (stored.length === 0) {
-      setProjects([
-        { id: 1, title: 'Nexus_Core', category: 'AI Architecture', link: 'https://dizitup.com' },
-        { id: 2, title: 'Velocity_Hub', category: 'Revenue Systems', link: 'https://dizitup.com' },
-        { id: 3, title: 'Aura_Logic', category: 'Visual Direction', link: 'https://dizitup.com' }
-      ]);
-    } else {
-      setProjects(stored);
-    }
+    setProjects(getPortfolioProjects());
   };
 
   useEffect(() => {
     loadProjects();
-    window.addEventListener('storage', loadProjects);
-    return () => window.removeEventListener('storage', loadProjects);
+    return subscribePortfolioProjects(loadProjects);
   }, []);
 
   return (
@@ -132,9 +123,19 @@ const Portfolio: React.FC = () => {
         </div>
 
         <div className="grid md:grid-cols-2 lg:grid-cols-3 bg-white/5 border border-white/5">
-          {projects.map((project, i) => (
-            <ProjectCard key={project.id} project={project} index={i} />
-          ))}
+          {projects.length > 0 ? (
+            projects.map((project, i) => (
+              <ProjectCard key={project.id} project={project} index={i} />
+            ))
+          ) : (
+            <div className="md:col-span-2 lg:col-span-3 p-12 lg:p-20 text-center flex flex-col items-center justify-center min-h-[420px] bg-[#050505] border-r border-b border-white/5">
+              <p className="text-[10px] font-mono text-white/20 uppercase tracking-[0.4em] mb-5">Portfolio</p>
+              <h3 className="text-3xl md:text-5xl font-heading font-bold tracking-tighter mb-6">No projects published yet.</h3>
+              <p className="text-white/30 text-sm font-light max-w-2xl leading-relaxed">
+                Once you add projects from the admin panel, they will appear here automatically.
+              </p>
+            </div>
+          )}
           
           <motion.div 
             whileHover={{ backgroundColor: 'rgba(220, 38, 38, 1)' }}
