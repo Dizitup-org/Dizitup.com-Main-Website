@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import Navbar from '../components/Navbar';
 import Hero from '../components/Hero';
 import ScrollStory from '../components/ScrollStory';
@@ -15,13 +15,22 @@ import { Link } from 'react-router-dom';
 import { BrainCircuit, Zap, Target } from 'lucide-react';
 
 const Home: React.FC = () => {
-  const [isLoading, setIsLoading] = useState(true);
+  const initialLoading = useMemo(() => {
+    const w = window as unknown as { __WELCOME_SHOWN?: boolean };
+    return !w.__WELCOME_SHOWN;
+  }, []);
+  const [isLoading, setIsLoading] = useState(initialLoading);
 
   return (
     <div className="min-h-screen bg-[#050505] text-white selection:bg-red-600 selection:text-white overflow-x-hidden">
       <AnimatePresence>
         {isLoading && (
-          <WelcomeLoader onComplete={() => setIsLoading(false)} />
+          <WelcomeLoader
+            onComplete={() => {
+              (window as unknown as { __WELCOME_SHOWN?: boolean }).__WELCOME_SHOWN = true;
+              setIsLoading(false);
+            }}
+          />
         )}
       </AnimatePresence>
 

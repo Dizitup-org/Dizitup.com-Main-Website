@@ -11,7 +11,10 @@ const AdminLogin: React.FC = () => {
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    if (creds.user === 'admin' && creds.pass === 'admin') {
+    const expectedUser = (import.meta as any).env?.User_ID || '';
+    const expectedToken = (import.meta as any).env?.Secure_Token || '';
+
+    if (creds.user === expectedUser && creds.pass === expectedToken) {
       localStorage.setItem('dizitup_auth', 'true');
       navigate('/admin');
     } else {
