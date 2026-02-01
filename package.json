@@ -9,15 +9,21 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.93.3",
+    "browser-image-compression": "^2.0.2",
     "framer-motion": "^12.23.26",
     "lucide-react": "^0.562.0",
+    "qr-scanner": "^1.4.2",
+    "qrcode": "^1.5.4",
     "react": "^19.2.3",
     "react-dom": "^19.2.3",
+    "react-hot-toast": "^2.6.0",
     "react-router-dom": "^7.11.0",
     "recharts": "^3.6.0",
     "vite_react_shadcn_ts": "file:../../ebitez/ebitez-chow-time-today-main"
   },
   "devDependencies": {
+    "@types/qrcode": "^1.5.6",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "@types/three": "^0.182.0",

@@ -1,7 +1,10 @@
 
-import React, { useEffect, useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import Navbar from '../components/Navbar';
 import { useLocation } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthProvider';
+import { supabase } from '../utils/supabaseClient';
+import toast, { Toaster } from 'react-hot-toast';
 
 const CALENDLY_URL = 'https://calendly.com/dizitup/new-meeting';
 
@@ -37,10 +40,54 @@ const Book: React.FC = () => {
     return `${CALENDLY_URL}?utm_medium=service-card&utm_content=${encodeURIComponent(selectedService)}`;
   }, [selectedService]);
 
+  const { user } = useAuth();
+  const [hasActiveBooking, setHasActiveBooking] = useState(false);
+
+  useEffect(() => {
+    const load = async () => {
+      if (!user) return setHasActiveBooking(false);
+      const { data } = await supabase
+        .from('bookings')
+        .select('id,status')
+        .eq('user_id', user.id)
+        .in('status', ['pending', 'accepted'])
+        .limit(1);
+      setHasActiveBooking(Boolean(data && data.length > 0));
+    };
+    load();
+  }, [user]);
+
+  const recordBooking = async () => {
+    if (!user) {
+      toast.error('Please login to create a booking');
+      return;
+    }
+    if (hasActiveBooking) {
+      toast('You already have an active booking', { icon: 'ℹ️' });
+      return;
+    }
+    const payload = {
+      user_id: user.id,
+      service: selectedService || 'general',
+      status: 'pending',
+      created_at: new Date().toISOString(),
+    };
+    const { error } = await supabase
+      .from('bookings')
+      .upsert(payload, { onConflict: 'user_id' });
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    toast.success('Booking recorded. We will review soon.');
+    setHasActiveBooking(true);
+  };
+
   return (
     <div className="min-h-screen bg-black text-white selection:bg-red-600">
       <Navbar />
       <main className="container mx-auto px-6 pt-48 pb-24">
+        <Toaster position="top-right" />
         <div className="max-w-5xl mx-auto">
           <div className="flex flex-col gap-6 mb-10">
             <span className="text-red-600 font-mono text-[10px] uppercase tracking-[0.5em]">Booking</span>
@@ -67,6 +114,23 @@ const Book: React.FC = () => {
               data-url={calendlyUrl}
               style={{ minWidth: '320px', height: '820px' }}
             />
+          </div>
+
+          <div className="mt-6 flex items-center justify-between">
+            <div className="text-white/60 text-sm">
+              {user ? (
+                hasActiveBooking ? 'You have an active booking. Await status update.' : 'No active booking yet.'
+              ) : (
+                'Login required to record booking.'
+              )}
+            </div>
+            <button
+              onClick={recordBooking}
+              disabled={!user || hasActiveBooking}
+              className="premium-btn font-bold disabled:opacity-60"
+            >
+              Record Booking
+            </button>
           </div>
 
           <div className="mt-8 text-white/30 text-xs font-mono uppercase tracking-[0.3em]">

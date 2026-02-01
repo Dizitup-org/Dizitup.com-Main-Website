@@ -4,6 +4,8 @@ import AdminLayout from '../components/AdminLayout';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Link as LinkIcon, ExternalLink, Trash2, Layout, CheckCircle2 } from 'lucide-react';
 import { getPortfolioProjects, setPortfolioProjects, type PortfolioProject } from '../utils/portfolioStore';
+import { supabase } from '../utils/supabaseClient';
+import { validateAndCompressImage } from '../utils/storage';
 
 const AdminPortfolio: React.FC = () => {
   const [projects, setProjects] = useState<PortfolioProject[]>([]);
@@ -47,7 +49,7 @@ const AdminPortfolio: React.FC = () => {
       <div className="grid lg:grid-cols-3 gap-10">
         {/* Form */}
         <div className="space-y-6">
-          <div className="p-8 rounded-[2.5rem] bg-white/[0.02] border border-white/10 sticky top-10 overflow-hidden">
+          <div className="p-8 glass-panel sticky top-10 overflow-hidden">
             <div className="absolute top-0 right-0 w-32 h-32 bg-red-600/5 blur-3xl pointer-events-none" />
             
             <h3 className="text-xl font-bold font-heading mb-8 flex items-center gap-3">
@@ -56,13 +58,32 @@ const AdminPortfolio: React.FC = () => {
             </h3>
             
             <div className="space-y-6 relative z-10">
+              {/* Image Upload to Storage */}
+              <div className="space-y-2">
+                <label className="text-[9px] font-black uppercase tracking-widest text-white/40 ml-1">Upload_Image</label>
+                <input type="file" accept="image/*" onChange={async (e) => {
+                  const file = e.target.files?.[0]
+                  if (!file) return
+                  try {
+                    const optimized = await validateAndCompressImage(file)
+                    const user = (await supabase.auth.getUser()).data.user
+                    const path = `${user?.id || 'public'}/${Date.now()}-${file.name}`
+                    const { error } = await supabase.storage.from('portfolio').upload(path, optimized, { upsert: false })
+                    if (error) throw error
+                    const { data } = await supabase.storage.from('portfolio').getPublicUrl(path)
+                    setNewProject((prev) => ({ ...prev, link: data.publicUrl }))
+                  } catch (err: any) {
+                    console.error(err)
+                  }
+                }} />
+              </div>
               <div className="space-y-2">
                 <label className="text-[9px] font-black uppercase tracking-widest text-white/40 ml-1">Internal_Label</label>
                 <input 
                   type="text" 
                   value={newProject.title}
                   placeholder="e.g. Nexus_Automation"
-                  className="w-full bg-white/5 border border-white/10 rounded-xl px-5 py-4 text-sm focus:outline-none focus:border-red-600 transition-all font-mono"
+                  className="w-full glass-input px-5 py-4 text-sm focus:outline-none font-mono"
                   onChange={(e) => setNewProject({...newProject, title: e.target.value})}
                 />
               </div>
@@ -73,7 +94,7 @@ const AdminPortfolio: React.FC = () => {
                   type="text" 
                   value={newProject.link}
                   placeholder="https://..."
-                  className="w-full bg-white/5 border border-white/10 rounded-xl px-5 py-4 text-sm focus:outline-none focus:border-red-600 transition-all font-mono"
+                  className="w-full glass-input px-5 py-4 text-sm focus:outline-none font-mono"
                   onChange={(e) => setNewProject({...newProject, link: e.target.value})}
                 />
               </div>
@@ -81,7 +102,7 @@ const AdminPortfolio: React.FC = () => {
               <div className="space-y-2">
                 <label className="text-[9px] font-black uppercase tracking-widest text-white/40 ml-1">Logic_Sector</label>
                 <select 
-                  className="w-full bg-white/5 border border-white/10 rounded-xl px-5 py-4 text-sm focus:outline-none focus:border-red-600 transition-all font-mono appearance-none"
+                  className="w-full glass-input px-5 py-4 text-sm focus:outline-none font-mono appearance-none"
                   value={newProject.category}
                   onChange={(e) => setNewProject({...newProject, category: e.target.value})}
                 >
@@ -93,7 +114,7 @@ const AdminPortfolio: React.FC = () => {
 
               <button 
                 onClick={addProject}
-                className="w-full py-5 bg-red-600 text-white rounded-xl font-bold uppercase tracking-widest text-[10px] hover:bg-red-700 transition-all flex items-center justify-center gap-3 shadow-xl shadow-red-600/10 group"
+                className="w-full premium-btn font-bold uppercase tracking-widest text-[10px] flex items-center justify-center gap-3 group"
               >
                 <div className="w-2 h-2 rounded-full bg-white group-hover:scale-150 transition-transform" />
                 Push to Live Grid
@@ -136,7 +157,7 @@ const AdminPortfolio: React.FC = () => {
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, scale: 0.95 }}
                 key={project.id}
-                className="p-8 rounded-[2.5rem] bg-white/[0.01] border border-white/5 flex items-center justify-between group hover:border-white/20 transition-all duration-500"
+                className="p-8 premium-card flex items-center justify-between group transition-all duration-500"
               >
                 <div className="flex items-center gap-8">
                   <div className="w-16 h-16 rounded-[1.5rem] bg-red-600/10 flex items-center justify-center border border-red-600/20 group-hover:bg-red-600/20 transition-colors">
@@ -157,13 +178,13 @@ const AdminPortfolio: React.FC = () => {
                     href={project.link} 
                     target="_blank" 
                     rel="noopener noreferrer"
-                    className="p-4 rounded-2xl bg-white/5 hover:bg-white/10 transition-all text-white/40 hover:text-white"
+                    className="premium-btn text-white/80"
                   >
                     <ExternalLink className="w-5 h-5" />
                   </a>
                   <button 
                     onClick={() => removeProject(project.id)}
-                    className="p-4 rounded-2xl bg-red-600/5 hover:bg-red-600/20 transition-all text-red-500/40 hover:text-red-500"
+                    className="premium-btn"
                   >
                     <Trash2 className="w-5 h-5" />
                   </button>

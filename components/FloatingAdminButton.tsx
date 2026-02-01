@@ -12,7 +12,7 @@ const FloatingAdminButton: React.FC = () => {
       transition={{ delay: 2, duration: 1 }}
       className="fixed bottom-8 right-8 z-[100]"
     >
-      <Link to="/admin/login">
+      <Link to="/login">
         <motion.div 
           whileHover={{ width: '160px' }}
           className="h-14 w-14 bg-black/40 backdrop-blur-xl border border-white/10 rounded-full flex items-center justify-start px-4 gap-4 overflow-hidden group transition-all duration-500 hover:border-red-600/50 hover:shadow-[0_0_30px_rgba(220,38,38,0.2)]"

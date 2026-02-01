@@ -2,6 +2,8 @@
 import React, { useState, useEffect } from 'react';
 import AdminLayout from '../components/AdminLayout';
 import { motion, AnimatePresence } from 'framer-motion';
+import AdminScanner from '../components/AdminScanner';
+import AdminUsers from '../components/AdminUsers';
 import { Activity, Zap, ShieldCheck, Cpu, Terminal, Inbox, RefreshCw } from 'lucide-react';
 
 const AdminOverview: React.FC = () => {
@@ -27,7 +29,7 @@ const AdminOverview: React.FC = () => {
       <div className="grid lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 space-y-8">
           {/* Executive Card */}
-          <div className="p-12 rounded-[3.5rem] bg-gradient-to-br from-red-600 to-red-900 overflow-hidden relative group">
+          <div className="p-12 premium-card overflow-hidden relative group">
             <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 pointer-events-none"></div>
             <div className="relative z-10">
               <div className="flex items-center gap-3 mb-8">
@@ -47,7 +49,7 @@ const AdminOverview: React.FC = () => {
           </div>
 
           {/* Incoming Audits (Dynamic) */}
-          <div className="p-10 rounded-[3.5rem] bg-white/[0.02] border border-white/10">
+          <div className="p-10 premium-card">
             <div className="flex items-center justify-between mb-10">
               <div className="flex items-center gap-4">
                 <div className="w-10 h-10 rounded-2xl bg-red-600/10 flex items-center justify-center">
@@ -75,7 +77,7 @@ const AdminOverview: React.FC = () => {
                     animate={{ opacity: 1, x: 0 }}
                     exit={{ opacity: 0, scale: 0.95 }}
                     key={audit.id} 
-                    className="flex items-center justify-between p-6 rounded-[2rem] bg-white/[0.02] border border-white/5 hover:border-red-600/30 transition-all group"
+                    className="flex items-center justify-between p-6 glass-panel transition-all group"
                   >
                     <div className="flex items-center gap-6">
                       <div className="w-12 h-12 rounded-full bg-gradient-to-br from-red-600 to-red-800 flex items-center justify-center font-bold text-sm shadow-xl">
@@ -112,14 +114,14 @@ const AdminOverview: React.FC = () => {
              { label: 'System Uptime', value: '99.9%', icon: ShieldCheck },
              { label: 'Throughput', value: '1.2GB/s', icon: Zap },
            ].map((stat, i) => (
-             <div key={i} className="p-8 rounded-[2.5rem] bg-white/[0.02] border border-white/5 text-center group hover:bg-white/[0.04] transition-all">
+             <div key={i} className="p-8 premium-card text-center group transition-all">
                 <stat.icon className="w-6 h-6 text-red-600 mx-auto mb-4 group-hover:scale-125 transition-transform" />
                 <p className="text-[10px] font-black text-white/30 uppercase tracking-[0.3em] mb-1">{stat.label}</p>
                 <p className="text-3xl font-heading font-bold">{stat.value}</p>
              </div>
            ))}
 
-           <div className="p-8 rounded-[3rem] bg-red-600/5 border border-red-600/10">
+             <div className="p-8 premium-card">
               <h4 className="text-sm font-black uppercase tracking-widest text-red-500 mb-6">Security Logs</h4>
               <div className="space-y-4">
                  {[
@@ -135,6 +137,9 @@ const AdminOverview: React.FC = () => {
                  ))}
               </div>
            </div>
+
+              <AdminScanner />
+              <AdminUsers />
         </div>
       </div>
     </AdminLayout>

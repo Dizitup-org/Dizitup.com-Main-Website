@@ -4,6 +4,8 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion, useScroll, useSpring } from 'framer-motion';
 import MagneticButton from './MagneticButton';
 import { ArrowLeft } from 'lucide-react';
+import { useAuth } from '../contexts/AuthProvider';
+import AuthModal from './AuthModal';
 
 const Navbar: React.FC = () => {
   const [scrolled, setScrolled] = useState(false);
@@ -23,6 +25,9 @@ const Navbar: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const showBack = location.pathname !== '/';
+  const { user, profile, signOut, isAdmin } = useAuth();
+  const [open, setOpen] = useState(false);
+  const [authOpen, setAuthOpen] = useState(false);
 
   return (
     <>
@@ -58,16 +63,36 @@ const Navbar: React.FC = () => {
           
           <div className="hidden md:flex items-center gap-12 text-[9px] font-mono font-bold uppercase tracking-[0.3em] text-white/30">
             {['Capabilities', 'Works', 'Pricing'].map((item) => (
-              <a 
-                key={item} 
-                href={`#${item.toLowerCase()}`} 
+              <a
+                key={item}
+                href={`#${item.toLowerCase()}`}
                 className="hover:text-white transition-colors"
               >
                 {item}
               </a>
             ))}
-            <Link to="/admin/login" className="hover:text-red-500">Admin</Link>
+            {!user ? (
+              <button onClick={() => setAuthOpen(true)} className="premium-btn premium-btn--icon">Login / Signup</button>
+            ) : (
+              <div className="relative">
+                <button onClick={() => setOpen((o) => !o)} className="premium-btn premium-btn--icon text-[10px] font-mono uppercase tracking-[0.2em]">
+                  <span>{profile?.username || 'Profile'}</span>
+                  <span>▼</span>
+                </button>
+                {open && (
+                  <div className="absolute right-0 mt-2 w-40 p-2 dropdown-panel text-[10px] font-mono">
+                    <Link to="/dashboard" className="block px-3 py-2 rounded hover:bg-white/5">Dashboard</Link>
+                    <Link to="/dashboard" className="block px-3 py-2 rounded hover:bg-white/5">Settings</Link>
+                    {isAdmin && (
+                      <Link to="/admin" className="block px-3 py-2 rounded hover:bg-white/5">Admin Panel</Link>
+                    )}
+                    <button onClick={() => { setOpen(false); signOut(); navigate('/'); }} className="block w-full text-left px-3 py-2 rounded hover:bg-white/5">Logout</button>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
+          <AuthModal open={authOpen} onClose={() => setAuthOpen(false)} />
 
           {/* Booking CTA removed here to avoid duplication; hero and near-bottom CTAs remain as primary actions */}
         </div>
