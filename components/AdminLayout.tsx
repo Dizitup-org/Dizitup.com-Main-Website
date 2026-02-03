@@ -25,7 +25,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, title }) => {
             { to: '/admin', icon: LayoutDashboard, label: 'Overview' },
             { to: '/admin/sales', icon: BarChart3, label: 'Sales' },
             { to: '/admin/portfolio', icon: Layout, label: 'Portfolio' },
-            { to: '#', icon: Users, label: 'Clients' },
+            { to: '/admin/clients', icon: Users, label: 'Clients' },
             { to: '#', icon: Settings, label: 'Settings' },
           ].map((item, i) => (
             <NavLink

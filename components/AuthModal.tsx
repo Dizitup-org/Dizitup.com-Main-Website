@@ -5,39 +5,40 @@ import { supabase } from '../utils/supabaseClient'
 import { useNavigate } from 'react-router-dom'
 
 const AuthModal: React.FC<{ open: boolean; onClose: () => void }> = ({ open, onClose }) => {
-  const { signIn, signUp } = useAuth()
+  const { signIn, signUp, isAdmin, loading } = useAuth()
   const navigate = useNavigate()
   const [mode, setMode] = useState<'login' | 'signup'>('login')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirm, setConfirm] = useState('')
+  const [submitting, setSubmitting] = useState(false)
 
   if (!open) return null
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault()
+    console.log('[AuthModal] Submit clicked, mode=', mode)
+    setSubmitting(true)
     try {
       if (mode === 'login') {
-        await signIn(email, password)
-        const { data: sessionData } = await supabase.auth.getSession()
-        const uid = sessionData.session?.user?.id
-        if (uid) {
-          const { data: adminRows } = await supabase.from('admins').select('user_id').eq('user_id', uid).limit(1)
-          onClose()
-          if (adminRows && adminRows.length > 0) navigate('/admin', { replace: true })
-          else navigate('/dashboard', { replace: true })
-        }
+        console.log('[AuthModal] Attempt signInWithPassword')
+        const { error: loginError } = await supabase.auth.signInWithPassword({ email, password })
+        if (loginError) throw loginError
+        onClose()
         toast.success('Logged in')
       } else {
         if (!email || !password || !confirm) throw new Error('Fill required fields')
         if (password !== confirm) throw new Error('Passwords do not match')
+        console.log('[AuthModal] Attempt signUp')
         await signUp(email, password)
         toast.success('Signup successful. Complete your profile in Dashboard.')
         onClose()
-        navigate('/dashboard', { replace: true })
       }
     } catch (err: any) {
+      console.error('[AuthModal] Error', err)
       toast.error(err?.message || 'Auth error')
+    } finally {
+      setSubmitting(false)
     }
   }
 
@@ -54,7 +55,7 @@ const AuthModal: React.FC<{ open: boolean; onClose: () => void }> = ({ open, onC
           {mode === 'signup' && (
             <input type="password" value={confirm} onChange={(e) => setConfirm(e.target.value)} placeholder="Confirm password" className="w-full glass-input px-4 py-3" required />
           )}
-          <button type="submit" className="w-full premium-btn font-bold">{mode === 'login' ? 'Login' : 'Sign Up'}</button>
+          <button type="submit" className={`w-full premium-btn font-bold ${submitting ? 'opacity-60' : ''}`} disabled={submitting} onClick={() => console.log('[AuthModal] Button clicked')} aria-disabled={submitting}>{mode === 'login' ? 'Login' : 'Sign Up'}</button>
         </form>
         <div className="flex items-center justify-between mt-3 text-xs text-white/60">
           <button onClick={() => setMode(mode === 'login' ? 'signup' : 'login')} className="underline">

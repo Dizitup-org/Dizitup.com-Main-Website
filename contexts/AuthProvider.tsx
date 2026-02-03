@@ -46,24 +46,36 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => {
     const init = async () => {
-      const { data } = await supabase.auth.getSession()
-      setSession(data.session)
-      setUser(data.session?.user ?? null)
-      setLoading(false)
-      if (data.session?.user) {
-        await refreshRoleAndProfile(data.session.user.id)
+      try {
+        const { data: { session } } = await supabase.auth.getSession()
+        setSession(session ?? null)
+        setUser(session?.user ?? null)
+        if (session?.user) {
+          await refreshRoleAndProfile(session.user.id)
+        }
+      } catch (e) {
+        console.error('Auth init failed', e)
+      } finally {
+        setLoading(false)
       }
     }
     init()
 
     const { data: authListener } = supabase.auth.onAuthStateChange(async (_event, newSession) => {
-      setSession(newSession)
-      setUser(newSession?.user ?? null)
-      if (newSession?.user) {
-        await refreshRoleAndProfile(newSession.user.id)
-      } else {
-        setIsAdmin(false)
-        setProfile(null)
+      setLoading(true)
+      try {
+        setSession(newSession)
+        setUser(newSession?.user ?? null)
+        if (newSession?.user) {
+          await refreshRoleAndProfile(newSession.user.id)
+        } else {
+          setIsAdmin(false)
+          setProfile(null)
+        }
+      } catch (e) {
+        console.error('Auth state change failed', e)
+      } finally {
+        setLoading(false)
       }
     })
 
@@ -73,21 +85,38 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [])
 
   const refreshRoleAndProfile = async (uid: string) => {
-    // Role check via admins table
-    const { data: adminRows } = await supabase
-      .from('admins')
-      .select('user_id')
-      .eq('user_id', uid)
-      .limit(1)
-    setIsAdmin(Boolean(adminRows && adminRows.length > 0))
+    try {
+      // Admin role check — single row by FK to user_id
+      const { data: adminRow, error: adminError } = await supabase
+        .from('admins')
+        .select('id')
+        .eq('user_id', uid)
+        .single()
+      if (adminError) {
+        // Graceful handling: not admin or RLS blocked
+        console.error('Admin check failed', adminError)
+        setIsAdmin(false)
+      } else {
+        setIsAdmin(Boolean(adminRow))
+      }
 
-    // Profile fetch by auth.uid()
-    const { data: prof } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', uid)
-      .limit(1)
-    setProfile((prof && prof[0]) || null)
+      // Profile fetch by auth.uid() — allow 0 rows gracefully
+      const { data: prof, error: profError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', uid)
+        .limit(1)
+      if (profError) {
+        console.error('Profile fetch failed', profError)
+        setProfile(null)
+      } else {
+        setProfile((prof && prof[0]) || null)
+      }
+    } catch (e) {
+      console.error('refreshRoleAndProfile failed', e)
+      setIsAdmin(false)
+      setProfile(null)
+    }
   }
 
   const signUp = async (email: string, password: string) => {

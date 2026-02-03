@@ -6,9 +6,12 @@ import Book from './pages/Book';
 import AdminOverview from './pages/AdminOverview';
 import AdminSales from './pages/AdminSales';
 import AdminPortfolio from './pages/AdminPortfolio';
+import AdminClients from './pages/AdminClients';
+import AdminClientDetail from './pages/AdminClientDetail';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import { AuthProvider } from './contexts/AuthProvider';
+import ErrorBoundary from './components/ErrorBoundary';
 import { RequireAdmin, RequireAuth } from './components/ProtectedRoute';
 import { Toaster } from 'react-hot-toast';
 
@@ -37,25 +40,52 @@ const App: React.FC = () => {
           <Route
             path="/admin"
             element={(
-              <RequireAdmin>
-                <AdminOverview />
-              </RequireAdmin>
+              <ErrorBoundary>
+                <RequireAdmin>
+                  <AdminOverview />
+                </RequireAdmin>
+              </ErrorBoundary>
             )}
           />
           <Route
             path="/admin/sales"
             element={(
-              <RequireAdmin>
-                <AdminSales />
-              </RequireAdmin>
+              <ErrorBoundary>
+                <RequireAdmin>
+                  <AdminSales />
+                </RequireAdmin>
+              </ErrorBoundary>
             )}
           />
           <Route
             path="/admin/portfolio"
             element={(
-              <RequireAdmin>
-                <AdminPortfolio />
-              </RequireAdmin>
+              <ErrorBoundary>
+                <RequireAdmin>
+                  <AdminPortfolio />
+                </RequireAdmin>
+              </ErrorBoundary>
+            )}
+          />
+
+          <Route
+            path="/admin/clients"
+            element={(
+              <ErrorBoundary>
+                <RequireAdmin>
+                  <AdminClients />
+                </RequireAdmin>
+              </ErrorBoundary>
+            )}
+          />
+          <Route
+            path="/admin/clients/:clientId"
+            element={(
+              <ErrorBoundary>
+                <RequireAdmin>
+                  <AdminClientDetail />
+                </RequireAdmin>
+              </ErrorBoundary>
             )}
           />
 

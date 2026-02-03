@@ -5,7 +5,7 @@ import toast, { Toaster } from 'react-hot-toast'
 import { supabase } from '../utils/supabaseClient'
 
 const Login: React.FC = () => {
-  const { signIn, signUp, resetPassword, user, isAdmin } = useAuth()
+  const { signIn, signUp, resetPassword, user, isAdmin, loading } = useAuth()
   const navigate = useNavigate()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -16,12 +16,17 @@ const Login: React.FC = () => {
   const [businessName, setBusinessName] = useState('')
   const [phone, setPhone] = useState('')
   const [mode, setMode] = useState<'login' | 'signup'>('login')
+  const [submitting, setSubmitting] = useState(false)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    console.log('[Login] Submit clicked, mode=', mode)
+    setSubmitting(true)
     try {
       if (mode === 'login') {
-        await signIn(email, password)
+        console.log('[Login] Attempt signInWithPassword')
+        const { error: loginError } = await supabase.auth.signInWithPassword({ email, password })
+        if (loginError) throw loginError
         toast.success('Logged in')
       } else {
         // Validation
@@ -33,7 +38,7 @@ const Login: React.FC = () => {
         }
         const emailValid = /.+@.+\..+/.test(email)
         if (!emailValid) throw new Error('Invalid email')
-
+        console.log('[Signup] Attempt signUp')
         await signUp(email, password)
         // After signup, update profile fields by id
         const { data: sessionData } = await supabase.auth.getSession()
@@ -49,6 +54,7 @@ const Login: React.FC = () => {
           if (existing && existing.length > 0) {
             throw new Error('Username already taken')
           }
+          console.log('[Signup] Upsert profile for uid', uid)
           const { error } = await supabase
             .from('profiles')
             .upsert({
@@ -64,18 +70,12 @@ const Login: React.FC = () => {
         }
         toast.success('Signup successful. Check email if confirmation required.')
       }
-      // Post-login routing by role: query admins table immediately
-      const { data: sessionData } = await supabase.auth.getSession()
-      const uid = sessionData.session?.user?.id
-      if (uid) {
-        const { data: adminRows } = await supabase.from('admins').select('user_id').eq('user_id', uid).limit(1)
-        if (adminRows && adminRows.length > 0) navigate('/admin', { replace: true })
-        else navigate('/dashboard', { replace: true })
-      } else {
-        navigate('/login', { replace: true })
-      }
+      // Do not redirect here; rely on auth listener + effect below to avoid loops
     } catch (err: any) {
+      console.error('[Login] Error', err)
       toast.error(err?.message || 'Authentication error')
+    } finally {
+      setSubmitting(false)
     }
   }
 
@@ -89,12 +89,12 @@ const Login: React.FC = () => {
   }
 
   useEffect(() => {
-    if (user) {
-      // If already logged in, redirect based on role
+    if (!loading && user) {
+      // Redirect only after auth finishes
       if (isAdmin) navigate('/admin', { replace: true })
       else navigate('/dashboard', { replace: true })
     }
-  }, [user, isAdmin, navigate])
+  }, [user, isAdmin, loading, navigate])
 
   return (
     <div className="min-h-screen bg-[#050505] flex items-center justify-center p-6">
@@ -167,7 +167,7 @@ const Login: React.FC = () => {
               />
             </>
           )}
-          <button type="submit" className="w-full premium-btn font-bold">
+          <button type="submit" className={`w-full premium-btn font-bold ${submitting ? 'opacity-60' : ''}`} disabled={submitting} onClick={() => console.log('[Login] Button clicked')} aria-disabled={submitting}>
             {mode === 'login' ? 'Login' : 'Sign Up'}
           </button>
         </form>
