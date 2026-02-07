@@ -11,7 +11,6 @@ import AdminClientDetail from './pages/AdminClientDetail';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import { AuthProvider } from './contexts/AuthProvider';
-import ErrorBoundary from './components/ErrorBoundary';
 import { RequireAdmin, RequireAuth } from './components/ProtectedRoute';
 import { Toaster } from 'react-hot-toast';
 
@@ -40,52 +39,41 @@ const App: React.FC = () => {
           <Route
             path="/admin"
             element={(
-              <ErrorBoundary>
-                <RequireAdmin>
-                  <AdminOverview />
-                </RequireAdmin>
-              </ErrorBoundary>
+              <RequireAdmin>
+                <AdminOverview />
+              </RequireAdmin>
             )}
           />
           <Route
             path="/admin/sales"
             element={(
-              <ErrorBoundary>
-                <RequireAdmin>
-                  <AdminSales />
-                </RequireAdmin>
-              </ErrorBoundary>
+              <RequireAdmin>
+                <AdminSales />
+              </RequireAdmin>
             )}
           />
           <Route
             path="/admin/portfolio"
             element={(
-              <ErrorBoundary>
-                <RequireAdmin>
-                  <AdminPortfolio />
-                </RequireAdmin>
-              </ErrorBoundary>
+              <RequireAdmin>
+                <AdminPortfolio />
+              </RequireAdmin>
             )}
           />
-
           <Route
             path="/admin/clients"
             element={(
-              <ErrorBoundary>
-                <RequireAdmin>
-                  <AdminClients />
-                </RequireAdmin>
-              </ErrorBoundary>
+              <RequireAdmin>
+                <AdminClients />
+              </RequireAdmin>
             )}
           />
           <Route
             path="/admin/clients/:clientId"
             element={(
-              <ErrorBoundary>
-                <RequireAdmin>
-                  <AdminClientDetail />
-                </RequireAdmin>
-              </ErrorBoundary>
+              <RequireAdmin>
+                <AdminClientDetail />
+              </RequireAdmin>
             )}
           />
 
