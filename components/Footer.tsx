@@ -4,9 +4,9 @@ import { Link } from 'react-router-dom';
 
 const Footer: React.FC = () => {
   return (
-    <footer className="py-20 bg-black border-t border-white/5">
-      <div className="container mx-auto px-6">
-        <div className="flex flex-col md:flex-row justify-between items-center gap-10">
+    <footer className="py-12 sm:py-20 bg-black border-t border-white/5">
+      <div className="container mx-auto px-4 sm:px-6">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-8 sm:gap-10">
           <div>
             <Link to="/" className="text-2xl font-bold font-heading tracking-tight flex items-center gap-2 mb-4">
               <div className="w-3 h-3 bg-red-600 rounded-full"></div>
@@ -15,7 +15,7 @@ const Footer: React.FC = () => {
             <p className="text-white/30 text-sm">© 2024 DIZITUP Agency. All rights reserved.</p>
           </div>
           
-          <div className="flex gap-12 text-sm font-medium">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-8 sm:gap-12 text-sm font-medium">
             <div className="flex flex-col gap-3">
               <span className="text-white/20 uppercase tracking-widest text-[10px]">Navigation</span>
               <a href="#engine" className="text-white/60 hover:text-white transition-colors">How it Works</a>

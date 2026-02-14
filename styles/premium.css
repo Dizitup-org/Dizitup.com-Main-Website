@@ -76,3 +76,173 @@
   border-radius: 12px;
   transition: all 0.25s ease-in-out;
 }
+
+/* Glow card on hover */
+.glow-card {
+  transition: box-shadow 0.4s ease, border-color 0.4s ease;
+}
+.glow-card:hover {
+  box-shadow: 0 0 40px -10px rgba(220, 38, 38, 0.2), 0 0 80px -20px rgba(220, 38, 38, 0.1);
+}
+
+/* Smooth scrollbar for dark theme */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #050505;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,0.1);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255,255,255,0.2);
+}
+
+/* Booking modal calendar hover */
+.cal-day-btn {
+  transition: all 0.15s ease;
+}
+.cal-day-btn:hover:not(:disabled) {
+  background: rgba(220, 38, 38, 0.15);
+}
+
+/* ═══════════════════════════════════════════
+   MOBILE & ORIENTATION OPTIMIZATION
+   ═══════════════════════════════════════════ */
+
+/* Use dynamic viewport height for fullscreen overlays */
+.mobile-fullscreen {
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+/* Body scroll lock when modal/overlay is open */
+body.modal-open {
+  overflow: hidden;
+  position: fixed;
+  width: 100%;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* iOS safe area padding */
+@supports (padding: env(safe-area-inset-bottom)) {
+  .safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .safe-top {
+    padding-top: env(safe-area-inset-top);
+  }
+}
+
+/* Prevent horizontal overflow on mobile */
+html, body {
+  overflow-x: hidden;
+  -webkit-text-size-adjust: 100%;
+}
+
+/* Smooth touch scrolling for modals */
+.modal-scroll {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  scroll-behavior: smooth;
+}
+
+/* ── Small Mobile Phones (≤ 380px) ── */
+@media (max-width: 380px) {
+  .hero-title {
+    font-size: 14vw !important;
+  }
+}
+
+/* ── Mobile Portrait (≤ 640px) ── */
+@media (max-width: 640px) {
+  /* Reduce excessive vertical padding on all sections */
+  .section-padding {
+    padding-top: 4rem !important;
+    padding-bottom: 4rem !important;
+  }
+
+  /* Tighter card padding */
+  .card-padding-mobile {
+    padding: 1.5rem !important;
+  }
+
+  /* Fix large border-radius clipping on small screens */
+  .rounded-mobile {
+    border-radius: 1.5rem !important;
+  }
+}
+
+/* ── Landscape Orientation (short viewport) ── */
+@media (orientation: landscape) and (max-height: 500px) {
+  /* Reduce section heights for landscape */
+  .landscape-compact {
+    min-height: auto !important;
+    padding-top: 2rem !important;
+    padding-bottom: 2rem !important;
+  }
+
+  /* Shrink hero text in landscape */
+  .hero-title {
+    font-size: 8vw !important;
+    line-height: 0.85 !important;
+  }
+
+  /* Compact overlays in landscape */
+  .overlay-compact {
+    padding: 1rem !important;
+  }
+}
+
+/* ── Landscape on phones (short + narrow combined) ── */
+@media (orientation: landscape) and (max-height: 450px) and (max-width: 900px) {
+  .fullscreen-overlay {
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch;
+    align-items: flex-start !important;
+    padding-top: 1rem !important;
+    padding-bottom: 1rem !important;
+  }
+
+  .fullscreen-overlay > * {
+    max-height: none !important;
+  }
+}
+
+/* ── Touch device optimizations ── */
+@media (hover: none) and (pointer: coarse) {
+  /* Larger tap targets */
+  button, a, [role="button"] {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  /* Disable magnetic button effect on touch */
+  .magnetic-disabled {
+    transform: none !important;
+  }
+
+  /* Disable hover-dependent effects */
+  .glow-card:hover {
+    box-shadow: none;
+  }
+}
+
+/* ── Reduce motion for users who prefer it ── */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ── Fix backdrop-blur performance on mobile ── */
+@media (max-width: 768px) {
+  .backdrop-blur-heavy {
+    backdrop-filter: blur(8px) !important;
+    -webkit-backdrop-filter: blur(8px) !important;
+  }
+}

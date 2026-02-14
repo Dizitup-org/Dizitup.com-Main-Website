@@ -39,7 +39,7 @@ const Navbar: React.FC = () => {
       <motion.nav 
         initial={{ y: -100 }}
         animate={{ y: 0 }}
-        className={`fixed top-8 left-1/2 -translate-x-1/2 z-50 transition-all duration-700 w-[90%] max-w-[1200px] px-8 py-4 rounded-full border border-white/5 backdrop-blur-2xl ${scrolled ? 'bg-black/60 border-white/10' : 'bg-transparent'}`}
+        className={`fixed top-4 sm:top-8 left-1/2 -translate-x-1/2 z-50 transition-all duration-700 w-[95%] sm:w-[90%] max-w-[1200px] px-4 sm:px-8 py-3 sm:py-4 rounded-full border border-white/5 backdrop-blur-2xl backdrop-blur-heavy ${scrolled ? 'bg-black/60 border-white/10' : 'bg-transparent'}`}
       >
         <div className="flex justify-between items-center">
           <div className="flex items-center gap-3">

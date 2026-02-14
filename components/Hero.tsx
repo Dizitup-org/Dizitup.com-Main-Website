@@ -1,11 +1,12 @@
 
 import React, { useRef } from 'react';
 import { motion, useScroll, useTransform } from 'framer-motion';
-import { Link } from 'react-router-dom';
 import { ArrowUpRight, Cpu } from 'lucide-react';
 import MagneticButton from './MagneticButton';
+import { useBooking } from '../contexts/BookingContext';
 
 const Hero: React.FC = () => {
+  const { openBooking } = useBooking();
   const targetRef = useRef(null);
   const { scrollYProgress } = useScroll({
     target: targetRef,
@@ -16,7 +17,7 @@ const Hero: React.FC = () => {
   const y = useTransform(scrollYProgress, [0, 0.3], [0, 100]);
 
   return (
-    <section ref={targetRef} className="relative min-h-[110vh] flex flex-col justify-center px-6 lg:px-20 pt-20">
+    <section ref={targetRef} className="relative min-h-screen lg:min-h-[110vh] flex flex-col justify-center px-4 sm:px-6 lg:px-20 pt-20 sm:pt-24">
       <div className="container mx-auto">
         <motion.div 
           style={{ opacity: textOpacity, y }}
@@ -38,33 +39,33 @@ const Hero: React.FC = () => {
             </div>
           </motion.div>
 
-          <h1 className="text-[12vw] lg:text-[10rem] font-heading font-bold leading-[0.8] tracking-[-0.04em] mb-12">
+          <h1 className="text-[11vw] sm:text-[12vw] lg:text-[10rem] font-heading font-bold leading-[0.85] sm:leading-[0.8] tracking-[-0.04em] mb-8 sm:mb-12 hero-title">
             POSITION <br />
             <span className="text-white/20 italic">WITH</span> LOGIC.
           </h1>
 
-          <div className="grid lg:grid-cols-2 gap-12 items-end">
+            <div className="grid lg:grid-cols-2 gap-8 sm:gap-12 items-end">
             <div className="space-y-6">
-              <p className="text-xl lg:text-3xl text-white leading-tight font-medium tracking-tight">
+              <p className="text-lg sm:text-xl lg:text-3xl text-white leading-tight font-medium tracking-tight">
                 Stop wondering where AI fits.
               </p>
-              <p className="text-lg lg:text-xl text-white/40 leading-snug font-light max-w-xl">
+              <p className="text-base sm:text-lg lg:text-xl text-white/40 leading-snug font-light max-w-xl">
                 Dizitup architects autonomous systems that automate your friction—reducing overhead so you can focus on building your empire.
               </p>
             </div>
             
-            <div className="flex flex-wrap gap-4 justify-end">
+            <div className="flex flex-col sm:flex-row flex-wrap gap-3 sm:gap-4 lg:justify-end">
               <MagneticButton>
-                <Link 
-                  to="/book" 
-                  className="px-10 py-5 bg-white text-black rounded-full font-bold text-xs uppercase tracking-widest hover:bg-red-600 hover:text-white transition-all duration-500 flex items-center gap-2 shadow-[0_20px_50px_rgba(255,255,255,0.1)]"
+                <button 
+                  onClick={() => openBooking('AI Strategy Call')}
+                  className="w-full sm:w-auto px-8 sm:px-10 py-4 sm:py-5 bg-white text-black rounded-full font-bold text-xs uppercase tracking-widest hover:bg-red-600 hover:text-white transition-all duration-500 flex items-center justify-center gap-2 shadow-[0_20px_50px_rgba(255,255,255,0.1)]"
                 >
                   Book a Free AI Strategy Call <ArrowUpRight className="w-4 h-4" />
-                </Link>
+                </button>
               </MagneticButton>
               <a 
                 href="#works" 
-                className="px-10 py-5 bg-transparent border border-white/10 text-white rounded-full font-bold text-xs uppercase tracking-widest hover:border-white transition-all"
+                className="w-full sm:w-auto px-8 sm:px-10 py-4 sm:py-5 bg-transparent border border-white/10 text-white rounded-full font-bold text-xs uppercase tracking-widest hover:border-white transition-all text-center"
               >
                 Our Work
               </a>

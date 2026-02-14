@@ -1,10 +1,10 @@
 
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Link } from 'react-router-dom';
 import { Cpu, Zap, Eye, Box, MousePointer2, Layers } from 'lucide-react';
+import { useBooking } from '../contexts/BookingContext';
 
-const BentoCard = ({ title, desc, icon: Icon, span, delay }: any) => (
+const BentoCard = ({ title, desc, icon: Icon, span, delay, onBook }: any) => (
   <motion.div
     initial={{ opacity: 0, y: 20 }}
     whileInView={{ opacity: 1, y: 0 }}
@@ -28,26 +28,19 @@ const BentoCard = ({ title, desc, icon: Icon, span, delay }: any) => (
 
     <div className="relative z-10 pt-8 mt-auto flex justify-between items-center">
       <span className="text-[10px] font-mono uppercase tracking-[0.3em] text-white/20 group-hover:text-red-500/50 transition-colors">Phase_0{delay * 10 + 1}</span>
-      {(() => {
-        const slug = String(title)
-          .toLowerCase()
-          .replace(/[^a-z0-9]+/g, '-')
-          .replace(/(^-|-$)/g, '');
-        return (
-          <Link
-            to={`/book?service=${encodeURIComponent(slug)}`}
-            aria-label={`Proceed to booking for ${title}`}
-            className="p-3 rounded-full bg-white/5 border border-white/10 opacity-0 group-hover:opacity-100 transition-all translate-y-4 group-hover:translate-y-0 focus:outline-none focus:ring-2 focus:ring-red-600/40"
-          >
-            <MousePointer2 className="w-4 h-4" />
-          </Link>
-        );
-      })()}
+      <button
+        onClick={() => onBook?.(title)}
+        aria-label={`Proceed to booking for ${title}`}
+        className="p-3 rounded-full bg-white/5 border border-white/10 opacity-0 group-hover:opacity-100 transition-all translate-y-4 group-hover:translate-y-0 focus:outline-none focus:ring-2 focus:ring-red-600/40"
+      >
+        <MousePointer2 className="w-4 h-4" />
+      </button>
     </div>
   </motion.div>
 );
 
 const Services: React.FC = () => {
+  const { openBooking } = useBooking();
   const cards = [
     {
       span: 'lg:col-span-2',
@@ -121,6 +114,7 @@ const Services: React.FC = () => {
               desc={card.desc}
               icon={card.icon}
               delay={(i + 1) * 0.1}
+              onBook={openBooking}
             />
           ))}
         </div>

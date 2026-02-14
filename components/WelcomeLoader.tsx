@@ -30,11 +30,11 @@ const WelcomeLoader: React.FC<Props> = ({ onComplete }) => {
     <motion.div 
       exit={{ y: '-100%' }}
       transition={{ duration: 1.2, ease: [0.85, 0, 0.15, 1] }}
-      className="fixed inset-0 z-[9999] bg-[#050505] flex flex-col items-center justify-center overflow-hidden"
+      className="fixed inset-0 z-[9999] bg-[#050505] flex flex-col items-center justify-center overflow-hidden mobile-fullscreen"
     >
       <div className="absolute inset-0 bg-grid opacity-10" />
       
-      <div className="relative z-10 text-center px-6">
+      <div className="relative z-10 text-center px-4 sm:px-6 max-w-full">
         <AnimatePresence mode="wait">
           {phase === 0 && (
             <motion.div
@@ -66,7 +66,7 @@ const WelcomeLoader: React.FC<Props> = ({ onComplete }) => {
               exit={{ opacity: 0, y: -20 }}
               className="max-w-2xl"
             >
-              <h2 className="text-3xl md:text-5xl font-heading font-bold tracking-tighter text-white/40 mb-6">
+              <h2 className="text-2xl sm:text-3xl md:text-5xl font-heading font-bold tracking-tighter text-white/40 mb-4 sm:mb-6">
                 LOST IN THE <span className="text-white">AI NOISE?</span>
               </h2>
               <p className="text-[10px] font-mono text-white/20 uppercase tracking-[0.3em]">We filter the hype. We install the growth.</p>
@@ -81,7 +81,7 @@ const WelcomeLoader: React.FC<Props> = ({ onComplete }) => {
               exit={{ opacity: 0, scale: 1.05, filter: 'blur(20px)' }}
               className="max-w-4xl"
             >
-              <h2 className="text-4xl md:text-6xl font-heading font-bold tracking-tighter leading-tight">
+              <h2 className="text-2xl sm:text-4xl md:text-6xl font-heading font-bold tracking-tighter leading-tight">
                 WE AUTOMATE THE <span className="text-red-600 uppercase">Friction.</span><br />
                 <span className="text-white/40 italic font-light">Focus on your business, not the chores.</span>
               </h2>
