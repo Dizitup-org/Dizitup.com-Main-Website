@@ -12,7 +12,6 @@ import PersonalizationFlow from '../components/PersonalizationFlow';
 import type { UserProfile, Country } from '../components/PersonalizationFlow';
 import Footer from '../components/Footer';
 import WelcomeLoader from '../components/WelcomeLoader';
-import FloatingAdminButton from '../components/FloatingAdminButton';
 import { useBooking } from '../contexts/BookingContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import { BrainCircuit, Zap, Target } from 'lucide-react';
@@ -177,7 +176,6 @@ const Home: React.FC = () => {
           </main>
 
           <Footer />
-          <FloatingAdminButton />
 
           {/* Booking Modal */}
           <BookingModal
