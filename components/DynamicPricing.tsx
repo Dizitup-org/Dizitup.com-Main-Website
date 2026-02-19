@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import { Check, Sparkles, Zap, BarChart3, BrainCircuit } from 'lucide-react';
 import type { Country } from './PersonalizationFlow';
 import { getPricingRegion, type PricingRegion } from './PersonalizationFlow';
+import TiltCard from './TiltCard';
 
 interface PricingTier {
   name: string;
@@ -86,7 +87,7 @@ const DynamicPricing: React.FC<Props> = ({ country, onBookCall }) => {
       {/* bg glow */}
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[900px] h-[900px] bg-red-600/[0.04] blur-[150px] rounded-full pointer-events-none" />
 
-        <div className="container mx-auto px-4 sm:px-6 relative z-10">
+      <div className="container mx-auto px-4 sm:px-6 relative z-10">
         {/* Header */}
         <div className="text-center max-w-3xl mx-auto mb-12 sm:mb-20">
           <motion.div
@@ -112,82 +113,80 @@ const DynamicPricing: React.FC<Props> = ({ country, onBookCall }) => {
           {CORE_TIERS.map((tier, i) => {
             const price = tier.pricing[pricingKey];
             return (
-              <motion.div
-                key={tier.name}
-                initial={{ opacity: 0, y: 40 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: i * 0.12 }}
-                className={`relative p-6 sm:p-8 md:p-10 lg:p-12 rounded-[1.5rem] sm:rounded-[2rem] lg:rounded-[2.5rem] border flex flex-col group transition-all duration-700 ${
-                  tier.popular
-                    ? 'bg-gradient-to-b from-white/[0.06] to-white/[0.02] border-red-600/40 shadow-[0_0_60px_-15px_rgba(220,38,38,0.25)]'
-                    : 'bg-white/[0.02] border-white/10 hover:border-white/20'
-                }`}
-              >
-                {/* Popular badge */}
-                {tier.popular && (
-                  <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-red-600 text-white px-5 py-1.5 rounded-full text-[10px] font-black tracking-widest uppercase shadow-lg z-20 whitespace-nowrap">
-                    Most Popular
-                  </div>
-                )}
-
-                {/* Icon + Name */}
-                <div className="flex items-center gap-3 mb-4">
-                  <div className={`p-2.5 rounded-xl ${tier.popular ? 'bg-red-600/20 text-red-400' : 'bg-white/5 text-white/50'}`}>
-                    {tier.icon}
-                  </div>
-                  <h3 className="text-lg font-bold tracking-tight uppercase text-white/60">{tier.name}</h3>
-                </div>
-
-                {/* Price */}
-                <div className="mb-6">
-                  <div className="flex items-baseline gap-3 flex-wrap">
-                    <span className="text-2xl sm:text-3xl lg:text-4xl font-heading font-bold text-white">{price.setup}</span>
-                    <span className="text-xs text-white/30 uppercase tracking-widest">Setup</span>
-                  </div>
-                  <p className="text-sm text-white/40 mt-1">
-                    + <span className="text-white/60 font-semibold">{price.monthly}</span>
-                  </p>
-                </div>
-
-                {/* Description */}
-                <p className="text-sm text-white/40 leading-relaxed font-light mb-8">{tier.description}</p>
-
-                {/* Features */}
-                <div className="space-y-4 mb-10 flex-grow">
-                  {tier.features.map((f, idx) => (
-                    <div key={idx} className="flex items-start gap-3">
-                      <div className={`mt-0.5 flex-shrink-0 w-4 h-4 rounded-full flex items-center justify-center ${
-                        tier.popular ? 'bg-red-600 text-white' : 'bg-white/10 text-red-500'
-                      }`}>
-                        <Check className="w-2.5 h-2.5" />
-                      </div>
-                      <span className="text-sm text-white/60 tracking-tight">{f}</span>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Note */}
-                {tier.note && (
-                  <p className="text-[11px] text-red-400/70 font-mono mb-6 px-4 py-3 rounded-xl bg-red-600/[0.06] border border-red-600/10">
-                    {tier.note}
-                  </p>
-                )}
-
-                {/* CTA */}
-                <motion.button
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  onClick={() => onBookCall(tier.name)}
-                  className={`w-full py-4 rounded-full font-bold text-sm uppercase tracking-widest transition-all ${
-                    tier.popular
-                      ? 'bg-red-600 text-white hover:bg-red-500 shadow-[0_0_30px_-5px_rgba(220,38,38,0.4)]'
-                      : 'bg-white/[0.05] border border-white/10 text-white hover:bg-white/10'
-                  }`}
+              <TiltCard key={tier.name} className="flex flex-col">
+                <motion.div
+                  initial={{ opacity: 0, y: 40 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: i * 0.12 }}
+                  className={`relative p-6 sm:p-8 md:p-10 lg:p-12 rounded-[1.5rem] sm:rounded-[2rem] lg:rounded-[2.5rem] border flex flex-col group transition-all duration-700 h-full ${tier.popular
+                      ? 'bg-gradient-to-b from-white/[0.06] to-white/[0.02] border-red-600/40 shadow-[0_0_60px_-15px_rgba(220,38,38,0.25)]'
+                      : 'bg-white/[0.02] border-white/10 hover:border-white/20'
+                    }`}
                 >
-                  Book Strategy Call
-                </motion.button>
-              </motion.div>
+                  {/* Popular badge */}
+                  {tier.popular && (
+                    <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-red-600 text-white px-5 py-1.5 rounded-full text-[10px] font-black tracking-widest uppercase shadow-lg z-20 whitespace-nowrap">
+                      Most Popular
+                    </div>
+                  )}
+
+                  {/* Icon + Name */}
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className={`p-2.5 rounded-xl ${tier.popular ? 'bg-red-600/20 text-red-400' : 'bg-white/5 text-white/50'}`}>
+                      {tier.icon}
+                    </div>
+                    <h3 className="text-lg font-bold tracking-tight uppercase text-white/60">{tier.name}</h3>
+                  </div>
+
+                  {/* Price */}
+                  <div className="mb-6">
+                    <div className="flex items-baseline gap-3 flex-wrap">
+                      <span className="text-2xl sm:text-3xl lg:text-4xl font-heading font-bold text-white">{price.setup}</span>
+                      <span className="text-xs text-white/30 uppercase tracking-widest">Setup</span>
+                    </div>
+                    <p className="text-sm text-white/40 mt-1">
+                      + <span className="text-white/60 font-semibold">{price.monthly}</span>
+                    </p>
+                  </div>
+
+                  {/* Description */}
+                  <p className="text-sm text-white/40 leading-relaxed font-light mb-8">{tier.description}</p>
+
+                  {/* Features */}
+                  <div className="space-y-4 mb-10 flex-grow">
+                    {tier.features.map((f, idx) => (
+                      <div key={idx} className="flex items-start gap-3">
+                        <div className={`mt-0.5 flex-shrink-0 w-4 h-4 rounded-full flex items-center justify-center ${tier.popular ? 'bg-red-600 text-white' : 'bg-white/10 text-red-500'
+                          }`}>
+                          <Check className="w-2.5 h-2.5" />
+                        </div>
+                        <span className="text-sm text-white/60 tracking-tight">{f}</span>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Note */}
+                  {tier.note && (
+                    <p className="text-[11px] text-red-400/70 font-mono mb-6 px-4 py-3 rounded-xl bg-red-600/[0.06] border border-red-600/10">
+                      {tier.note}
+                    </p>
+                  )}
+
+                  {/* CTA */}
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => onBookCall(tier.name)}
+                    className={`w-full py-4 rounded-full font-bold text-sm uppercase tracking-widest transition-all ${tier.popular
+                        ? 'bg-red-600 text-white hover:bg-red-500 shadow-[0_0_30px_-5px_rgba(220,38,38,0.4)]'
+                        : 'bg-white/[0.05] border border-white/10 text-white hover:bg-white/10'
+                      }`}
+                  >
+                    Book Strategy Call
+                  </motion.button>
+                </motion.div>
+              </TiltCard>
             );
           })}
         </div>

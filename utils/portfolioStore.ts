@@ -1,59 +1,94 @@
+import { supabase } from './supabaseClient';
+
 export type PortfolioProject = {
-  id: number;
+  id: string;
   title: string;
   category: string;
   link: string;
-  timestamp?: string;
+  display_order: number;
+  is_published: boolean;
+  created_at?: string;
 };
 
-const STORAGE_KEY = 'dizitup_portfolio';
-const EVENT_NAME = 'dizitup:portfolio-updated';
+// ── Fetch all published projects (public-facing) ──
+export async function getPublishedPortfolio(): Promise<PortfolioProject[]> {
+  const { data, error } = await supabase
+    .from('portfolio_projects')
+    .select('*')
+    .eq('is_published', true)
+    .order('display_order', { ascending: true });
 
-const safeParse = (raw: string | null): unknown => {
-  if (!raw) return [];
-  try {
-    return JSON.parse(raw);
-  } catch {
+  if (error) {
+    console.error('[getPublishedPortfolio] Error:', error);
     return [];
   }
-};
+  return data as PortfolioProject[];
+}
 
-export const getPortfolioProjects = (): PortfolioProject[] => {
-  if (typeof window === 'undefined') return [];
-  const parsed = safeParse(window.localStorage.getItem(STORAGE_KEY));
-  if (!Array.isArray(parsed)) return [];
+// ── Fetch ALL projects (admin view, includes unpublished) ──
+export async function getAllPortfolio(): Promise<PortfolioProject[]> {
+  const { data, error } = await supabase
+    .from('portfolio_projects')
+    .select('*')
+    .order('created_at', { ascending: false });
 
-  return parsed
-    .filter((p) => p && typeof p === 'object')
-    .map((p: any) => ({
-      id: typeof p.id === 'number' ? p.id : Number(p.id) || Date.now(),
-      title: typeof p.title === 'string' ? p.title : '',
-      category: typeof p.category === 'string' ? p.category : '',
-      link: typeof p.link === 'string' ? p.link : '',
-      timestamp: typeof p.timestamp === 'string' ? p.timestamp : undefined,
-    }))
-    .filter((p) => Boolean(p.title) && Boolean(p.link));
-};
+  if (error) {
+    console.error('[getAllPortfolio] Error:', error);
+    return [];
+  }
+  return data as PortfolioProject[];
+}
 
-export const setPortfolioProjects = (projects: PortfolioProject[]) => {
-  if (typeof window === 'undefined') return;
-  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(projects));
+// ── Add a new project ──
+export async function addPortfolioProject(
+  project: { title: string; category: string; link: string }
+): Promise<{ data: PortfolioProject | null; error: string | null }> {
+  const { data, error } = await supabase
+    .from('portfolio_projects')
+    .insert({
+      title: project.title,
+      category: project.category,
+      link: project.link,
+      is_published: true,
+      display_order: 0,
+    })
+    .select()
+    .single();
 
-  // Native storage event won't fire on the same tab; we broadcast our own.
-  window.dispatchEvent(new Event(EVENT_NAME));
-  // Keep the old listener pattern working too.
-  window.dispatchEvent(new Event('storage'));
-};
+  if (error) {
+    console.error('[addPortfolioProject] Error:', error);
+    return { data: null, error: error.message };
+  }
+  return { data: data as PortfolioProject, error: null };
+}
 
-export const subscribePortfolioProjects = (onChange: () => void) => {
-  if (typeof window === 'undefined') return () => undefined;
+// ── Delete a project ──
+export async function deletePortfolioProject(id: string): Promise<{ error: string | null }> {
+  const { error } = await supabase
+    .from('portfolio_projects')
+    .delete()
+    .eq('id', id);
 
-  const handler = () => onChange();
-  window.addEventListener(EVENT_NAME, handler);
-  window.addEventListener('storage', handler);
+  if (error) {
+    console.error('[deletePortfolioProject] Error:', error);
+    return { error: error.message };
+  }
+  return { error: null };
+}
 
-  return () => {
-    window.removeEventListener(EVENT_NAME, handler);
-    window.removeEventListener('storage', handler);
-  };
-};
+// ── Toggle published status ──
+export async function togglePortfolioPublished(
+  id: string,
+  isPublished: boolean
+): Promise<{ error: string | null }> {
+  const { error } = await supabase
+    .from('portfolio_projects')
+    .update({ is_published: isPublished })
+    .eq('id', id);
+
+  if (error) {
+    console.error('[togglePortfolioPublished] Error:', error);
+    return { error: error.message };
+  }
+  return { error: null };
+}

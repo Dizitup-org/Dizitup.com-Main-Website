@@ -1,5 +1,102 @@
 /* Premium UI enhancements: keep theme, fonts, layout; add glass, glow, and transitions */
 
+/* ═══════════════════════════════════════════
+   PREMIUM ANIMATIONS & EFFECTS
+   ═══════════════════════════════════════════ */
+
+/* Text shimmer sweep */
+@keyframes shimmer-sweep {
+  0% { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+
+.text-shimmer {
+  display: inline-block;
+  background: linear-gradient(
+    90deg,
+    rgba(255,255,255,1) 0%,
+    rgba(255,255,255,0.4) 40%,
+    rgba(255,255,255,1) 50%,
+    rgba(255,255,255,0.4) 60%,
+    rgba(255,255,255,1) 100%
+  );
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: shimmer-sweep 6s ease-in-out infinite;
+}
+
+/* Floating particles */
+@keyframes float-drift {
+  0%, 100% { transform: translate(0, 0) scale(1); opacity: 0.3; }
+  25% { transform: translate(30px, -40px) scale(1.1); opacity: 0.5; }
+  50% { transform: translate(-20px, -80px) scale(0.9); opacity: 0.3; }
+  75% { transform: translate(40px, -30px) scale(1.05); opacity: 0.45; }
+}
+
+.floating-particle {
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+  animation: float-drift var(--duration, 12s) ease-in-out infinite;
+  animation-delay: var(--delay, 0s);
+}
+
+/* Infinite marquee */
+@keyframes marquee-scroll {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+.marquee-track {
+  display: flex;
+  width: max-content;
+  animation: marquee-scroll 25s linear infinite;
+}
+
+.marquee-track:hover {
+  animation-play-state: paused;
+}
+
+/* Section divider glow line */
+.section-divider {
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(220, 38, 38, 0.3) 30%,
+    rgba(220, 38, 38, 0.6) 50%,
+    rgba(220, 38, 38, 0.3) 70%,
+    transparent 100%
+  );
+  opacity: 0.4;
+}
+
+/* Footer gradient glow */
+@keyframes footer-glow {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 0.7; }
+}
+
+.footer-glow-border {
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(220, 38, 38, 0.5),
+    rgba(255, 100, 100, 0.8),
+    rgba(220, 38, 38, 0.5),
+    transparent
+  );
+  animation: footer-glow 4s ease-in-out infinite;
+}
+
+/* Cursor glow hidden on mobile */
+@media (hover: none) {
+  .cursor-glow { display: none !important; }
+}
+
 .premium-btn {
   background: rgba(255,255,255,0.05);
   border: 1px solid rgba(255,255,255,0.15);

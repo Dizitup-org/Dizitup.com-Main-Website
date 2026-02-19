@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ExternalLink, ArrowRight, Globe, ShieldCheck, Activity } from 'lucide-react';
-import { getPortfolioProjects, subscribePortfolioProjects, type PortfolioProject } from '../utils/portfolioStore';
+import { getPublishedPortfolio, type PortfolioProject } from '../utils/portfolioStore';
 
 // Explicitly type ProjectCard as React.FC to handle the reserved 'key' prop correctly in TypeScript
 const ProjectCard: React.FC<{ project: PortfolioProject; index: number }> = ({ project, index }) => {
@@ -21,7 +21,7 @@ const ProjectCard: React.FC<{ project: PortfolioProject; index: number }> = ({ p
       {/* Dynamic Background Preview (Animated Gradient/Glass) */}
       <AnimatePresence>
         {isHovered && (
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, scale: 1.1 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0 }}
@@ -37,15 +37,15 @@ const ProjectCard: React.FC<{ project: PortfolioProject; index: number }> = ({ p
                 <div className="ml-2 text-[8px] font-mono text-white/20 truncate">{project.link}</div>
               </div>
               <div className="w-full h-full p-4 flex flex-col items-center justify-center text-center">
-                 <Globe className="w-8 h-8 text-white/5 mb-4 animate-pulse" />
-                 <p className="text-[8px] font-mono text-white/10 tracking-[0.3em] uppercase">Connecting to Secure Node...</p>
-                 <div className="mt-4 w-1/2 h-px bg-white/5 relative overflow-hidden">
-                    <motion.div 
-                      animate={{ x: ['-100%', '100%'] }}
-                      transition={{ repeat: Infinity, duration: 1.5 }}
-                      className="absolute inset-0 bg-red-600/40 w-1/2"
-                    />
-                 </div>
+                <Globe className="w-8 h-8 text-white/5 mb-4 animate-pulse" />
+                <p className="text-[8px] font-mono text-white/10 tracking-[0.3em] uppercase">Connecting to Secure Node...</p>
+                <div className="mt-4 w-1/2 h-px bg-white/5 relative overflow-hidden">
+                  <motion.div
+                    animate={{ x: ['-100%', '100%'] }}
+                    transition={{ repeat: Infinity, duration: 1.5 }}
+                    className="absolute inset-0 bg-red-600/40 w-1/2"
+                  />
+                </div>
               </div>
             </div>
           </motion.div>
@@ -62,9 +62,9 @@ const ProjectCard: React.FC<{ project: PortfolioProject; index: number }> = ({ p
             <span className="text-[8px] font-mono text-red-600 uppercase tracking-widest font-black">Live_Sync_Active</span>
           </div>
         </div>
-        <a 
-          href={project.link} 
-          target="_blank" 
+        <a
+          href={project.link}
+          target="_blank"
           rel="noopener noreferrer"
           className="p-3 rounded-full bg-white/5 border border-white/10 group-hover:bg-red-600 group-hover:border-red-600 transition-all"
         >
@@ -89,20 +89,19 @@ const ProjectCard: React.FC<{ project: PortfolioProject; index: number }> = ({ p
 const Portfolio: React.FC = () => {
   const [projects, setProjects] = useState<PortfolioProject[]>([]);
 
-  const loadProjects = () => {
-    setProjects(getPortfolioProjects());
-  };
-
   useEffect(() => {
-    loadProjects();
-    return subscribePortfolioProjects(loadProjects);
+    const load = async () => {
+      const data = await getPublishedPortfolio();
+      setProjects(data);
+    };
+    load();
   }, []);
 
   return (
     <section id="works" className="py-60 px-6 lg:px-20 bg-[#050505] relative overflow-hidden">
       {/* Background Decorative Element */}
       <div className="absolute top-0 right-0 w-[1000px] h-[1000px] bg-red-600/[0.02] blur-[150px] rounded-full -translate-y-1/2 translate-x-1/3" />
-      
+
       <div className="container mx-auto relative z-10">
         <div className="flex flex-col lg:flex-row justify-between items-start lg:items-end gap-10 mb-32">
           <div className="max-w-2xl">
@@ -112,11 +111,11 @@ const Portfolio: React.FC = () => {
             </h2>
           </div>
           <div className="space-y-6 max-w-sm">
-             <div className="flex items-center gap-3 text-white/20">
-                <ShieldCheck className="w-4 h-4" />
-                <span className="text-[10px] font-mono uppercase tracking-widest">Client Confidentiality Maintained</span>
-             </div>
-             <p className="text-white/30 text-sm font-light leading-relaxed">
+            <div className="flex items-center gap-3 text-white/20">
+              <ShieldCheck className="w-4 h-4" />
+              <span className="text-[10px] font-mono uppercase tracking-widest">Client Confidentiality Maintained</span>
+            </div>
+            <p className="text-white/30 text-sm font-light leading-relaxed">
               We architect custom growth engines. These are a few of the latest deployments where AI logic meets high-conversion design.
             </p>
           </div>
@@ -136,8 +135,8 @@ const Portfolio: React.FC = () => {
               </p>
             </div>
           )}
-          
-          <motion.div 
+
+          <motion.div
             whileHover={{ backgroundColor: 'rgba(220, 38, 38, 1)' }}
             className="p-12 lg:p-16 bg-white/[0.01] flex flex-col justify-center items-center text-center group cursor-pointer transition-colors duration-500 min-h-[400px]"
           >
@@ -145,7 +144,7 @@ const Portfolio: React.FC = () => {
               DEPLOY YOUR <br /> OWN SYSTEM.
             </h3>
             <div className="w-20 h-20 rounded-full border border-white/10 flex items-center justify-center group-hover:border-white transition-all duration-500 relative">
-               <div className="absolute inset-0 bg-white opacity-0 group-hover:opacity-10 rounded-full animate-ping" />
+              <div className="absolute inset-0 bg-white opacity-0 group-hover:opacity-10 rounded-full animate-ping" />
               <ArrowRight className="w-8 h-8 text-white group-hover:translate-x-2 transition-transform" />
             </div>
             <p className="mt-8 text-[10px] font-mono text-white/20 uppercase tracking-[0.3em] group-hover:text-white transition-colors">Apply for Intake</p>
