@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import AdminLayout from '../components/AdminLayout';
 import { getBookings, updateBookingStatus, deleteBooking, getQueryClients, getOnboardClients } from '../utils/clientsApi';
+import { subscribeToTable } from '../utils/realtime';
 import { Loader2, PhoneCall, CheckCircle, Trash2, Users, Inbox, Search, RefreshCw, ChevronLeft, ChevronRight, Calendar, Clock, UserCheck, AlertCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
 import type { BookingRow, QueryClientRow, OnboardClientRow } from '../types';
@@ -90,6 +91,52 @@ const AdminClients: React.FC = () => {
 
   useEffect(() => {
     refreshAll();
+    
+    // Realtime subscriptions for auto-syncing new bookings
+    const unsubBookings = subscribeToTable<BookingRow>(
+      'bookings',
+      (newBooking) => {
+        setBookings((prev) => [newBooking, ...prev]);
+        toast.success('New booking received!', { icon: '📥' });
+      },
+      (updatedBooking) => {
+        setBookings((prev) =>
+          prev.map((b) => (b.id === updatedBooking.id ? updatedBooking : b))
+        );
+      }
+    );
+
+    const unsubQueryClients = subscribeToTable<QueryClientRow>(
+      'query_clients',
+      (newClient) => {
+        setQueryClients((prev) => [newClient, ...prev]);
+        toast.success('New query client added!', { icon: '👤' });
+      },
+      (updatedClient) => {
+        setQueryClients((prev) =>
+          prev.map((c) => (c.id === updatedClient.id ? updatedClient : c))
+        );
+      }
+    );
+
+    const unsubOnboardClients = subscribeToTable<OnboardClientRow>(
+      'onboard_clients',
+      (newClient) => {
+        setClients((prev) => [newClient, ...prev]);
+        toast.success('New client onboarded!', { icon: '🎉' });
+      },
+      (updatedClient) => {
+        setClients((prev) =>
+          prev.map((c) => (c.id === updatedClient.id ? updatedClient : c))
+        );
+      }
+    );
+
+    return () => {
+      unsubBookings();
+      unsubQueryClients();
+      unsubOnboardClients();
+    };
   }, [refreshAll]);
 
   // Update URL when tab changes

@@ -6,6 +6,7 @@ import MagneticButton from './MagneticButton';
 import { ArrowLeft, User, ShieldAlert, Lock } from 'lucide-react';
 import { useAuth } from '../contexts/AuthProvider';
 import AuthModal from './AuthModal';
+import AdminWelcome from './AdminWelcome';
 
 const Navbar: React.FC = () => {
   const [expanded, setExpanded] = useState(false);
@@ -40,6 +41,7 @@ const Navbar: React.FC = () => {
   const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(() => {
     return localStorage.getItem('dizitup_auth') === 'true';
   });
+  const [showAdminWelcome, setShowAdminWelcome] = useState(false);
 
   const handleAdminLogin = (e: React.FormEvent) => {
     e.preventDefault();
@@ -51,11 +53,16 @@ const Navbar: React.FC = () => {
       setIsAdminLoggedIn(true);
       setAdminModalOpen(false);
       setAdminCreds({ user: '', pass: '' });
-      navigate('/admin');
+      setShowAdminWelcome(true);
     } else {
       setAdminError(true);
       setTimeout(() => setAdminError(false), 2000);
     }
+  };
+
+  const handleAdminWelcomeComplete = () => {
+    setShowAdminWelcome(false);
+    navigate('/admin');
   };
 
   const handleAdminLogout = () => {
@@ -69,6 +76,11 @@ const Navbar: React.FC = () => {
 
   return (
     <>
+      {/* Admin Welcome Animation */}
+      <AnimatePresence>
+        {showAdminWelcome && <AdminWelcome onComplete={handleAdminWelcomeComplete} />}
+      </AnimatePresence>
+
       {/* Progress bar */}
       <motion.div 
         className="fixed top-0 left-0 right-0 h-[1.5px] bg-red-600 z-[60] origin-left shadow-[0_0_10px_#ff0000]"
@@ -156,24 +168,13 @@ const Navbar: React.FC = () => {
                     <span>Profile</span>
                   </button>
                 ) : (
-                  <div className="relative">
-                    <button 
-                      onClick={() => setOpen((o) => !o)} 
-                      className="hover:text-white transition-colors flex items-center gap-1 whitespace-nowrap text-red-400"
-                    >
-                      <User className="w-4 h-4" />
-                      <span>Admin</span>
-                      <span className="text-[8px]">▼</span>
-                    </button>
-                    {open && (
-                      <div className="absolute right-0 mt-4 w-40 p-2 bg-black/95 border border-white/10 rounded-2xl backdrop-blur-xl z-[60] shadow-2xl">
-                        <Link to="/admin" className="block px-3 py-2 rounded-lg hover:bg-white/5 text-white/80 text-[10px]">Admin Panel</Link>
-                        <Link to="/admin/clients" className="block px-3 py-2 rounded-lg hover:bg-white/5 text-white/80 text-[10px]">Clients</Link>
-                        <Link to="/admin/portfolio" className="block px-3 py-2 rounded-lg hover:bg-white/5 text-white/80 text-[10px]">Portfolio</Link>
-                        <button onClick={handleAdminLogout} className="block w-full text-left px-3 py-2 rounded-lg hover:bg-white/5 text-red-400 text-[10px]">Logout</button>
-                      </div>
-                    )}
-                  </div>
+                  <Link 
+                    to="/admin" 
+                    className="hover:text-white transition-colors flex items-center gap-1 whitespace-nowrap text-red-400"
+                  >
+                    <User className="w-4 h-4" />
+                    <span>Admin</span>
+                  </Link>
                 )}
               </motion.div>
             )}

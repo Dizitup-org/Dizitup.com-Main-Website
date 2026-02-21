@@ -114,16 +114,14 @@ const AdminPortfolio: React.FC = () => {
               </div>
 
               <div className="space-y-2">
-                <label className="text-[9px] font-black uppercase tracking-widest text-white/40 ml-1">Logic_Sector</label>
-                <select
-                  className="w-full glass-input px-5 py-4 text-sm focus:outline-none font-mono appearance-none"
+                <label className="text-[9px] font-black uppercase tracking-widest text-white/40 ml-1">Brand_Type</label>
+                <input
+                  type="text"
                   value={newProject.category}
+                  placeholder="e.g. E-commerce, SaaS, Agency"
+                  className="w-full glass-input px-5 py-4 text-sm focus:outline-none font-mono"
                   onChange={(e) => setNewProject({ ...newProject, category: e.target.value })}
-                >
-                  <option className="bg-[#111]">AI Architecture</option>
-                  <option className="bg-[#111]">Revenue Systems</option>
-                  <option className="bg-[#111]">Visual Direction</option>
-                </select>
+                />
               </div>
 
               <button

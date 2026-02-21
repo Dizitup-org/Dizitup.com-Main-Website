@@ -8,15 +8,20 @@ import { getPublishedPortfolio, type PortfolioProject } from '../utils/portfolio
 const ProjectCard: React.FC<{ project: PortfolioProject; index: number }> = ({ project, index }) => {
   const [isHovered, setIsHovered] = useState(false);
 
+  const handleCardClick = () => {
+    window.open(project.link, '_blank', 'noopener,noreferrer');
+  };
+
   return (
     <motion.div
+      onClick={handleCardClick}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       initial={{ opacity: 0, y: 20 }}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true }}
       transition={{ delay: index * 0.1 }}
-      className="group relative bg-[#050505] p-10 lg:p-16 flex flex-col justify-between aspect-square border-r border-b border-white/5 hover:bg-white/[0.01] transition-all duration-700 overflow-hidden"
+      className="group relative bg-[#050505] p-10 lg:p-16 flex flex-col justify-between aspect-square border-r border-b border-white/5 hover:bg-white/[0.01] transition-all duration-700 overflow-hidden cursor-pointer"
     >
       {/* Dynamic Background Preview (Animated Gradient/Glass) */}
       <AnimatePresence>

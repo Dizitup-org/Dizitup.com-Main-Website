@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Supabase Database Test</title>
+  <style>
+    body { font-family: monospace; background: #1a1a2e; color: #eee; padding: 20px; }
+    .success { color: #4ade80; }
+    .error { color: #f87171; }
+    .warning { color: #fbbf24; }
+    .info { color: #60a5fa; }
+    pre { background: #0f0f1a; padding: 10px; border-radius: 8px; overflow-x: auto; }
+    h2 { border-bottom: 1px solid #333; padding-bottom: 10px; }
+  </style>
+</head>
+<body>
+  <h1>🔍 Supabase Database Connection Test</h1>
+  <div id="output"></div>
+
+  <script type="module">
+    import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+    
+    // Your Supabase credentials
+    const SUPABASE_URL = 'https://sbvrpetwhesnkyyombdf.supabase.co'
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNidnJwZXR3aGVzbmt5eW9tYmRmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk4NTY2NTcsImV4cCI6MjA4NTQzMjY1N30.p22z3jAcjkLvO52gloPrUN0eMeT1drrgLHbu9OruKbs'
+    
+    const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+    const output = document.getElementById('output')
+    
+    function log(message, type = 'info') {
+      output.innerHTML += `<p class="${type}">${message}</p>`
+    }
+    
+    function logPre(title, data) {
+      output.innerHTML += `<p><strong>${title}:</strong></p><pre>${JSON.stringify(data, null, 2)}</pre>`
+    }
+    
+    // Required tables based on your frontend code
+    const REQUIRED_TABLES = [
+      { name: 'bookings', description: 'Queries/Upcoming Meetings' },
+      { name: 'query_clients', description: 'Follow-up Clients' },
+      { name: 'onboard_clients', description: 'Active Clients' },
+      { name: 'projects', description: 'Client Projects' },
+      { name: 'sales', description: 'Project Sales' },
+      { name: 'profiles', description: 'User Profiles' },
+      { name: 'admins', description: 'Admin Users' },
+      { name: 'credits', description: 'User Credits' },
+      { name: 'portfolio', description: 'Portfolio Items' },
+    ]
+    
+    async function testConnection() {
+      log('🔌 Testing Supabase connection...', 'info')
+      
+      try {
+        // Simple health check
+        const { data, error } = await supabase.from('bookings').select('count', { count: 'exact', head: true })
+        if (error && error.code === '42P01') {
+          log('⚠️ Connected to Supabase, but "bookings" table does not exist', 'warning')
+        } else if (error) {
+          log(`⚠️ Connection issue: ${error.message}`, 'warning')
+        } else {
+          log('✅ Successfully connected to Supabase!', 'success')
+        }
+      } catch (err) {
+        log(`❌ Connection failed: ${err.message}`, 'error')
+        return false
+      }
+      return true
+    }
+    
+    async function checkTable(tableName) {
+      try {
+        const { data, error, count } = await supabase
+          .from(tableName)
+          .select('*', { count: 'exact', head: false })
+          .limit(3)
+        
+        if (error) {
+          if (error.code === '42P01') {
+            return { exists: false, error: 'Table does not exist' }
+          }
+          return { exists: true, error: error.message, data: null }
+        }
+        
+        return { exists: true, count: count || data?.length || 0, data, error: null }
+      } catch (err) {
+        return { exists: false, error: err.message }
+      }
+    }
+    
+    async function runTests() {
+      log('<h2>🚀 Starting Database Tests</h2>', 'info')
+      
+      // Test connection
+      const connected = await testConnection()
+      
+      log('<h2>📋 Required Tables Check</h2>', 'info')
+      
+      let missingTables = []
+      let existingTables = []
+      
+      for (const table of REQUIRED_TABLES) {
+        const result = await checkTable(table.name)
+        
+        if (result.exists && !result.error) {
+          log(`✅ <strong>${table.name}</strong> (${table.description}) - ${result.count} rows`, 'success')
+          existingTables.push(table.name)
+          if (result.data && result.data.length > 0) {
+            logPre(`Sample data from ${table.name}`, result.data)
+          }
+        } else if (result.exists && result.error) {
+          log(`⚠️ <strong>${table.name}</strong> exists but access denied: ${result.error}`, 'warning')
+          existingTables.push(table.name)
+        } else {
+          log(`❌ <strong>${table.name}</strong> (${table.description}) - MISSING: ${result.error}`, 'error')
+          missingTables.push(table.name)
+        }
+      }
+      
+      log('<h2>📊 Summary</h2>', 'info')
+      log(`Tables found: ${existingTables.length}/${REQUIRED_TABLES.length}`, existingTables.length === REQUIRED_TABLES.length ? 'success' : 'warning')
+      
+      if (missingTables.length > 0) {
+        log(`<br><strong>⚠️ Missing tables that need to be created:</strong>`, 'warning')
+        missingTables.forEach(t => log(`  - ${t}`, 'error'))
+        
+        log('<h2>🔧 SQL to Create Missing Tables</h2>', 'info')
+        output.innerHTML += `<pre>${generateSQL(missingTables)}</pre>`
+      } else {
+        log('✅ All required tables exist!', 'success')
+      }
+    }
+    
+    function generateSQL(tables) {
+      const sql = {
+        bookings: `-- Bookings table (Queries/Upcoming Meetings)
+CREATE TABLE IF NOT EXISTS bookings (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name TEXT,
+  email TEXT,
+  phone TEXT,
+  project_type TEXT,
+  notes TEXT,
+  meeting_date DATE,
+  meeting_time TIME,
+  status TEXT DEFAULT 'pending',
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Enable RLS
+ALTER TABLE bookings ENABLE ROW LEVEL SECURITY;
+
+-- Allow public inserts (for booking form)
+CREATE POLICY "Allow public inserts" ON bookings FOR INSERT WITH CHECK (true);
+
+-- Allow authenticated reads
+CREATE POLICY "Allow authenticated reads" ON bookings FOR SELECT TO authenticated USING (true);
+`,
+        query_clients: `-- Query Clients table (Follow-ups)
+CREATE TABLE IF NOT EXISTS query_clients (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name TEXT,
+  email TEXT,
+  phone TEXT,
+  follow_up_date DATE,
+  status TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE query_clients ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Allow authenticated access" ON query_clients FOR ALL TO authenticated USING (true);
+`,
+        onboard_clients: `-- Onboard Clients table (Active Clients)
+CREATE TABLE IF NOT EXISTS onboard_clients (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  company_name TEXT,
+  contact_name TEXT,
+  email TEXT,
+  phone TEXT,
+  onboarded_at TIMESTAMPTZ DEFAULT NOW(),
+  status TEXT DEFAULT 'Active',
+  username TEXT,
+  avatar_url TEXT,
+  start_date DATE,
+  admin_notes TEXT,
+  feedback TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE onboard_clients ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Allow authenticated access" ON onboard_clients FOR ALL TO authenticated USING (true);
+`,
+        projects: `-- Projects table
+CREATE TABLE IF NOT EXISTS projects (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  client_id UUID REFERENCES onboard_clients(id) ON DELETE CASCADE,
+  title TEXT,
+  description TEXT,
+  status TEXT DEFAULT 'active',
+  start_date DATE,
+  end_date DATE,
+  deadline DATE,
+  total_amount NUMERIC
+);
+
+ALTER TABLE projects ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Allow authenticated access" ON projects FOR ALL TO authenticated USING (true);
+`,
+        sales: `-- Sales table
+CREATE TABLE IF NOT EXISTS sales (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  project_id UUID REFERENCES projects(id) ON DELETE CASCADE,
+  amount NUMERIC,
+  paid_amount NUMERIC,
+  pending_amount NUMERIC,
+  expenses NUMERIC,
+  payment_date DATE,
+  payment_method TEXT,
+  notes TEXT
+);
+
+ALTER TABLE sales ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Allow authenticated access" ON sales FOR ALL TO authenticated USING (true);
+`,
+        profiles: `-- User Profiles table
+CREATE TABLE IF NOT EXISTS profiles (
+  id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  email TEXT,
+  first_name TEXT,
+  last_name TEXT,
+  username TEXT UNIQUE,
+  business_name TEXT,
+  phone TEXT,
+  avatar_url TEXT,
+  subscription TEXT,
+  credits INTEGER DEFAULT 0,
+  joined_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
+
+-- Users can read/update their own profile
+CREATE POLICY "Users can view own profile" ON profiles FOR SELECT USING (auth.uid() = id);
+CREATE POLICY "Users can update own profile" ON profiles FOR UPDATE USING (auth.uid() = id);
+CREATE POLICY "Users can insert own profile" ON profiles FOR INSERT WITH CHECK (auth.uid() = id);
+`,
+        admins: `-- Admins table
+CREATE TABLE IF NOT EXISTS admins (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE admins ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Allow authenticated reads" ON admins FOR SELECT TO authenticated USING (true);
+`,
+        credits: `-- User Credits table
+CREATE TABLE IF NOT EXISTS credits (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+  credits INTEGER DEFAULT 0,
+  UNIQUE(user_id)
+);
+
+ALTER TABLE credits ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Users can view own credits" ON credits FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "Users can update own credits" ON credits FOR UPDATE USING (auth.uid() = user_id);
+`,
+        portfolio: `-- Portfolio table
+CREATE TABLE IF NOT EXISTS portfolio (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  title TEXT,
+  description TEXT,
+  image_url TEXT,
+  category TEXT,
+  link TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE portfolio ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Allow public reads" ON portfolio FOR SELECT USING (true);
+CREATE POLICY "Allow authenticated writes" ON portfolio FOR ALL TO authenticated USING (true);
+`
+      }
+      
+      return tables.map(t => sql[t] || `-- No SQL template for ${t}`).join('\n')
+    }
+    
+    runTests()
+  </script>
+</body>
+</html>

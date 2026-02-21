@@ -19,8 +19,7 @@
     "react-dom": "^19.2.3",
     "react-hot-toast": "^2.6.0",
     "react-router-dom": "^7.11.0",
-    "recharts": "^3.6.0",
-    "vite_react_shadcn_ts": "file:../../ebitez/ebitez-chow-time-today-main"
+    "recharts": "^3.6.0"
   },
   "devDependencies": {
     "@types/qrcode": "^1.5.6",

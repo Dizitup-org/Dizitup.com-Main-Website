@@ -1,13 +1,15 @@
 
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { ShieldAlert, Terminal, Lock } from 'lucide-react';
+import AdminWelcome from '../components/AdminWelcome';
 
 const AdminLogin: React.FC = () => {
   const navigate = useNavigate();
   const [creds, setCreds] = useState({ user: '', pass: '' });
   const [error, setError] = useState(false);
+  const [showWelcome, setShowWelcome] = useState(false);
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
@@ -16,14 +18,23 @@ const AdminLogin: React.FC = () => {
 
     if (creds.user === expectedUser && creds.pass === expectedToken) {
       localStorage.setItem('dizitup_auth', 'true');
-      navigate('/admin');
+      setShowWelcome(true);
     } else {
       setError(true);
       setTimeout(() => setError(false), 2000);
     }
   };
 
+  const handleWelcomeComplete = () => {
+    navigate('/admin');
+  };
+
   return (
+    <>
+      <AnimatePresence>
+        {showWelcome && <AdminWelcome onComplete={handleWelcomeComplete} />}
+      </AnimatePresence>
+
     <div className="min-h-screen bg-[#050505] flex items-center justify-center p-6">
       <div className="absolute inset-0 bg-grid opacity-5 pointer-events-none" />
       
@@ -88,6 +99,7 @@ const AdminLogin: React.FC = () => {
         </div>
       </motion.div>
     </div>
+    </>
   );
 };
 

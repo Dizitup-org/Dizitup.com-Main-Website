@@ -1,7 +1,19 @@
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronDown, ArrowRight, Sparkles, Search } from 'lucide-react';
+import { supabase } from '../utils/supabaseClient';
+
+// Generate or retrieve unique device ID
+const getDeviceId = (): string => {
+  const key = 'dizitup_device_id';
+  let deviceId = localStorage.getItem(key);
+  if (!deviceId) {
+    deviceId = `device_${Date.now()}_${Math.random().toString(36).substring(2, 15)}`;
+    localStorage.setItem(key, deviceId);
+  }
+  return deviceId;
+};
 
 // ── Pricing regions (internal pricing buckets) ──
 export type PricingRegion = 'India' | 'United States' | 'Europe' | 'Other';
@@ -149,6 +161,63 @@ const PersonalizationFlow: React.FC<Props> = ({ onComplete }) => {
   const [countrySearch, setCountrySearch] = useState('');
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState('');
+  const [existingProfile, setExistingProfile] = useState<UserProfile | null>(null);
+  const [checkingProfile, setCheckingProfile] = useState(true);
+
+  // Check for existing visitor profile on mount
+  useEffect(() => {
+    const checkExistingProfile = async () => {
+      try {
+        const deviceId = getDeviceId();
+        const { data, error } = await supabase
+          .from('visitor_profiles')
+          .select('*')
+          .eq('device_id', deviceId)
+          .limit(1)
+          .single();
+        
+        if (data && !error) {
+          // Found existing profile - auto-complete the flow
+          const profile: UserProfile = {
+            name: data.name,
+            agencySize: data.agency_size as AgencySize,
+            country: data.country as Country,
+          };
+          setExistingProfile(profile);
+          setName(data.name);
+          setAgencySize(data.agency_size as AgencySize);
+          setCountry(data.country as Country);
+          // Auto-complete immediately for returning visitors
+          onComplete(profile);
+        }
+      } catch (err) {
+        // No existing profile found, show form
+        console.log('No existing profile, showing form');
+      } finally {
+        setCheckingProfile(false);
+      }
+    };
+    checkExistingProfile();
+  }, [onComplete]);
+
+  // Save profile to Supabase
+  const saveVisitorProfile = async (profile: UserProfile) => {
+    try {
+      const deviceId = getDeviceId();
+      await supabase
+        .from('visitor_profiles')
+        .upsert({
+          device_id: deviceId,
+          name: profile.name,
+          agency_size: profile.agencySize,
+          country: profile.country,
+          updated_at: new Date().toISOString(),
+        }, { onConflict: 'device_id' });
+      console.log('✅ Visitor profile saved to Supabase');
+    } catch (err) {
+      console.error('Failed to save visitor profile:', err);
+    }
+  };
 
   const handleSubmit = useCallback(() => {
     if (!name.trim()) { setError('Please enter your name.'); return; }
@@ -156,6 +225,10 @@ const PersonalizationFlow: React.FC<Props> = ({ onComplete }) => {
     if (!country) { setError('Please select your country.'); return; }
     setError('');
     setPhase('loading');
+
+    // Save profile to Supabase
+    const profile: UserProfile = { name: name.trim(), agencySize: agencySize as AgencySize, country: country as Country };
+    saveVisitorProfile(profile);
 
     // Animated progress bar over ~2.5s
     let p = 0;
@@ -173,6 +246,24 @@ const PersonalizationFlow: React.FC<Props> = ({ onComplete }) => {
   const handleContinue = useCallback(() => {
     onComplete({ name: name.trim(), agencySize: agencySize as AgencySize, country: country as Country });
   }, [name, agencySize, country, onComplete]);
+
+  // Don't render anything while checking for existing profile (prevents flash)
+  if (checkingProfile) {
+    return (
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        className="fixed inset-0 z-[9998] flex items-center justify-center bg-[#050505]"
+      >
+        <div className="w-8 h-8 border-2 border-red-600 border-t-transparent rounded-full animate-spin" />
+      </motion.div>
+    );
+  }
+
+  // If existing profile was found and auto-completed, don't render
+  if (existingProfile) {
+    return null;
+  }
 
   return (
     <motion.div

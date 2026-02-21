@@ -1,6 +1,81 @@
 import { supabase } from './supabaseClient';
 import type { BookingRow, QueryClientRow, OnboardClientRow, ProjectRow, SaleRow } from '../types';
 
+// ============ ADMIN SALES (Direct sales entries) ============
+
+export interface AdminSaleEntry {
+  id?: string;
+  client_name: string;
+  service: string;
+  amount: number;
+  type: 'Retainer' | 'One-time' | 'Consulting';
+  status: 'Paid' | 'Pending';
+  sale_date: string;
+  notes?: string;
+  created_at?: string;
+}
+
+export async function getAdminSales(): Promise<{ data: AdminSaleEntry[] | null; error: string | null }> {
+  try {
+    const { data, error } = await supabase
+      .from('admin_sales')
+      .select('*')
+      .order('sale_date', { ascending: false });
+
+    if (error) throw error;
+    return { data: data as AdminSaleEntry[], error: null };
+  } catch (err: any) {
+    console.error('[getAdminSales] Error:', err);
+    return { data: null, error: err.message || 'Failed to fetch sales' };
+  }
+}
+
+export async function addAdminSale(sale: Omit<AdminSaleEntry, 'id' | 'created_at'>): Promise<{ data: AdminSaleEntry | null; error: string | null }> {
+  try {
+    const { data, error } = await supabase
+      .from('admin_sales')
+      .insert(sale)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return { data: data as AdminSaleEntry, error: null };
+  } catch (err: any) {
+    console.error('[addAdminSale] Error:', err);
+    return { data: null, error: err.message || 'Failed to add sale' };
+  }
+}
+
+export async function updateAdminSale(id: string, updates: Partial<AdminSaleEntry>): Promise<{ error: string | null }> {
+  try {
+    const { error } = await supabase
+      .from('admin_sales')
+      .update(updates)
+      .eq('id', id);
+
+    if (error) throw error;
+    return { error: null };
+  } catch (err: any) {
+    console.error('[updateAdminSale] Error:', err);
+    return { error: err.message || 'Failed to update sale' };
+  }
+}
+
+export async function deleteAdminSale(id: string): Promise<{ error: string | null }> {
+  try {
+    const { error } = await supabase
+      .from('admin_sales')
+      .delete()
+      .eq('id', id);
+
+    if (error) throw error;
+    return { error: null };
+  } catch (err: any) {
+    console.error('[deleteAdminSale] Error:', err);
+    return { error: err.message || 'Failed to delete sale' };
+  }
+}
+
 // ============ BOOKINGS (Queries/Upcoming Meetings) ============
 
 export async function getBookings(): Promise<{ data: BookingRow[] | null; error: string | null }> {

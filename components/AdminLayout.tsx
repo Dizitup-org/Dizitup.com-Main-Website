@@ -81,10 +81,10 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, title }) => {
             </div>
             <div className="flex items-center gap-3 border-l border-white/10 pl-6">
               <div className="text-right">
-                <p className="text-sm font-bold">Arjun Das</p>
+                <p className="text-sm font-bold">Roy Brothers</p>
                 <p className="text-[10px] text-white/30">Founder</p>
               </div>
-              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-red-600 to-red-900 flex items-center justify-center font-bold text-sm">AD</div>
+              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-red-600 to-red-900 flex items-center justify-center font-bold text-sm">RB</div>
             </div>
           </div>
         </header>

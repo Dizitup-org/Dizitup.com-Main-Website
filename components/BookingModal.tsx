@@ -17,8 +17,26 @@ interface BookingData {
   created_at: Date;
 }
 
+// Convert "09:00 AM" to "09:00:00" (24-hour format for database)
+function convertTo24Hour(time12h: string): string {
+  if (!time12h) return '09:00:00';
+  const [time, modifier] = time12h.split(' ');
+  let [hours, minutes] = time.split(':');
+  let hoursNum = parseInt(hours, 10);
+  
+  if (modifier === 'PM' && hoursNum !== 12) {
+    hoursNum += 12;
+  } else if (modifier === 'AM' && hoursNum === 12) {
+    hoursNum = 0;
+  }
+  
+  return `${String(hoursNum).padStart(2, '0')}:${minutes || '00'}:00`;
+}
+
 // Insert booking into Supabase bookings table
 async function submitBooking(data: BookingData): Promise<{ success: boolean; error?: string }> {
+  console.log('🚀 submitBooking called with:', data);
+  
   try {
     const notesWithContext = [
       data.agency ? `Agency: ${data.agency}` : '',
@@ -26,18 +44,39 @@ async function submitBooking(data: BookingData): Promise<{ success: boolean; err
       data.notes || '',
     ].filter(Boolean).join(' | ');
 
-    const { error } = await supabase.from('bookings').insert({
+    // Convert time to 24-hour format for database
+    const time24 = convertTo24Hour(data.time);
+
+    const insertData = {
       name: data.name,
       email: data.email,
+      agency: data.agency || null,
       project_type: data.package || null,
       notes: notesWithContext || null,
       meeting_date: data.date || null,
-      meeting_time: data.time || null,
+      meeting_time: time24,
       status: 'pending',
-    });
+    };
 
-    if (error) throw error;
-    console.log('✅ Booking saved to Supabase:', data);
+    console.log('📤 Inserting to Supabase:', insertData);
+
+    // Add timeout wrapper
+    const timeoutPromise = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('Request timeout - please check your connection')), 10000)
+    );
+
+    const insertPromise = supabase.from('bookings').insert(insertData).select();
+    
+    const result = await Promise.race([insertPromise, timeoutPromise]) as any;
+    
+    console.log('📥 Supabase response:', result);
+
+    if (result.error) {
+      console.error('❌ Supabase error:', result.error);
+      throw result.error;
+    }
+    
+    console.log('✅ Booking saved to Supabase:', result.data);
     return { success: true };
   } catch (err: any) {
     console.error('❌ Booking insert failed:', err);
