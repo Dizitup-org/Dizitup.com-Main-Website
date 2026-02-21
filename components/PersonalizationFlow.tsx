@@ -166,16 +166,27 @@ const PersonalizationFlow: React.FC<Props> = ({ onComplete }) => {
 
   // Check for existing visitor profile on mount
   useEffect(() => {
+    let isCancelled = false;
+
     const checkExistingProfile = async () => {
       try {
         const deviceId = getDeviceId();
-        const { data, error } = await supabase
+
+        const fetchPromise = supabase
           .from('visitor_profiles')
           .select('*')
           .eq('device_id', deviceId)
           .limit(1)
           .single();
-        
+
+        const timeoutPromise = new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('Profile check timeout')), 2500)
+        );
+
+        const { data, error } = await Promise.race([fetchPromise, timeoutPromise]) as any;
+
+        if (isCancelled) return;
+
         if (data && !error) {
           // Found existing profile - auto-complete the flow
           const profile: UserProfile = {
@@ -189,15 +200,28 @@ const PersonalizationFlow: React.FC<Props> = ({ onComplete }) => {
           setCountry(data.country as Country);
           // Auto-complete immediately for returning visitors
           onComplete(profile);
+        } else if (error) {
+          console.log('No existing profile found. Showing form.', error.message);
         }
-      } catch (err) {
-        // No existing profile found, show form
-        console.log('No existing profile, showing form');
+      } catch (err: any) {
+        if (isCancelled) return;
+        if (err.name === 'AbortError') {
+          console.warn('Profile check aborted');
+        } else {
+          // No existing profile found, show form
+          console.error('Failed to check existing profile:', err);
+        }
       } finally {
-        setCheckingProfile(false);
+        if (!isCancelled) {
+          setCheckingProfile(false);
+        }
       }
     };
     checkExistingProfile();
+
+    return () => {
+      isCancelled = true;
+    };
   }, [onComplete]);
 
   // Save profile to Supabase
@@ -260,9 +284,16 @@ const PersonalizationFlow: React.FC<Props> = ({ onComplete }) => {
     );
   }
 
-  // If existing profile was found and auto-completed, don't render
+  // If existing profile was found and auto-completed, render an empty motion component
+  // so AnimatePresence can still animate it out cleanly instead of getting stuck.
   if (existingProfile) {
-    return null;
+    return (
+      <motion.div
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.5 }}
+        className="fixed inset-0 z-[9998] pointer-events-none"
+      />
+    );
   }
 
   return (
@@ -405,9 +436,8 @@ const PersonalizationFlow: React.FC<Props> = ({ onComplete }) => {
                                   )}
                                   <button
                                     onClick={() => { setCountry(c.name); setCountryOpen(false); setCountrySearch(''); }}
-                                    className={`w-full px-5 py-2.5 text-left text-sm hover:bg-white/10 transition-colors flex items-center gap-2.5 ${
-                                      country === c.name ? 'bg-red-600/10 text-red-400' : 'text-white/70 hover:text-white'
-                                    }`}
+                                    className={`w-full px-5 py-2.5 text-left text-sm hover:bg-white/10 transition-colors flex items-center gap-2.5 ${country === c.name ? 'bg-red-600/10 text-red-400' : 'text-white/70 hover:text-white'
+                                      }`}
                                   >
                                     <span className="text-base leading-none">{c.flag}</span>
                                     <span>{c.name}</span>

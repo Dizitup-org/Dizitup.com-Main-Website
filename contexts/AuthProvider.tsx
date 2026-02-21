@@ -73,21 +73,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [])
 
   const refreshRoleAndProfile = async (uid: string) => {
-    // Role check via admins table
-    const { data: adminRows } = await supabase
-      .from('admins')
-      .select('user_id')
-      .eq('user_id', uid)
-      .limit(1)
-    setIsAdmin(Boolean(adminRows && adminRows.length > 0))
+    try {
+      // Role check via admins table
+      const { data: adminRows } = await supabase
+        .from('admins')
+        .select('user_id')
+        .eq('user_id', uid)
+        .limit(1)
+      setIsAdmin(Boolean(adminRows && adminRows.length > 0))
 
-    // Profile fetch by auth.uid()
-    const { data: prof } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', uid)
-      .limit(1)
-    setProfile((prof && prof[0]) || null)
+      // Profile fetch by auth.uid()
+      const { data: prof } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', uid)
+        .limit(1)
+      setProfile((prof && prof[0]) || null)
+    } catch (err: any) {
+      if (err.name === 'AbortError') {
+        console.warn('refreshRoleAndProfile aborted');
+      } else {
+        console.error('refreshRoleAndProfile error:', err);
+      }
+    }
   }
 
   const signUp = async (email: string, password: string) => {
