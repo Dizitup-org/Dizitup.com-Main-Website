@@ -8,6 +8,7 @@ import AdminSales from './pages/AdminSales';
 import AdminPortfolio from './pages/AdminPortfolio';
 import AdminClients from './pages/AdminClients';
 import AdminClientDetail from './pages/AdminClientDetail';
+import AdminLogin from './pages/AdminLogin';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import { AuthProvider } from './contexts/AuthProvider';
@@ -26,6 +27,7 @@ const App: React.FC = () => {
             <Route path="/" element={<Home />} />
             <Route path="/book" element={<Book />} />
             <Route path="/login" element={<Login />} />
+            <Route path="/admin-login" element={<AdminLogin />} />
 
             {/* User Dashboard (auth only) */}
             <Route

@@ -38,25 +38,24 @@ const Navbar: React.FC = () => {
   const [adminModalOpen, setAdminModalOpen] = useState(false);
   const [adminCreds, setAdminCreds] = useState({ user: '', pass: '' });
   const [adminError, setAdminError] = useState(false);
-  const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(() => {
-    return localStorage.getItem('dizitup_auth') === 'true';
-  });
+  const [adminLoading, setAdminLoading] = useState(false);
   const [showAdminWelcome, setShowAdminWelcome] = useState(false);
 
-  const handleAdminLogin = (e: React.FormEvent) => {
+  const handleAdminLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    const expectedUser = (import.meta as any).env?.User_ID || '';
-    const expectedToken = (import.meta as any).env?.Secure_Token || '';
-
-    if (adminCreds.user === expectedUser && adminCreds.pass === expectedToken) {
-      localStorage.setItem('dizitup_auth', 'true');
-      setIsAdminLoggedIn(true);
+    setAdminLoading(true);
+    setAdminError(false);
+    
+    try {
+      await signIn(adminCreds.user, adminCreds.pass);
       setAdminModalOpen(false);
       setAdminCreds({ user: '', pass: '' });
       setShowAdminWelcome(true);
-    } else {
+    } catch (err) {
       setAdminError(true);
       setTimeout(() => setAdminError(false), 2000);
+    } finally {
+      setAdminLoading(false);
     }
   };
 
@@ -66,8 +65,7 @@ const Navbar: React.FC = () => {
   };
 
   const handleAdminLogout = () => {
-    localStorage.removeItem('dizitup_auth');
-    setIsAdminLoggedIn(false);
+    signOut();
     setOpen(false);
     navigate('/');
   };
@@ -159,7 +157,7 @@ const Navbar: React.FC = () => {
                 ))}
                 
                 {/* Profile Button */}
-                {!isAdminLoggedIn ? (
+                {!isAdmin ? (
                   <button 
                     onClick={() => setAdminModalOpen(true)} 
                     className="hover:text-white transition-colors flex items-center gap-1 whitespace-nowrap text-white/70"
@@ -218,32 +216,35 @@ const Navbar: React.FC = () => {
 
               <form onSubmit={handleAdminLogin} className="space-y-5">
                 <div className="space-y-2">
-                  <label className="text-[9px] font-black uppercase tracking-widest text-white/40 ml-2">User_ID</label>
+                  <label className="text-[9px] font-black uppercase tracking-widest text-white/40 ml-2">Email</label>
                   <input 
-                    type="text" 
-                    placeholder="Enter username"
+                    type="email" 
+                    placeholder="roybrothers@gmail.com"
                     value={adminCreds.user}
                     className="w-full bg-white/5 border border-white/10 rounded-xl px-5 py-4 focus:outline-none focus:border-red-600 transition-all font-mono text-sm text-white placeholder:text-white/20"
                     onChange={(e) => setAdminCreds({...adminCreds, user: e.target.value})}
+                    required
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-[9px] font-black uppercase tracking-widest text-white/40 ml-2">Secure_Token</label>
+                  <label className="text-[9px] font-black uppercase tracking-widest text-white/40 ml-2">Password</label>
                   <input 
                     type="password" 
                     placeholder="••••••••"
                     value={adminCreds.pass}
                     className="w-full bg-white/5 border border-white/10 rounded-xl px-5 py-4 focus:outline-none focus:border-red-600 transition-all font-mono text-sm text-white placeholder:text-white/20"
                     onChange={(e) => setAdminCreds({...adminCreds, pass: e.target.value})}
+                    required
                   />
                 </div>
 
                 <button 
                   type="submit"
-                  className="w-full py-4 bg-red-600 text-white rounded-xl font-bold uppercase tracking-[0.2em] text-[10px] hover:bg-red-700 transition-all shadow-xl shadow-red-600/30 mt-2"
+                  disabled={adminLoading}
+                  className="w-full py-4 bg-red-600 text-white rounded-xl font-bold uppercase tracking-[0.2em] text-[10px] hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-xl shadow-red-600/30 mt-2"
                 >
-                  Authenticate
+                  {adminLoading ? 'Authenticating...' : 'Authenticate'}
                 </button>
               </form>
 

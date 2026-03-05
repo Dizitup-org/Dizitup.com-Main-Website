@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react'
 import QrScanner from 'qr-scanner'
-import { supabase } from '../utils/supabaseClient'
+import { api } from '../utils/apiClient'
 import toast from 'react-hot-toast'
 
 const AdminScanner: React.FC = () => {
@@ -14,14 +14,12 @@ const AdminScanner: React.FC = () => {
       try {
         const payload = JSON.parse(res)
         const uid = String(payload.uid)
-        const scanDate = new Date().toISOString().slice(0, 10) // YYYY-MM-DD
-        const { error } = await supabase
-          .from('attendance_logs')
-          .upsert(
-            { user_id: uid, scan_date: scanDate, scanned_at: new Date().toISOString() },
-            { onConflict: 'user_id,scan_date' }
-          )
-        if (error) throw error
+        const scanDate = new Date().toISOString().slice(0, 10)
+        await api.post('/api/admin/attendance', {
+          user_id: uid,
+          scan_date: scanDate,
+          scanned_at: new Date().toISOString(),
+        })
         toast.success(`Attendance recorded for ${uid}`)
       } catch (e: any) {
         toast.error(e?.message || 'Scan error')

@@ -1,23 +1,14 @@
-import { supabase } from './supabaseClient'
+// utils/realtime.ts — Supabase realtime replaced with no-op stub.
+// Real-time updates can be implemented via SSE or polling from the backend when available.
 
 export function subscribeToTable<T = any>(
-  table: string, 
-  onInsert?: (payload: T) => void, 
-  onUpdate?: (payload: T) => void,
-  onDelete?: (payload: { id: string }) => void
-) {
-  const channel = supabase.channel(`realtime:${table}`)
-    .on('postgres_changes', { event: 'INSERT', schema: 'public', table }, (payload) => {
-      onInsert?.(payload.new as T)
-    })
-    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table }, (payload) => {
-      onUpdate?.(payload.new as T)
-    })
-    .on('postgres_changes', { event: 'DELETE', schema: 'public', table }, (payload) => {
-      onDelete?.(payload.old as { id: string })
-    })
-    .subscribe()
-  return () => {
-    supabase.removeChannel(channel)
-  }
+  _table: string,
+  _onInsert?: (payload: T) => void,
+  _onUpdate?: (payload: T) => void,
+  _onDelete?: (payload: { id: string }) => void
+): () => void {
+  // No-op: backend does not yet expose WebSocket/SSE channels.
+  // Components should re-fetch data manually on user actions.
+  return () => {};
 }
+

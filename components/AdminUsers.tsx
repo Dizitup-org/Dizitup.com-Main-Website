@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { supabase } from '../utils/supabaseClient'
+import { api } from '../utils/apiClient'
 
 type ProfileRow = {
   id: string
@@ -16,18 +16,16 @@ const AdminUsers: React.FC = () => {
   const [rows, setRows] = useState<ProfileRow[]>([])
   const [count, setCount] = useState<number>(0)
   useEffect(() => {
-    const fetch = async () => {
-      // Requires RLS policy allowing admins to select all profiles
-      const { data } = await supabase
-        .from('profiles')
-        .select('id,email,first_name,last_name,username,business_name,phone,joined_at', { count: 'exact' })
-        .order('joined_at', { ascending: false })
-        .limit(10)
-      setRows(data || [])
-      // Count will be available via header if policy allows; fallback to rows length
-      setCount((data as any)?.length ?? rows.length)
+    const fetchUsers = async () => {
+      try {
+        const res = await api.get<{ users: ProfileRow[]; count: number }>('/api/admin/users')
+        setRows(res.users || [])
+        setCount(res.count ?? res.users?.length ?? 0)
+      } catch (err) {
+        console.error('[AdminUsers] Failed to fetch users', err)
+      }
     }
-    fetch()
+    fetchUsers()
   }, [])
 
   return (

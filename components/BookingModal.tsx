@@ -3,7 +3,7 @@ import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Calendar, Clock, Send, CheckCircle, ChevronLeft, ChevronRight } from 'lucide-react';
 import type { Country } from './PersonalizationFlow';
-import { supabase } from '../utils/supabaseClient';
+import { api } from '../utils/apiClient';
 
 interface BookingData {
   name: string;
@@ -33,7 +33,7 @@ function convertTo24Hour(time12h: string): string {
   return `${String(hoursNum).padStart(2, '0')}:${minutes || '00'}:00`;
 }
 
-// Insert booking into Supabase bookings table
+// Submit booking via REST API
 async function submitBooking(data: BookingData): Promise<{ success: boolean; error?: string }> {
   console.log('🚀 submitBooking called with:', data);
   
@@ -44,10 +44,9 @@ async function submitBooking(data: BookingData): Promise<{ success: boolean; err
       data.notes || '',
     ].filter(Boolean).join(' | ');
 
-    // Convert time to 24-hour format for database
     const time24 = convertTo24Hour(data.time);
 
-    const insertData = {
+    const payload = {
       name: data.name,
       email: data.email,
       agency: data.agency || null,
@@ -58,28 +57,12 @@ async function submitBooking(data: BookingData): Promise<{ success: boolean; err
       status: 'pending',
     };
 
-    console.log('📤 Inserting to Supabase:', insertData);
-
-    // Add timeout wrapper
-    const timeoutPromise = new Promise((_, reject) => 
-      setTimeout(() => reject(new Error('Request timeout - please check your connection')), 10000)
-    );
-
-    const insertPromise = supabase.from('bookings').insert(insertData).select();
-    
-    const result = await Promise.race([insertPromise, timeoutPromise]) as any;
-    
-    console.log('📥 Supabase response:', result);
-
-    if (result.error) {
-      console.error('❌ Supabase error:', result.error);
-      throw result.error;
-    }
-    
-    console.log('✅ Booking saved to Supabase:', result.data);
+    console.log('📤 Posting to REST API:', payload);
+    await api.post('/api/bookings', payload);
+    console.log('✅ Booking saved via REST API');
     return { success: true };
   } catch (err: any) {
-    console.error('❌ Booking insert failed:', err);
+    console.error('❌ Booking submit failed:', err);
     return { success: false, error: err.message || 'Failed to submit booking' };
   }
 }

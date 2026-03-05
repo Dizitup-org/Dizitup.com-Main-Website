@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import AdminLayout from '../components/AdminLayout';
-import { getBookings, updateBookingStatus, deleteBooking, getQueryClients, getOnboardClients } from '../utils/clientsApi';
+import { getQueryClients, getOnboardClients } from '../utils/clientsApi';
 import { subscribeToTable } from '../utils/realtime';
 import { Loader2, PhoneCall, CheckCircle, Trash2, Users, Inbox, Search, RefreshCw, ChevronLeft, ChevronRight, Calendar, Clock, UserCheck, AlertCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -41,20 +41,38 @@ const AdminClients: React.FC = () => {
 
   // Loading states for actions
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [isRefreshingAll, setIsRefreshingAll] = useState(false);
 
   // ============ FETCH FUNCTIONS ============
 
   const fetchBookings = useCallback(async () => {
     setBookingsLoading(true);
     setBookingsError(null);
-    const { data, error } = await getBookings();
-    if (error) {
-      setBookingsError(error);
+    
+    try {
+      console.log('📊 Fetching bookings from backend API...');
+      const res = await fetch("http://localhost:4000/api/admin/bookings");
+      const data = await res.json();
+      
+      console.log('✅ Bookings API Response:', data);
+      
+      if (!res.ok) {
+        throw new Error(data.error || `HTTP ${res.status}: ${res.statusText}`);
+      }
+      
+      if (data.success && data.bookings) {
+        setBookings(data.bookings);
+        console.log(`📋 Loaded ${data.bookings.length} bookings successfully`);
+      } else {
+        throw new Error('Invalid API response format - missing bookings data');
+      }
+    } catch (error: any) {
+      console.error('❌ Error fetching bookings:', error);
+      setBookingsError(error.message || 'Failed to fetch bookings');
       setBookings([]);
-    } else {
-      setBookings(data || []);
+    } finally {
+      setBookingsLoading(false);
     }
-    setBookingsLoading(false);
   }, []);
 
   const fetchQueryClients = useCallback(async () => {
@@ -83,10 +101,14 @@ const AdminClients: React.FC = () => {
     setClientsLoading(false);
   }, []);
 
-  const refreshAll = useCallback(() => {
-    fetchBookings();
-    fetchQueryClients();
-    fetchOnboardClients();
+  const refreshAll = useCallback(async () => {
+    setIsRefreshingAll(true);
+    await Promise.all([
+      fetchBookings(),
+      fetchQueryClients(), 
+      fetchOnboardClients()
+    ]);
+    setIsRefreshingAll(false);
   }, [fetchBookings, fetchQueryClients, fetchOnboardClients]);
 
   useEffect(() => {
@@ -149,40 +171,253 @@ const AdminClients: React.FC = () => {
 
   const handleAcceptBooking = async (booking: BookingRow) => {
     setActionLoading(booking.id);
-    const { error } = await updateBookingStatus(booking.id, 'accepted');
-    if (error) {
-      toast.error(error);
-    } else {
-      toast.success('Booking Accepted');
-      setBookings((prev) => prev.map((b) => (b.id === booking.id ? { ...b, status: 'accepted' } : b)));
+    
+    try {
+      console.log(`📄 Accepting booking ${booking.id}...`);
+      
+      const res = await fetch(`http://localhost:4000/api/admin/bookings/${booking.id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          status: 'accepted'
+        })
+      });
+      
+      const data = await res.json();
+      console.log('✅ Accept booking API response:', data);
+      
+      if (!res.ok) {
+        throw new Error(data.error || `HTTP ${res.status}: ${res.statusText}`);
+      }
+      
+      // Success: Update booking status in UI
+      setBookings((prev) => prev.map((b) => 
+        b.id === booking.id ? { ...b, status: 'accepted' } : b
+      ));
+      
+      toast.success('Booking accepted successfully!', { icon: '✅' });
+      
+      // Refresh bookings list
+      setTimeout(async () => {
+        await fetchBookings();
+      }, 500);
+      
+    } catch (error: any) {
+      console.error('❌ Accept booking error:', error);
+      toast.error(`Failed to accept booking: ${error.message}`);
+    } finally {
+      setActionLoading(null);
     }
-    setActionLoading(null);
   };
 
   const handleFollowUpBooking = async (booking: BookingRow) => {
     setActionLoading(booking.id);
-    const { error } = await updateBookingStatus(booking.id, 'follow_up');
-    if (error) {
-      toast.error(error);
-    } else {
-      toast.success('Marked as Follow-up');
-      setBookings((prev) => prev.map((b) => (b.id === booking.id ? { ...b, status: 'follow_up' } : b)));
+    
+    try {
+      console.log(`📞 Setting booking ${booking.id} for follow-up...`);
+      
+      const res = await fetch(`http://localhost:4000/api/admin/bookings/${booking.id}/status`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          status: 'follow_up'
+        })
+      });
+      
+      const data = await res.json();
+      console.log('✅ Follow-up booking API response:', data);
+      
+      if (!res.ok) {
+        throw new Error(data.error || `HTTP ${res.status}: ${res.statusText}`);
+      }
+      
+      // Success: Remove from bookings list (moved to query_clients by backend trigger)
+      setBookings((prev) => prev.filter((b) => b.id !== booking.id));
+      
+      toast.success('Moved to Query Clients for follow-up', { icon: '📞' });
+      
+      // Immediately refetch Query Clients list
+      await fetchQueryClients();
+      
+    } catch (error: any) {
+      console.error('❌ Follow-up booking error:', error);
+      toast.error(`Failed to mark for follow-up: ${error.message}`);
+    } finally {
+      setActionLoading(null);
     }
-    setActionLoading(null);
+  };
+
+  const handleOnboardBooking = async (booking: BookingRow) => {
+    setActionLoading(booking.id);
+    
+    try {
+      console.log(`🎉 Onboarding booking ${booking.id}...`);
+      
+      const res = await fetch('http://localhost:4000/api/admin/clients/onboard', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          booking_id: booking.id,
+          user_id: booking.id, // Using booking.id as user_id for now
+          contact_name: booking.name || 'Unknown',
+          email: booking.email || '',
+          phone: booking.phone || '',
+          company_name: booking.agency || ''
+        })
+      });
+      
+      const data = await res.json();
+      console.log('✅ Onboard client API response:', data);
+      
+      if (!res.ok) {
+        throw new Error(data.error || `HTTP ${res.status}: ${res.statusText}`);
+      }
+      
+      // Success: Remove from bookings list (moved to onboard_clients)
+      setBookings((prev) => prev.filter((b) => b.id !== booking.id));
+      
+      toast.success('Client onboarded successfully!', { icon: '🎉' });
+      
+      // Immediately refresh onboarded clients to show the new client
+      await fetchOnboardClients();
+      
+    } catch (error: any) {
+      console.error('❌ Onboard booking error:', error);
+      toast.error(`Failed to onboard client: ${error.message}`);
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleOnboardQueryClient = async (client: QueryClientRow) => {
+    setActionLoading(client.id);
+    
+    try {
+      console.log(`🎉 Onboarding query client ${client.id}...`);
+      
+      // Use booking_id if available, otherwise use client id
+      const bookingId = client.booking_id || client.id;
+      const res = await fetch(`http://localhost:4000/api/admin/bookings/${bookingId}/onboard`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          contact_name: client.name || 'Unknown',
+          email: client.email || '',
+          phone: client.phone || '',
+          company_name: client.agency || ''
+        })
+      });
+      
+      const data = await res.json();
+      console.log('✅ Onboard query client API response:', data);
+      
+      if (!res.ok) {
+        throw new Error(data.error || `HTTP ${res.status}: ${res.statusText}`);
+      }
+      
+      // Success: Remove from query clients list
+      setQueryClients((prev) => prev.filter((c) => c.id !== client.id));
+      
+      toast.success('Client onboarded successfully!', { icon: '🎉' });
+      
+      // Immediately refetch Onboarded Clients list
+      await fetchOnboardClients();
+      
+    } catch (error: any) {
+      console.error('❌ Onboard query client error:', error);
+      toast.error(`Failed to onboard client: ${error.message}`);
+    } finally {
+      setActionLoading(null);
+    }
   };
 
   const handleDeleteBooking = async (booking: BookingRow) => {
-    if (!confirm('Are you sure you want to delete this booking?')) return;
+    if (!confirm(`Are you sure you want to delete the booking for ${booking.name || 'this client'}?`)) return;
+    
     setActionLoading(booking.id);
-    const { error } = await deleteBooking(booking.id);
-    if (error) {
-      toast.error(error);
-    } else {
-      toast.success('Booking Deleted');
+    
+    try {
+      console.log(`🗑 Deleting booking ${booking.id}...`);
+      
+      const res = await fetch(`http://localhost:4000/api/admin/bookings/${booking.id}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      });
+      
+      const data = await res.json();
+      console.log('✅ Delete booking API response:', data);
+      
+      if (!res.ok) {
+        throw new Error(data.error || `HTTP ${res.status}: ${res.statusText}`);
+      }
+      
+      // Success: Remove from bookings list
       setBookings((prev) => prev.filter((b) => b.id !== booking.id));
+      
+      toast.success('Booking deleted successfully', { icon: '🗑' });
+      
+    } catch (error: any) {
+      console.error('❌ Delete booking error:', error);
+      toast.error(`Failed to delete booking: ${error.message}`);
+    } finally {
+      setActionLoading(null);
     }
-    setActionLoading(null);
   };
+
+  // Update client status
+  const handleUpdateClientStatus = async (clientId: string, newStatus: string) => {
+    setActionLoading(clientId);
+    
+    try {
+      console.log(`🔄 Updating client ${clientId} status to ${newStatus}...`);
+      
+      const res = await fetch(`http://localhost:4000/api/admin/clients/${clientId}/status`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          status: newStatus
+        })
+      });
+      
+      const data = await res.json();
+      console.log('✅ Update client status API response:', data);
+      
+      if (!res.ok) {
+        throw new Error(data.error || `HTTP ${res.status}: ${res.statusText}`);
+      }
+      
+      // Success: Update client status in UI
+      setClients((prev) => prev.map((c) => 
+        c.id === clientId ? { ...c, status: newStatus } : c
+      ));
+      
+      toast.success(`Client status updated to ${newStatus}`, { icon: '✅' });
+      
+    } catch (error: any) {
+      console.error('❌ Update client status error:', error);
+      toast.error(`Failed to update status: ${error.message}`);
+    } finally {
+      setActionLoading(null);
+    }
+  };
+  const isClientOnboarded = useCallback((clientEmail: string, bookingId?: string) => {
+    return clients.some(client => 
+      client.email === clientEmail || 
+      (bookingId && client.booking_id === bookingId)
+    );
+  }, [clients]);
 
   // ============ FILTERING & PAGINATION ============
 
@@ -235,20 +470,57 @@ const AdminClients: React.FC = () => {
   // ============ STATUS BADGE ============
 
   const getStatusBadge = (status: string | null) => {
-    const statusMap: Record<string, { bg: string; border: string; text: string }> = {
-      pending: { bg: 'bg-blue-500/10', border: 'border-blue-500/20', text: 'text-blue-400' },
-      follow_up: { bg: 'bg-yellow-500/10', border: 'border-yellow-500/20', text: 'text-yellow-400' },
-      accepted: { bg: 'bg-green-500/10', border: 'border-green-500/20', text: 'text-green-400' },
-      cancelled: { bg: 'bg-red-500/10', border: 'border-red-500/20', text: 'text-red-400' },
-      Active: { bg: 'bg-green-500/10', border: 'border-green-500/20', text: 'text-green-400' },
-      Paused: { bg: 'bg-yellow-500/10', border: 'border-yellow-500/20', text: 'text-yellow-400' },
-      Completed: { bg: 'bg-purple-500/10', border: 'border-purple-500/20', text: 'text-purple-400' },
+    const statusMap: Record<string, { bg: string; border: string; text: string; label: string }> = {
+      pending: { bg: 'bg-blue-500/10', border: 'border-blue-500/20', text: 'text-blue-400', label: 'Pending' },
+      follow_up: { bg: 'bg-yellow-500/10', border: 'border-yellow-500/20', text: 'text-yellow-400', label: 'Follow-up' },
+      accepted: { bg: 'bg-green-500/10', border: 'border-green-500/20', text: 'text-green-400', label: 'Accepted' },
+      cancelled: { bg: 'bg-red-500/10', border: 'border-red-500/20', text: 'text-red-400', label: 'Cancelled' },
+      active: { bg: 'bg-green-500/10', border: 'border-green-500/20', text: 'text-green-400', label: 'Active' },
+      'in-progress': { bg: 'bg-blue-500/10', border: 'border-blue-500/20', text: 'text-blue-400', label: 'In Progress' },
+      paused: { bg: 'bg-yellow-500/10', border: 'border-yellow-500/20', text: 'text-yellow-400', label: 'Paused' },
+      completed: { bg: 'bg-purple-500/10', border: 'border-purple-500/20', text: 'text-purple-400', label: 'Completed' },
+      // Legacy uppercase versions
+      Active: { bg: 'bg-green-500/10', border: 'border-green-500/20', text: 'text-green-400', label: 'Active' },
+      Paused: { bg: 'bg-yellow-500/10', border: 'border-yellow-500/20', text: 'text-yellow-400', label: 'Paused' },
+      Completed: { bg: 'bg-purple-500/10', border: 'border-purple-500/20', text: 'text-purple-400', label: 'Completed' },
     };
-    const s = statusMap[status || ''] || { bg: 'bg-white/5', border: 'border-white/10', text: 'text-white/60' };
+    
+    const normalizedStatus = status?.toLowerCase();
+    const s = statusMap[normalizedStatus || ''] || statusMap[status || ''] || 
+              { bg: 'bg-gray-500/10', border: 'border-gray-500/20', text: 'text-gray-400', label: 'Active' };
+    
     return (
       <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border ${s.bg} ${s.border} ${s.text}`}>
-        {status || 'Unknown'}
+        {s.label}
       </span>
+    );
+  };
+
+  const renderStatusDropdown = (client: OnboardClientRow) => {
+    const statusOptions = [
+      { value: 'active', label: 'Active' },
+      { value: 'in-progress', label: 'In Progress' },
+      { value: 'paused', label: 'Paused' },
+      { value: 'completed', label: 'Completed' },
+      { value: 'cancelled', label: 'Cancelled' },
+    ];
+    
+    const currentStatus = client.status?.toLowerCase() || 'active';
+    
+    return (
+      <select
+        value={currentStatus}
+        onChange={(e) => handleUpdateClientStatus(client.id, e.target.value)}
+        disabled={actionLoading === client.id}
+        className="bg-white/5 border border-white/10 rounded-lg px-3 py-1 text-xs text-white focus:outline-none focus:border-red-600 disabled:opacity-50 disabled:cursor-not-allowed min-w-[100px]"
+        onClick={(e) => e.stopPropagation()} // Prevent row click navigation
+      >
+        {statusOptions.map((option) => (
+          <option key={option.value} value={option.value} className="bg-gray-900 text-white">
+            {option.label}
+          </option>
+        ))}
+      </select>
     );
   };
 
@@ -326,10 +598,11 @@ const AdminClients: React.FC = () => {
             </div>
             <button
               onClick={refreshAll}
-              className="p-2.5 rounded-xl bg-white/[0.03] border border-white/10 hover:bg-white/5 transition-all"
-              title="Refresh"
+              disabled={isRefreshingAll}
+              className={`p-2.5 rounded-xl bg-white/[0.03] border border-white/10 hover:bg-white/5 transition-all disabled:opacity-50 ${isRefreshingAll ? 'cursor-not-allowed' : ''}`}
+              title="Refresh All Data"
             >
-              <RefreshCw className="w-4 h-4 text-white/60" />
+              <RefreshCw className={`w-4 h-4 text-white/60 ${isRefreshingAll ? 'animate-spin' : ''}`} />
             </button>
           </div>
         </div>
@@ -358,7 +631,7 @@ const AdminClients: React.FC = () => {
                     {(paginatedData as BookingRow[]).map((booking) => (
                       <div
                         key={booking.id}
-                        className="p-6 rounded-2xl bg-white/[0.02] border border-white/10 backdrop-blur-xl hover:bg-white/[0.04] transition-all group"
+                        className={`p-6 rounded-2xl bg-white/[0.02] border border-white/10 backdrop-blur-xl hover:bg-white/[0.04] transition-all group ${actionLoading === booking.id ? 'opacity-60 pointer-events-none' : ''}`}
                       >
                         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
                           <div className="flex items-start gap-4">
@@ -368,6 +641,9 @@ const AdminClients: React.FC = () => {
                             <div className="space-y-1">
                               <h3 className="font-semibold text-white">{booking.name || 'Unknown'}</h3>
                               <p className="text-sm text-white/50">{booking.email || 'No email'}</p>
+                              {booking.agency && (
+                                <p className="text-xs text-white/40">Agency: {booking.agency}</p>
+                              )}
                               <div className="flex flex-wrap gap-2 mt-2">
                                 {getStatusBadge(booking.status)}
                                 {booking.project_type && (
@@ -396,18 +672,38 @@ const AdminClients: React.FC = () => {
                               <button
                                 onClick={() => handleAcceptBooking(booking)}
                                 disabled={actionLoading === booking.id}
-                                className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-green-500/10 border border-green-500/20 text-green-400 text-xs font-semibold hover:bg-green-500/20 transition-all disabled:opacity-50"
+                                className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-green-500/10 border border-green-500/20 text-green-400 text-xs font-semibold hover:bg-green-500/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                               >
-                                <CheckCircle className="w-3.5 h-3.5" />
-                                Accept
+                                {actionLoading === booking.id ? (
+                                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                ) : (
+                                  <CheckCircle className="w-3.5 h-3.5" />
+                                )}
+                                {actionLoading === booking.id ? 'Accepting...' : 'Accept'}
                               </button>
                               <button
                                 onClick={() => handleFollowUpBooking(booking)}
                                 disabled={actionLoading === booking.id}
-                                className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-yellow-500/10 border border-yellow-500/20 text-yellow-400 text-xs font-semibold hover:bg-yellow-500/20 transition-all disabled:opacity-50"
+                                className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-yellow-500/10 border border-yellow-500/20 text-yellow-400 text-xs font-semibold hover:bg-yellow-500/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                               >
-                                <PhoneCall className="w-3.5 h-3.5" />
-                                Follow-up
+                                {actionLoading === booking.id ? (
+                                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                ) : (
+                                  <PhoneCall className="w-3.5 h-3.5" />
+                                )}
+                                {actionLoading === booking.id ? 'Moving...' : 'Follow-up'}
+                              </button>
+                              <button
+                                onClick={() => handleOnboardBooking(booking)}
+                                disabled={actionLoading === booking.id}
+                                className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-400 text-xs font-semibold hover:bg-blue-500/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                              >
+                                {actionLoading === booking.id ? (
+                                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                ) : (
+                                  <Users className="w-3.5 h-3.5" />
+                                )}
+                                {actionLoading === booking.id ? 'Onboarding...' : 'Onboard'}
                               </button>
                               <button
                                 onClick={() => handleDeleteBooking(booking)}
@@ -461,8 +757,9 @@ const AdminClients: React.FC = () => {
                           <th className="px-6 py-4 font-semibold">Client Name</th>
                           <th className="px-6 py-4 font-semibold">Email</th>
                           <th className="px-6 py-4 font-semibold">Phone</th>
-                          <th className="px-6 py-4 font-semibold">Next Follow-up</th>
+                          <th className="px-6 py-4 font-semibold">Follow-up Date</th>
                           <th className="px-6 py-4 font-semibold">Status</th>
+                          <th className="px-6 py-4 font-semibold">Actions</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-white/5">
@@ -471,12 +768,12 @@ const AdminClients: React.FC = () => {
                             <td className="px-6 py-4">
                               <div className="flex items-center gap-3">
                                 <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-yellow-600 to-orange-700 flex items-center justify-center font-bold text-xs">
-                                  {(client.name || 'Q')[0].toUpperCase()}
+                                  {(client.name || 'Unknown')[0].toUpperCase()}
                                 </div>
                                 <span className="font-medium text-white">{client.name || 'Unknown'}</span>
                               </div>
                             </td>
-                            <td className="px-6 py-4 text-white/70">{client.email || '—'}</td>
+                            <td className="px-6 py-4 text-white/70">{client.email || 'No email'}</td>
                             <td className="px-6 py-4 text-white/70">{client.phone || '—'}</td>
                             <td className="px-6 py-4">
                               {client.follow_up_date ? (
@@ -489,6 +786,27 @@ const AdminClients: React.FC = () => {
                               )}
                             </td>
                             <td className="px-6 py-4">{getStatusBadge(client.status || 'pending')}</td>
+                            <td className="px-6 py-4">
+                              {isClientOnboarded(client.email || '', client.booking_id || client.id) ? (
+                                <span className="flex items-center gap-2 text-green-400 text-xs font-semibold">
+                                  <UserCheck className="w-4 h-4" />
+                                  Already Onboarded
+                                </span>
+                              ) : (
+                                <button
+                                  onClick={() => handleOnboardQueryClient(client)}
+                                  disabled={actionLoading === client.id}
+                                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-500/10 border border-blue-500/20 text-blue-400 text-xs font-semibold hover:bg-blue-500/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                  {actionLoading === client.id ? (
+                                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                  ) : (
+                                    <UserCheck className="w-3.5 h-3.5" />
+                                  )}
+                                  {actionLoading === client.id ? 'Onboarding...' : 'Onboard'}
+                                </button>
+                              )}
+                            </td>
                           </tr>
                         ))}
                       </tbody>
@@ -542,20 +860,22 @@ const AdminClients: React.FC = () => {
                             <td className="px-6 py-4">
                               <div className="flex items-center gap-3">
                                 <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-red-600 to-red-800 flex items-center justify-center font-bold text-xs">
-                                  {(client.company_name || 'C')[0].toUpperCase()}
+                                  {(client.company_name || 'Unknown')[0].toUpperCase()}
                                 </div>
                                 <span className="font-medium text-white group-hover:text-red-400 transition-colors">
                                   {client.company_name || 'Unknown'}
                                 </span>
                               </div>
                             </td>
-                            <td className="px-6 py-4 text-white/70">{client.contact_name || '—'}</td>
-                            <td className="px-6 py-4 text-white/70">{client.email || '—'}</td>
+                            <td className="px-6 py-4 text-white/70">{client.contact_name || 'Unknown'}</td>
+                            <td className="px-6 py-4 text-white/70">{client.email || 'No email'}</td>
                             <td className="px-6 py-4 text-white/70">{client.phone || '—'}</td>
                             <td className="px-6 py-4 text-white/70">
                               {client.onboarded_at ? new Date(client.onboarded_at).toLocaleDateString() : '—'}
                             </td>
-                            <td className="px-6 py-4">{getStatusBadge(client.status)}</td>
+                            <td className="px-6 py-4" onClick={(e) => e.stopPropagation()}>
+                              {renderStatusDropdown(client)}
+                            </td>
                           </tr>
                         ))}
                       </tbody>

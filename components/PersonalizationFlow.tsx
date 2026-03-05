@@ -2,7 +2,7 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronDown, ArrowRight, Sparkles, Search } from 'lucide-react';
-import { supabase } from '../utils/supabaseClient';
+import { api } from '../utils/apiClient';
 
 // Generate or retrieve unique device ID
 const getDeviceId = (): string => {
@@ -172,22 +172,17 @@ const PersonalizationFlow: React.FC<Props> = ({ onComplete }) => {
       try {
         const deviceId = getDeviceId();
 
-        const fetchPromise = supabase
-          .from('visitor_profiles')
-          .select('*')
-          .eq('device_id', deviceId)
-          .limit(1)
-          .single();
+        const fetchPromise = api.get<any>(`/api/visitor-profile?device_id=${encodeURIComponent(deviceId)}`);
 
         const timeoutPromise = new Promise((_, reject) =>
           setTimeout(() => reject(new Error('Profile check timeout')), 2500)
         );
 
-        const { data, error } = await Promise.race([fetchPromise, timeoutPromise]) as any;
+        const data = await Promise.race([fetchPromise, timeoutPromise]) as any;
 
         if (isCancelled) return;
 
-        if (data && !error) {
+        if (data && data.name) {
           // Found existing profile - auto-complete the flow
           const profile: UserProfile = {
             name: data.name,
@@ -200,8 +195,8 @@ const PersonalizationFlow: React.FC<Props> = ({ onComplete }) => {
           setCountry(data.country as Country);
           // Auto-complete immediately for returning visitors
           onComplete(profile);
-        } else if (error) {
-          console.log('No existing profile found. Showing form.', error.message);
+        } else {
+          console.log('No existing profile found. Showing form.');
         }
       } catch (err: any) {
         if (isCancelled) return;
@@ -224,20 +219,18 @@ const PersonalizationFlow: React.FC<Props> = ({ onComplete }) => {
     };
   }, [onComplete]);
 
-  // Save profile to Supabase
+  // Save profile via REST API
   const saveVisitorProfile = async (profile: UserProfile) => {
     try {
       const deviceId = getDeviceId();
-      await supabase
-        .from('visitor_profiles')
-        .upsert({
-          device_id: deviceId,
-          name: profile.name,
-          agency_size: profile.agencySize,
-          country: profile.country,
-          updated_at: new Date().toISOString(),
-        }, { onConflict: 'device_id' });
-      console.log('✅ Visitor profile saved to Supabase');
+      await api.post('/api/visitor-profile', {
+        device_id: deviceId,
+        name: profile.name,
+        agency_size: profile.agencySize,
+        country: profile.country,
+        updated_at: new Date().toISOString(),
+      });
+      console.log('✅ Visitor profile saved via REST API');
     } catch (err) {
       console.error('Failed to save visitor profile:', err);
     }

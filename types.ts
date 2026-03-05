@@ -30,6 +30,7 @@ export interface BookingRow {
   name: string | null;
   email: string | null;
   phone: string | null;
+  agency: string | null;
   project_type: string | null;
   notes: string | null;
   meeting_date: string | null;
@@ -38,15 +39,19 @@ export interface BookingRow {
   created_at?: string | null;
 }
 
-// Query Clients table (Follow-ups)
+// Query Clients table (Follow-ups) - includes booking data
 export interface QueryClientRow {
   id: string;
   name: string | null;
   email: string | null;
   phone: string | null;
+  agency?: string | null;
+  project_type?: string | null;
+  notes?: string | null;
   follow_up_date: string | null;
   status?: string | null;
   created_at?: string | null;
+  booking_id?: string | null;
 }
 
 // Onboard Clients table (Active Clients)
@@ -58,6 +63,7 @@ export interface OnboardClientRow {
   phone: string | null;
   onboarded_at: string | null;
   status: 'Active' | 'Paused' | 'Completed' | string | null;
+  booking_id?: string | null; // Reference to original booking
   // Additional fields for client detail page
   username?: string | null;
   avatar_url?: string | null;

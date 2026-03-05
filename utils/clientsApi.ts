@@ -1,10 +1,124 @@
-import { supabase } from './supabaseClient';
-import type { BookingRow, QueryClientRow, OnboardClientRow, ProjectRow, SaleRow } from '../types';
+// utils/adminApi.ts — replaces all Supabase calls
+import { api } from './apiClient';
+import type { BookingRow, QueryClientRow, OnboardClientRow, ProjectRow } from '../types';
 
-// ============ ADMIN SALES (Direct sales entries) ============
+const cache: Record<string, { data: any; ts: number }> = {};
+const TTL = 30000;
+function getCache(k: string) { const c = cache[k]; return (c && Date.now()-c.ts < TTL) ? c.data : null; }
+function setCache(k: string, d: any) { cache[k] = { data: d, ts: Date.now() }; }
+function clearCache(p: string) { Object.keys(cache).forEach(k => { if (k.startsWith(p)) delete cache[k]; }); }
 
+// ============ BOOKINGS ============
+export async function getBookings() {
+  const cached = getCache('bookings_all');
+  if (cached) return { data: cached, error: null };
+  try {
+    const res = await api.get('/api/admin/bookings') as any;
+    setCache('bookings_all', res.bookings);
+    return { data: res.bookings, error: null };
+  } catch (err: any) { return { data: null, error: err.message }; }
+}
+
+export async function updateBookingStatus(id: string, status: string) {
+  try {
+    await api.patch(`/api/admin/bookings/${id}/status`, { status });
+    clearCache('bookings'); 
+    clearCache('query_clients');
+    clearCache('onboard_clients');
+    return { error: null };
+  } catch (err: any) { return { error: err.message }; }
+}
+
+export async function deleteBooking(id: string) {
+  try {
+    await api.delete(`/api/admin/bookings/${id}`);
+    clearCache('bookings');
+    return { error: null };
+  } catch (err: any) { return { error: err.message }; }
+}
+
+export async function onboardFromBooking(bookingId: string, data: { company_name?: string; contact_name: string; email: string; phone?: string }) {
+  try {
+    await api.post(`/api/admin/bookings/${bookingId}/onboard`, data);
+    clearCache('bookings'); clearCache('onboard');
+    return { error: null };
+  } catch (err: any) { return { error: err.message }; }
+}
+
+// ============ QUERY CLIENTS ============
+export async function getQueryClients() {
+  const cached = getCache('query_clients_all');
+  if (cached) return { data: cached, error: null };
+  try {
+    const res = await api.get('/api/admin/clients/query') as any;
+    setCache('query_clients_all', res.query_clients || res.clients || res.data || []);
+    return { data: res.query_clients || res.clients || res.data || [], error: null };
+  } catch (err: any) { return { data: null, error: err.message }; }
+}
+
+// ============ ONBOARD CLIENTS ============
+export async function getOnboardClients() {
+  const cached = getCache('onboard_clients_all');
+  if (cached) return { data: cached, error: null };
+  try {
+    const res = await api.get('/api/admin/clients/onboarded') as any;
+    setCache('onboard_clients_all', res.clients || res.data || []);
+    return { data: res.clients || res.data || [], error: null };
+  } catch (err: any) { return { data: null, error: err.message }; }
+}
+
+export async function getOnboardClientById(clientId: string) {
+  try {
+    const res = await api.get(`/api/admin/clients/${clientId}`) as any;
+    return { data: res, error: null };
+  } catch (err: any) { return { data: null, error: err.message }; }
+}
+
+// ============ PROJECTS ============
+export async function addProject(clientId: string, project: { title: string; description?: string; start_date?: string; end_date?: string; total_amount: number; expenses?: number }) {
+  try {
+    await api.post(`/api/admin/clients/${clientId}/projects`, project);
+    clearCache('onboard');
+    return { error: null };
+  } catch (err: any) { return { error: err.message }; }
+}
+
+// ============ PAYMENTS ============
+export async function addPayment(clientId: string, projectId: string, payment: { paid_amount: number; payment_date?: string; notes?: string }) {
+  try {
+    await api.post(`/api/admin/clients/${clientId}/projects/${projectId}/payments`, payment);
+    clearCache('onboard');
+    return { error: null };
+  } catch (err: any) { return { error: err.message }; }
+}
+
+// ============ OVERVIEW ============
+export async function getAdminOverview() {
+  try {
+    const res = await api.get('/api/admin/overview') as any;
+    return { data: res.data, error: null };
+  } catch (err: any) { return { data: null, error: err.message }; }
+}
+
+export async function getMonthlyRevenue() {
+  try {
+    const res = await api.get('/api/admin/overview/monthly') as any;
+    return { data: res.monthly, error: null };
+  } catch (err: any) { return { data: null, error: err.message }; }
+}
+
+export async function updateClientNotes(clientId: string, data: { admin_notes?: string; feedback?: string }): Promise<{ error: string | null }> {
+  try {
+    await api.patch(`/api/admin/clients/${clientId}/notes`, data);
+    clearCache('onboard');
+    return { error: null };
+  } catch (err: any) { return { error: err.message }; }
+}
+
+// ============ ADMIN SALES ============
 export interface AdminSaleEntry {
   id?: string;
+  project_id: string;
   client_name: string;
   service: string;
   amount: number;
@@ -15,232 +129,57 @@ export interface AdminSaleEntry {
   created_at?: string;
 }
 
+// Project interface for dropdown
+export interface ProjectOption {
+  id: string;
+  client_name: string;
+  title: string;
+  display_name: string; // client_name + project_name
+}
+
+export async function getAdminProjects(): Promise<{ data: ProjectOption[] | null; error: string | null }> {
+  try {
+    const res = await api.get('/api/admin/projects') as any;
+    return { data: res.projects, error: null };
+  } catch (err: any) { return { data: null, error: err.message }; }
+}
+
 export async function getAdminSales(): Promise<{ data: AdminSaleEntry[] | null; error: string | null }> {
   try {
-    const { data, error } = await supabase
-      .from('admin_sales')
-      .select('*')
-      .order('sale_date', { ascending: false });
-
-    if (error) throw error;
-    return { data: data as AdminSaleEntry[], error: null };
-  } catch (err: any) {
-    console.error('[getAdminSales] Error:', err);
-    return { data: null, error: err.message || 'Failed to fetch sales' };
-  }
+    const res = await api.get('/api/admin/sales') as any;
+    return { data: res.sales, error: null };
+  } catch (err: any) { return { data: null, error: err.message }; }
 }
 
 export async function addAdminSale(sale: Omit<AdminSaleEntry, 'id' | 'created_at'>): Promise<{ data: AdminSaleEntry | null; error: string | null }> {
   try {
-    const { data, error } = await supabase
-      .from('admin_sales')
-      .insert(sale)
-      .select()
-      .single();
-
-    if (error) throw error;
-    return { data: data as AdminSaleEntry, error: null };
-  } catch (err: any) {
-    console.error('[addAdminSale] Error:', err);
-    return { data: null, error: err.message || 'Failed to add sale' };
-  }
+    const res = await api.post('/api/admin/sales', sale) as any;
+    // Clear sales and overview caches to ensure fresh data  
+    clearCache('sales');
+    clearCache('overview');
+    clearCache('monthly');
+    return { data: res.sale, error: null };
+  } catch (err: any) { return { data: null, error: err.message }; }
 }
 
 export async function updateAdminSale(id: string, updates: Partial<AdminSaleEntry>): Promise<{ error: string | null }> {
   try {
-    const { error } = await supabase
-      .from('admin_sales')
-      .update(updates)
-      .eq('id', id);
-
-    if (error) throw error;
+    await api.patch(`/api/admin/sales/${id}`, updates);
+    // Clear sales and overview caches to ensure fresh data
+    clearCache('sales');
+    clearCache('overview');
+    clearCache('monthly');
     return { error: null };
-  } catch (err: any) {
-    console.error('[updateAdminSale] Error:', err);
-    return { error: err.message || 'Failed to update sale' };
-  }
+  } catch (err: any) { return { error: err.message }; }
 }
 
 export async function deleteAdminSale(id: string): Promise<{ error: string | null }> {
   try {
-    const { error } = await supabase
-      .from('admin_sales')
-      .delete()
-      .eq('id', id);
-
-    if (error) throw error;
+    await api.delete(`/api/admin/sales/${id}`);
+    // Clear sales and overview caches to ensure fresh data
+    clearCache('sales');
+    clearCache('overview');
+    clearCache('monthly');
     return { error: null };
-  } catch (err: any) {
-    console.error('[deleteAdminSale] Error:', err);
-    return { error: err.message || 'Failed to delete sale' };
-  }
-}
-
-// ============ BOOKINGS (Queries/Upcoming Meetings) ============
-
-export async function getBookings(): Promise<{ data: BookingRow[] | null; error: string | null }> {
-  try {
-    const { data, error } = await supabase
-      .from('bookings')
-      .select('id, name, email, phone, project_type, notes, meeting_date, meeting_time, status, created_at')
-      .order('meeting_date', { ascending: true });
-
-    if (error) throw error;
-    return { data: data as BookingRow[], error: null };
-  } catch (err: any) {
-    console.error('[getBookings] Error:', err);
-    return { data: null, error: err.message || 'Failed to fetch bookings' };
-  }
-}
-
-export async function updateBookingStatus(id: string, status: string): Promise<{ error: string | null }> {
-  try {
-    const { error } = await supabase
-      .from('bookings')
-      .update({ status })
-      .eq('id', id);
-
-    if (error) throw error;
-    return { error: null };
-  } catch (err: any) {
-    console.error('[updateBookingStatus] Error:', err);
-    return { error: err.message || 'Failed to update status' };
-  }
-}
-
-export async function deleteBooking(id: string): Promise<{ error: string | null }> {
-  try {
-    const { error } = await supabase
-      .from('bookings')
-      .delete()
-      .eq('id', id);
-
-    if (error) throw error;
-    return { error: null };
-  } catch (err: any) {
-    console.error('[deleteBooking] Error:', err);
-    return { error: err.message || 'Failed to delete booking' };
-  }
-}
-
-// ============ QUERY CLIENTS (Follow-ups) ============
-
-export async function getQueryClients(): Promise<{ data: QueryClientRow[] | null; error: string | null }> {
-  try {
-    const { data, error } = await supabase
-      .from('query_clients')
-      .select('id, name, email, phone, follow_up_date, status, created_at')
-      .order('follow_up_date', { ascending: true });
-
-    if (error) throw error;
-    return { data: data as QueryClientRow[], error: null };
-  } catch (err: any) {
-    console.error('[getQueryClients] Error:', err);
-    return { data: null, error: err.message || 'Failed to fetch query clients' };
-  }
-}
-
-// ============ ONBOARD CLIENTS (Active Clients) ============
-
-export async function getOnboardClients(): Promise<{ data: OnboardClientRow[] | null; error: string | null }> {
-  try {
-    const { data, error } = await supabase
-      .from('onboard_clients')
-      .select('id, company_name, contact_name, email, phone, onboarded_at, status')
-      .order('onboarded_at', { ascending: false });
-
-    if (error) throw error;
-    return { data: data as OnboardClientRow[], error: null };
-  } catch (err: any) {
-    console.error('[getOnboardClients] Error:', err);
-    return { data: null, error: err.message || 'Failed to fetch onboard clients' };
-  }
-}
-
-export async function getOnboardClientById(clientId: string): Promise<{ data: OnboardClientRow | null; error: string | null }> {
-  try {
-    const { data, error } = await supabase
-      .from('onboard_clients')
-      .select('id, company_name, contact_name, email, phone, onboarded_at, status')
-      .eq('id', clientId)
-      .single();
-
-    if (error) throw error;
-    return { data: data as OnboardClientRow, error: null };
-  } catch (err: any) {
-    console.error('[getOnboardClientById] Error:', err);
-    return { data: null, error: err.message || 'Failed to fetch client' };
-  }
-}
-
-// ============ PROJECTS (Linked to onboard_clients via client_id) ============
-
-export async function getClientProjects(clientId: string): Promise<{ data: ProjectRow[] | null; error: string | null }> {
-  try {
-    const { data, error } = await supabase
-      .from('projects')
-      .select('id, client_id, title, description, status, start_date, end_date, total_amount')
-      .eq('client_id', clientId)
-      .order('start_date', { ascending: false });
-
-    if (error) throw error;
-    return { data: data as ProjectRow[], error: null };
-  } catch (err: any) {
-    console.error('[getClientProjects] Error:', err);
-    return { data: null, error: err.message || 'Failed to fetch projects' };
-  }
-}
-
-// ============ SALES (Linked to projects via project_id) ============
-
-export async function getProjectSales(projectId: string): Promise<{ data: SaleRow[] | null; error: string | null }> {
-  try {
-    const { data, error } = await supabase
-      .from('sales')
-      .select('id, project_id, amount, paid_amount, pending_amount, expenses, payment_date, payment_method, notes')
-      .eq('project_id', projectId);
-
-    if (error) throw error;
-    return { data: data as SaleRow[], error: null };
-  } catch (err: any) {
-    console.error('[getProjectSales] Error:', err);
-    return { data: null, error: err.message || 'Failed to fetch sales' };
-  }
-}
-
-// Get projects with sales for a client (combined fetch)
-export async function getClientProjectsWithSales(clientId: string): Promise<{ data: ProjectRow[] | null; error: string | null }> {
-  try {
-    const { data, error } = await supabase
-      .from('projects')
-      .select(`
-        id,
-        client_id,
-        title,
-        description,
-        status,
-        start_date,
-        end_date,
-        total_amount,
-        sales (
-          id,
-          project_id,
-          amount,
-          paid_amount,
-          pending_amount,
-          expenses,
-          payment_date,
-          payment_method,
-          notes
-        )
-      `)
-      .eq('client_id', clientId)
-      .order('start_date', { ascending: false });
-
-    if (error) throw error;
-    return { data: data as ProjectRow[], error: null };
-  } catch (err: any) {
-    console.error('[getClientProjectsWithSales] Error:', err);
-    return { data: null, error: err.message || 'Failed to fetch projects with sales' };
-  }
+  } catch (err: any) { return { error: err.message }; }
 }

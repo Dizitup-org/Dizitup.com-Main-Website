@@ -1,7 +1,9 @@
 
 import React from 'react';
 import { NavLink, Link, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, BarChart3, Users, Settings, LogOut, Search, Layout, ArrowLeft, Home as HomeIcon } from 'lucide-react';
+import { LayoutDashboard, BarChart3, Users, Settings, LogOut, Search, Layout, ArrowLeft, Home as HomeIcon, Shield } from 'lucide-react';
+import { useAuth } from '../contexts/AuthProvider';
+import { getToken } from '../utils/apiClient';
 
 interface AdminLayoutProps {
   children: React.ReactNode;
@@ -10,6 +12,9 @@ interface AdminLayoutProps {
 
 const AdminLayout: React.FC<AdminLayoutProps> = ({ children, title }) => {
   const navigate = useNavigate();
+  const { signOut, user, isAdmin } = useAuth();
+  const token = getToken();
+  
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white flex">
       <aside className="w-64 border-r border-white/5 flex flex-col h-screen sticky top-0 bg-black/20 backdrop-blur-xl">
@@ -18,6 +23,39 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, title }) => {
             <div className="w-3 h-3 bg-red-600 rounded-full"></div>
             DIZITUP <span className="text-[10px] text-red-500 font-black tracking-widest px-1.5 py-0.5 rounded bg-red-500/10 border border-red-500/20">ADMIN</span>
           </Link>
+          
+          {/* Debug Auth Status */}
+          <div className="mt-4 p-3 bg-gray-900/50 rounded-lg border border-gray-700/50">
+            <div className="flex items-center gap-2 mb-2">
+              <Shield className="w-4 h-4" />
+              <span className="text-xs font-mono text-gray-400">Auth Status</span>
+            </div>
+            <div className="space-y-1 text-xs font-mono">
+              <div className="flex justify-between">
+                <span className="text-gray-400">Token:</span>
+                <span className={token ? "text-green-400" : "text-red-400"}>
+                  {token ? "✓" : "✗"}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-400">User:</span>
+                <span className={user ? "text-green-400" : "text-red-400"}>
+                  {user ? "✓" : "✗"}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-400">Admin:</span>
+                <span className={isAdmin ? "text-green-400" : "text-red-400"}>
+                  {isAdmin ? "✓" : "✗"}
+                </span>
+              </div>
+              {user && (
+                <div className="text-xs text-gray-500 mt-2 break-all">
+                  {user.email}
+                </div>
+              )}
+            </div>
+          </div>
         </div>
 
         <nav className="flex-grow px-4 space-y-2">
@@ -42,8 +80,8 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, title }) => {
         <div className="p-4 border-t border-white/5">
           <button 
             onClick={() => {
-              localStorage.removeItem('dizitup_auth');
-              window.location.href = '#/admin/login';
+              signOut();
+              navigate('/');
             }}
             className="flex items-center gap-3 px-4 py-3 w-full text-white/40 hover:text-red-500 transition-colors text-sm font-medium"
           >

@@ -4,7 +4,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import AdminLayout from '../components/AdminLayout';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { TrendingUp, Users, DollarSign, Calendar, Plus, X, Trash2, Edit2, Loader2, RefreshCw } from 'lucide-react';
-import { getAdminSales, addAdminSale, updateAdminSale, deleteAdminSale, type AdminSaleEntry } from '../utils/clientsApi';
+import { getAdminSales, addAdminSale, updateAdminSale, deleteAdminSale, getAdminProjects, type AdminSaleEntry, type ProjectOption } from '../utils/clientsApi';
+import { broadcastSalesUpdate } from '../utils/salesEvents';
 import toast from 'react-hot-toast';
 
 // ============ STAT CARD ============
@@ -41,7 +42,10 @@ interface SaleModalProps {
 
 const SaleModal: React.FC<SaleModalProps> = ({ isOpen, onClose, onSubmit, editSale }) => {
   const [submitting, setSubmitting] = useState(false);
+  const [projects, setProjects] = useState<ProjectOption[]>([]);
+  const [loadingProjects, setLoadingProjects] = useState(true);
   const [formData, setFormData] = useState({
+    project_id: '',
     client_name: '',
     service: '',
     amount: '',
@@ -51,9 +55,28 @@ const SaleModal: React.FC<SaleModalProps> = ({ isOpen, onClose, onSubmit, editSa
     notes: ''
   });
 
+  // Fetch projects when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      fetchProjects();
+    }
+  }, [isOpen]);
+
+  const fetchProjects = async () => {
+    setLoadingProjects(true);
+    const { data, error } = await getAdminProjects();
+    if (error) {
+      toast.error(`Failed to load projects: ${error}`);
+    } else {
+      setProjects(data || []);
+    }
+    setLoadingProjects(false);
+  };
+
   useEffect(() => {
     if (editSale) {
       setFormData({
+        project_id: editSale.project_id,
         client_name: editSale.client_name,
         service: editSale.service,
         amount: String(editSale.amount),
@@ -64,6 +87,7 @@ const SaleModal: React.FC<SaleModalProps> = ({ isOpen, onClose, onSubmit, editSa
       });
     } else {
       setFormData({
+        project_id: '',
         client_name: '',
         service: '',
         amount: '',
@@ -77,22 +101,38 @@ const SaleModal: React.FC<SaleModalProps> = ({ isOpen, onClose, onSubmit, editSa
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.client_name || !formData.service || !formData.amount) {
+    if (!formData.project_id || !formData.service || !formData.amount) {
       toast.error('Please fill all required fields');
       return;
     }
+    
+    if (isNaN(parseFloat(formData.amount)) || parseFloat(formData.amount) <= 0) {
+      toast.error('Please enter a valid amount');
+      return;
+    }
+
+    const selectedProject = projects.find(p => p.id === formData.project_id);
+    if (!selectedProject) {
+      toast.error('Please select a valid project');
+      return;
+    }
+    
     setSubmitting(true);
     try {
       await onSubmit({
-        client_name: formData.client_name,
-        service: formData.service,
+        project_id: formData.project_id,
+        client_name: selectedProject.client_name, // Get client name from selected project
+        service: formData.service.trim(),
         amount: parseFloat(formData.amount),
         type: formData.type,
         status: formData.status,
         sale_date: formData.sale_date,
-        notes: formData.notes
+        notes: formData.notes.trim()
       });
-      onClose();
+      // Note: Modal will be closed by the parent component's handleAddSale function
+    } catch (error) {
+      console.error('Error submitting sale:', error);
+      // Modal stays open so user can retry
     } finally {
       setSubmitting(false);
     }
@@ -128,15 +168,27 @@ const SaleModal: React.FC<SaleModalProps> = ({ isOpen, onClose, onSubmit, editSa
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className={labelClass}>Client Name *</label>
-                  <input
-                    type="text"
-                    value={formData.client_name}
-                    onChange={(e) => setFormData({ ...formData, client_name: e.target.value })}
-                    className={inputClass}
-                    placeholder="e.g., Nexus Tech"
-                    required
-                  />
+                  <label className={labelClass}>Project *</label>
+                  {loadingProjects ? (
+                    <div className={inputClass + ' flex items-center justify-center text-white/40'}>
+                      <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                      Loading projects...
+                    </div>
+                  ) : (
+                    <select
+                      value={formData.project_id}
+                      onChange={(e) => setFormData({ ...formData, project_id: e.target.value })}
+                      className={inputClass + ' [&>option]:bg-[#1a1a1a] [&>option]:text-white'}
+                      required
+                    >
+                      <option value="">Select Project...</option>
+                      {projects.map((project) => (
+                        <option key={project.id} value={project.id}>
+                          {project.display_name}
+                        </option>
+                      ))}
+                    </select>
+                  )}
                 </div>
                 <div>
                   <label className={labelClass}>Service *</label>
@@ -334,12 +386,39 @@ const AdminSales: React.FC = () => {
 
   // ============ HANDLERS ============
   const handleAddSale = async (saleData: Omit<AdminSaleEntry, 'id' | 'created_at'>) => {
-    const { data, error } = await addAdminSale(saleData);
-    if (error) {
-      toast.error(error);
-    } else if (data) {
-      setSales(prev => [data, ...prev]);
-      toast.success('Sale added successfully!');
+    try {
+      // API call: POST /api/admin/sales with required body fields
+      const { data, error } = await addAdminSale(saleData);
+      if (error) {
+        toast.error(`Failed to add sale: ${error}`);
+        throw new Error(error);
+      } 
+      
+      if (data) {
+        // 1. Update local sales list
+        setSales(prev => [data, ...prev]);
+        
+        // 2. Close modal and reset states
+        setModalOpen(false);
+        setEditingSale(null);
+        
+        // 3. Success notification
+        toast.success('Sale added successfully!', { 
+          icon: '💰',
+          duration: 3000 
+        });
+        
+        // 4. Broadcast update to refresh dashboard stats & charts
+        broadcastSalesUpdate({ type: 'add', sale: data });
+        
+        // 5. Optional: Force refresh from server to ensure consistency
+        setTimeout(() => {
+          fetchSales();
+        }, 1000);
+      }
+    } catch (error) {
+      console.error('Error adding sale:', error);
+      // Don't close modal on error so user can retry
     }
   };
 
@@ -352,6 +431,10 @@ const AdminSales: React.FC = () => {
       setSales(prev => prev.map(s => s.id === editingSale.id ? { ...s, ...saleData } : s));
       toast.success('Sale updated successfully!');
       setEditingSale(null);
+      setModalOpen(false);
+      
+      // Broadcast update to other components
+      broadcastSalesUpdate({ type: 'update', saleId: editingSale.id });
     }
   };
 
@@ -363,6 +446,9 @@ const AdminSales: React.FC = () => {
     } else {
       setSales(prev => prev.filter(s => s.id !== id));
       toast.success('Sale deleted');
+      
+      // Broadcast update to other components
+      broadcastSalesUpdate({ type: 'delete', saleId: id });
     }
   };
 

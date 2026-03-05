@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import AdminLayout from '../components/AdminLayout';
-import { supabase } from '../utils/supabaseClient';
+import { getOnboardClientById, updateClientNotes } from '../utils/clientsApi';
 import { Loader2, User, Briefcase, Calendar, DollarSign, FileText, TrendingUp, Mail, Phone, Building, Clock, Target, ArrowLeft, Edit3, Save, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import type { OnboardClientRow, ProjectRow, SaleRow } from '../types';
@@ -33,39 +33,9 @@ const AdminClientDetail: React.FC = () => {
       setLoading(true);
       setError(null);
       try {
-        const { data, error } = await supabase
-          .from('onboard_clients')
-          .select(`
-            *,
-            projects:projects (
-              id,
-              client_id,
-              title,
-              description,
-              status,
-              start_date,
-              end_date,
-              deadline,
-              total_amount,
-              sales:sales (
-                id,
-                project_id,
-                amount,
-                paid_amount,
-                pending_amount,
-                expenses,
-                payment_date,
-                payment_method,
-                notes
-              )
-            )
-          `)
-          .eq('id', clientId)
-          .single();
-
+        const { data, error } = await getOnboardClientById(clientId);
         if (!isMounted) return;
-        if (error) throw error;
-
+        if (error) throw new Error(error);
         setClient(data as ClientDetailData);
         setAdminNotes(data?.admin_notes || '');
         setFeedback(data?.feedback || '');
@@ -118,12 +88,8 @@ const AdminClientDetail: React.FC = () => {
     if (!clientId) return;
     setSavingNotes(true);
     try {
-      const { error } = await supabase
-        .from('onboard_clients')
-        .update({ admin_notes: adminNotes, feedback })
-        .eq('id', clientId);
-
-      if (error) throw error;
+      const { error } = await updateClientNotes(clientId, { admin_notes: adminNotes, feedback });
+      if (error) throw new Error(error);
       toast.success('Notes saved');
       setEditingNotes(false);
       if (client) {

@@ -1,7 +1,6 @@
 import React, { useState } from 'react'
 import { useAuth } from '../contexts/AuthProvider'
 import toast from 'react-hot-toast'
-import { supabase } from '../utils/supabaseClient'
 import { useNavigate } from 'react-router-dom'
 
 const AuthModal: React.FC<{ open: boolean; onClose: () => void }> = ({ open, onClose }) => {
@@ -21,16 +20,15 @@ const AuthModal: React.FC<{ open: boolean; onClose: () => void }> = ({ open, onC
     setSubmitting(true)
     try {
       if (mode === 'login') {
-        console.log('[AuthModal] Attempt signInWithPassword')
-        const { error: loginError } = await supabase.auth.signInWithPassword({ email, password })
-        if (loginError) throw loginError
+        console.log('[AuthModal] Attempt signIn')
+        await signIn(email, password)
         onClose()
         toast.success('Logged in')
       } else {
         if (!email || !password || !confirm) throw new Error('Fill required fields')
         if (password !== confirm) throw new Error('Passwords do not match')
         console.log('[AuthModal] Attempt signUp')
-        await signUp(email, password)
+        await signUp({ email, password, username: email.split('@')[0], first_name: '', last_name: '' })
         toast.success('Signup successful. Complete your profile in Dashboard.')
         onClose()
       }

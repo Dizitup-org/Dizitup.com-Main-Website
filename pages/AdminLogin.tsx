@@ -4,28 +4,37 @@ import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ShieldAlert, Terminal, Lock } from 'lucide-react';
 import AdminWelcome from '../components/AdminWelcome';
+import { useAuth } from '../contexts/AuthProvider';
 
 const AdminLogin: React.FC = () => {
   const navigate = useNavigate();
+  const { signIn } = useAuth();
   const [creds, setCreds] = useState({ user: '', pass: '' });
   const [error, setError] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [showWelcome, setShowWelcome] = useState(false);
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    const expectedUser = (import.meta as any).env?.User_ID || '';
-    const expectedToken = (import.meta as any).env?.Secure_Token || '';
-
-    if (creds.user === expectedUser && creds.pass === expectedToken) {
-      localStorage.setItem('dizitup_auth', 'true');
+    setLoading(true);
+    setError(false);
+    
+    try {
+      console.log('🚀 Starting login process...');
+      await signIn(creds.user, creds.pass);
+      console.log('✅ SignIn completed, showing welcome...');
       setShowWelcome(true);
-    } else {
+    } catch (err: any) {
+      console.error('❌ Login error:', err);
       setError(true);
-      setTimeout(() => setError(false), 2000);
+      setTimeout(() => setError(false), 3000);
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleWelcomeComplete = () => {
+    console.log('🎉 Welcome complete, navigating to admin dashboard...');
     navigate('/admin');
   };
 
@@ -55,30 +64,35 @@ const AdminLogin: React.FC = () => {
 
         <form onSubmit={handleLogin} className="space-y-6">
           <div className="space-y-2">
-            <label className="text-[9px] font-black uppercase tracking-widest text-white/40 ml-2">User_ID</label>
+            <label className="text-[9px] font-black uppercase tracking-widest text-white/40 ml-2">Email</label>
             <input 
-              type="text" 
-              placeholder="Username"
+              type="email" 
+              placeholder="roybrothers@gmail.com"
               className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 focus:outline-none focus:border-red-600 transition-all font-mono text-sm"
+              value={creds.user}
               onChange={(e) => setCreds({...creds, user: e.target.value})}
+              required
             />
           </div>
 
           <div className="space-y-2">
-            <label className="text-[9px] font-black uppercase tracking-widest text-white/40 ml-2">Secure_Token</label>
+            <label className="text-[9px] font-black uppercase tracking-widest text-white/40 ml-2">Password</label>
             <input 
               type="password" 
               placeholder="••••••••"
               className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 focus:outline-none focus:border-red-600 transition-all font-mono text-sm"
+              value={creds.pass}
               onChange={(e) => setCreds({...creds, pass: e.target.value})}
+              required
             />
           </div>
 
           <button 
             type="submit"
-            className="w-full py-5 bg-red-600 text-white rounded-2xl font-bold uppercase tracking-[0.2em] text-[10px] hover:bg-red-700 transition-all shadow-xl shadow-red-600/20"
+            disabled={loading}
+            className="w-full py-5 bg-red-600 text-white rounded-2xl font-bold uppercase tracking-[0.2em] text-[10px] hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-xl shadow-red-600/20"
           >
-            Decrypt & Authenticate
+            {loading ? 'Authenticating...' : 'Decrypt & Authenticate'}
           </button>
         </form>
 

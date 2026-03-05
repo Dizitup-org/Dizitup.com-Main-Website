@@ -1,127 +1,48 @@
-import { supabase } from './supabaseClient';
+// utils/portfolioStore.ts — replaces Supabase portfolio calls
+import { api } from './apiClient';
 
 export type PortfolioProject = {
   id: string;
   title: string;
   category: string;
   link: string;
-  display_order: number;
-  is_published: boolean;
+  description?: string;
+  image_url?: string;
+  is_featured: boolean;
   created_at?: string;
 };
 
-// ── Fetch all published projects (public-facing) ──
 export async function getPublishedPortfolio(): Promise<PortfolioProject[]> {
   try {
-    const { data, error } = await supabase
-      .from('portfolio_projects')
-      .select('*')
-      .eq('is_published', true)
-      .order('display_order', { ascending: true });
-
-    if (error) {
-      console.error('[getPublishedPortfolio] Error:', error);
-      return [];
-    }
-    return data as PortfolioProject[];
-  } catch (err: any) {
-    if (err.name === 'AbortError') {
-      console.warn('[getPublishedPortfolio] Aborted');
-      return [];
-    }
-    console.error('[getPublishedPortfolio] Exception:', err);
-    return [];
-  }
+    const res = await api.get('/api/portfolio') as any;
+    return res.portfolio || [];
+  } catch (err) { return []; }
 }
 
-// ── Fetch ALL projects (admin view, includes unpublished) ──
 export async function getAllPortfolio(): Promise<PortfolioProject[]> {
   try {
-    const { data, error } = await supabase
-      .from('portfolio_projects')
-      .select('*')
-      .order('created_at', { ascending: false });
-
-    if (error) {
-      console.error('[getAllPortfolio] Error:', error);
-      return [];
-    }
-    return data as PortfolioProject[];
-  } catch (err: any) {
-    if (err.name === 'AbortError') {
-      console.warn('[getAllPortfolio] Aborted');
-      return [];
-    }
-    console.error('[getAllPortfolio] Exception:', err);
-    return [];
-  }
+    const res = await api.get('/api/admin/portfolio') as any;
+    return res.portfolio || [];
+  } catch (err) { return []; }
 }
 
-// ── Add a new project ──
-export async function addPortfolioProject(
-  project: { title: string; category: string; link: string }
-): Promise<{ data: PortfolioProject | null; error: string | null }> {
+export async function addPortfolioProject(project: { title: string; category: string; link: string; description?: string; image_url?: string }): Promise<{ data: PortfolioProject | null; error: string | null }> {
   try {
-    const { data, error } = await supabase
-      .from('portfolio_projects')
-      .insert({
-        title: project.title,
-        category: project.category,
-        link: project.link,
-        is_published: true,
-        display_order: 0,
-      })
-      .select()
-      .single();
-
-    if (error) {
-      console.error('[addPortfolioProject] Error:', error);
-      return { data: null, error: error.message };
-    }
-    return { data: data as PortfolioProject, error: null };
-  } catch (err: any) {
-    console.error('[addPortfolioProject] Exception:', err);
-    return { data: null, error: err.message || 'Unknown error occurred' };
-  }
+    const res = await api.post('/api/admin/portfolio', { ...project, is_featured: true }) as any;
+    return { data: res.item, error: null };
+  } catch (err: any) { return { data: null, error: err.message }; }
 }
 
-// ── Delete a project ──
 export async function deletePortfolioProject(id: string): Promise<{ error: string | null }> {
   try {
-    const { error } = await supabase
-      .from('portfolio_projects')
-      .delete()
-      .eq('id', id);
-
-    if (error) {
-      console.error('[deletePortfolioProject] Error:', error);
-      return { error: error.message };
-    }
+    await api.delete(`/api/admin/portfolio/${id}`);
     return { error: null };
-  } catch (err: any) {
-    console.error('[deletePortfolioProject] Exception:', err);
-    return { error: err.message || 'Unknown error occurred' };
-  }
+  } catch (err: any) { return { error: err.message }; }
 }
 
-// ── Toggle published status ──
-export async function togglePortfolioPublished(
-  id: string,
-  isPublished: boolean
-): Promise<{ error: string | null }> {
+export async function togglePortfolioPublished(id: string, is_featured: boolean): Promise<{ error: string | null }> {
   try {
-    const { error } = await supabase
-      .from('portfolio_projects')
-      .update({ is_published: isPublished })
-      .eq('id', id);
-
-    if (error) {
-      console.error('[togglePortfolioPublished] Error:', error);
-      return { error: error.message };
-    }
+    await api.put(`/api/admin/portfolio/${id}`, { is_featured });
     return { error: null };
-  } catch (err: any) {
-    console.error('[togglePortfolioPublished] Exception:', err);
-    return { error: err.message || 'Unknown error occurred' };
-  }
+  } catch (err: any) { return { error: err.message }; }
 }

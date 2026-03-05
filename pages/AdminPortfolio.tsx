@@ -4,7 +4,7 @@ import AdminLayout from '../components/AdminLayout';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Link as LinkIcon, ExternalLink, Trash2, Layout, CheckCircle2, Eye, EyeOff } from 'lucide-react';
 import { getAllPortfolio, addPortfolioProject, deletePortfolioProject, togglePortfolioPublished, type PortfolioProject } from '../utils/portfolioStore';
-import { supabase } from '../utils/supabaseClient';
+import { api, getToken } from '../utils/apiClient';
 import { validateAndCompressImage } from '../utils/storage';
 
 const AdminPortfolio: React.FC = () => {
@@ -80,12 +80,18 @@ const AdminPortfolio: React.FC = () => {
                   if (!file) return
                   try {
                     const optimized = await validateAndCompressImage(file)
-                    const user = (await supabase.auth.getUser()).data.user
-                    const path = `${user?.id || 'public'}/${Date.now()}-${file.name}`
-                    const { error } = await supabase.storage.from('portfolio').upload(path, optimized, { upsert: false })
-                    if (error) throw error
-                    const { data } = await supabase.storage.from('portfolio').getPublicUrl(path)
-                    setNewProject((prev) => ({ ...prev, link: data.publicUrl }))
+                    const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000';
+                    const token = getToken();
+                    const formData = new FormData();
+                    formData.append('image', optimized);
+                    const uploadRes = await fetch(`${BASE_URL}/api/admin/portfolio/upload`, {
+                      method: 'POST',
+                      headers: token ? { Authorization: `Bearer ${token}` } : {},
+                      body: formData,
+                    });
+                    const json = await uploadRes.json();
+                    if (!uploadRes.ok) throw new Error(json.error || 'Upload failed');
+                    setNewProject((prev) => ({ ...prev, link: json.url }))
                   } catch (err: any) {
                     console.error(err)
                   }
@@ -168,7 +174,7 @@ const AdminPortfolio: React.FC = () => {
                 transition={{ repeat: Infinity, duration: 1, ease: 'linear' }}
                 className="w-8 h-8 border-2 border-white/10 border-t-red-600 rounded-full mx-auto mb-4"
               />
-              <p className="font-mono text-xs tracking-[0.4em] uppercase text-white/20">Loading from Supabase...</p>
+              <p className="font-mono text-xs tracking-[0.4em] uppercase text-white/20">Loading...</p>
             </div>
           ) : (
             <>

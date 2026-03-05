@@ -2,7 +2,6 @@ import React, { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthProvider'
 import toast, { Toaster } from 'react-hot-toast'
-import { supabase } from '../utils/supabaseClient'
 
 const Login: React.FC = () => {
   const { signIn, signUp, resetPassword, user, isAdmin, loading } = useAuth()
@@ -24,9 +23,8 @@ const Login: React.FC = () => {
     setSubmitting(true)
     try {
       if (mode === 'login') {
-        console.log('[Login] Attempt signInWithPassword')
-        const { error: loginError } = await supabase.auth.signInWithPassword({ email, password })
-        if (loginError) throw loginError
+        console.log('[Login] Attempt signIn')
+        await signIn(email, password)
         toast.success('Logged in')
       } else {
         // Validation
@@ -39,36 +37,16 @@ const Login: React.FC = () => {
         const emailValid = /.+@.+\..+/.test(email)
         if (!emailValid) throw new Error('Invalid email')
         console.log('[Signup] Attempt signUp')
-        await signUp(email, password)
-        // After signup, update profile fields by id
-        const { data: sessionData } = await supabase.auth.getSession()
-        const uid = sessionData.session?.user?.id
-        if (uid) {
-          // Unique username check
-          const { data: existing } = await supabase
-            .from('profiles')
-            .select('id')
-            .eq('username', username)
-            .neq('id', uid)
-            .limit(1)
-          if (existing && existing.length > 0) {
-            throw new Error('Username already taken')
-          }
-          console.log('[Signup] Upsert profile for uid', uid)
-          const { error } = await supabase
-            .from('profiles')
-            .upsert({
-              id: uid,
-              email,
-              first_name: firstName,
-              last_name: lastName,
-              username,
-              business_name: businessName,
-              phone,
-            }, { onConflict: 'id' })
-          if (error) throw error
-        }
-        toast.success('Signup successful. Check email if confirmation required.')
+        await signUp({
+          email,
+          password,
+          username,
+          first_name: firstName,
+          last_name: lastName,
+          business_name: businessName,
+          phone,
+        })
+        toast.success('Signup successful.')
       }
       // Do not redirect here; rely on auth listener + effect below to avoid loops
     } catch (err: any) {
