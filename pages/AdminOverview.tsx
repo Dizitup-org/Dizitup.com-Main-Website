@@ -3,182 +3,363 @@ import React, { useState, useEffect } from 'react';
 import AdminLayout from '../components/AdminLayout';
 import { motion, AnimatePresence } from 'framer-motion';
 import AdminScanner from '../components/AdminScanner';
-import AdminUsers from '../components/AdminUsers';
-import { Activity, Zap, ShieldCheck, Cpu, Terminal, Inbox, RefreshCw } from 'lucide-react';
-import { getQueryClients } from '../utils/clientsApi';
-import { getToken, validateToken } from '../utils/apiClient';
+import {
+  TrendingUp, Users, FolderOpen, DollarSign,
+  ArrowRight, Calendar, ShoppingBag, UserCheck,
+  Briefcase, RefreshCw,
+} from 'lucide-react';
+import { getSalesOverview, type SalesOverview } from '../utils/clientsApi';
+import { api } from '../utils/apiClient';
+
+const fmt = (n: number) =>
+  n >= 100000
+    ? `₹${(n / 100000).toFixed(1)}L`
+    : n >= 1000
+    ? `₹${(n / 1000).toFixed(0)}K`
+    : `₹${n.toFixed(0)}`;
+
+const num = (v: any) => parseFloat(v) || 0;
+
+interface ActivityEntry {
+  id: string;
+  type: 'booking' | 'client' | 'project' | 'sale';
+  title: string;
+  subtitle: string;
+  created_at: string;
+}
+
+const typeConfig = {
+  booking:  { icon: Calendar,     label: 'Booking',  color: 'text-blue-400',  bg: 'bg-blue-500/10'  },
+  client:   { icon: UserCheck,    label: 'Client',   color: 'text-green-400', bg: 'bg-green-500/10' },
+  project:  { icon: Briefcase,    label: 'Project',  color: 'text-purple-400',bg: 'bg-purple-500/10'},
+  sale:     { icon: ShoppingBag,  label: 'Sale',     color: 'text-red-400',   bg: 'bg-red-500/10'   },
+};
 
 const AdminOverview: React.FC = () => {
-  const [leads, setLeads] = useState<any[]>([]);
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const [authStatus, setAuthStatus] = useState<'checking' | 'valid' | 'invalid'>('checking');
+  const [overview, setOverview] = useState<any>(null);
+  const [salesStats, setSalesStats] = useState<SalesOverview | null>(null);
+  const [activity, setActivity] = useState<ActivityEntry[]>([]);
+  const [queryCount, setQueryCount] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
-  const checkAuth = async () => {
-    const token = getToken();
-    console.log('🔍 AdminOverview - Checking authentication...');
-    console.log('🎫 Token exists:', !!token);
-    
-    if (!token) {
-      setAuthStatus('invalid');
-      return;
-    }
-    
-    const isValid = await validateToken();
-    setAuthStatus(isValid ? 'valid' : 'invalid');
-  };
-
-  const fetchLeads = async () => {
-    setIsRefreshing(true);
+  const load = async (silent = false) => {
+    if (!silent) setLoading(true);
+    setRefreshing(true);
     try {
-      console.log('📊 AdminOverview - Fetching leads...');
-      const { data, error } = await getQueryClients();
-      if (!error && data) {
-        // Just take the 10 most recent for the overview
-        const sorted = [...data].sort((a, b) => new Date(b.created_at || '').getTime() - new Date(a.created_at || '').getTime());
-        setLeads(sorted.slice(0, 10));
-        console.log('✅ Leads fetched successfully:', sorted.length);
-      } else {
-        console.error('❌ Error fetching leads:', error);
-      }
+      const [overviewRes, salesRes, bookingsRes, clientsRes, projectsRes, salesListRes, queryRes] =
+        await Promise.all([
+          api.get('/api/admin/overview') as any,
+          getSalesOverview(),
+          api.get('/api/admin/bookings') as any,
+          api.get('/api/admin/clients/onboarded') as any,
+          api.get('/api/admin/projects') as any,
+          api.get('/api/admin/sales') as any,
+          api.get('/api/admin/clients/query') as any,
+        ]);
+
+      setOverview(overviewRes.data || overviewRes);
+      setSalesStats(salesRes.data);
+      setQueryCount((queryRes.clients || []).length);
+
+      const entries: ActivityEntry[] = [
+        ...(bookingsRes.bookings || []).map((b: any) => ({
+          id: b.id,
+          type: 'booking' as const,
+          title: b.name || 'Unknown',
+          subtitle: b.project_type || b.agency || 'New booking',
+          created_at: b.created_at,
+        })),
+        ...(clientsRes.clients || []).map((c: any) => ({
+          id: c.id,
+          type: 'client' as const,
+          title: c.contact_name || c.company_name || 'Client',
+          subtitle: c.company_name || c.email || 'Onboarded',
+          created_at: c.onboarded_at || c.created_at,
+        })),
+        ...(projectsRes.projects || []).map((p: any) => ({
+          id: p.id,
+          type: 'project' as const,
+          title: p.project_name || p.title || 'Project',
+          subtitle: p.brand_name || p.client_name || 'New project',
+          created_at: p.created_at,
+        })),
+        ...(salesListRes.sales || []).map((s: any) => ({
+          id: s.id,
+          type: 'sale' as const,
+          title: s.client_name || 'Sale',
+          subtitle: `${s.service || ''} · ${fmt(num(s.amount))}`,
+          created_at: s.created_at,
+        })),
+      ];
+
+      entries.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+      setActivity(entries.slice(0, 5));
     } catch (err) {
-      console.error('❌ Exception fetching leads:', err);
+      console.error('Overview load error:', err);
     }
-    setIsRefreshing(false);
+    setLoading(false);
+    setRefreshing(false);
   };
 
-  useEffect(() => {
-    // Check authentication first
-    checkAuth().then(() => {
-      // Only fetch data if authenticated
-      fetchLeads();
-    });
-    
-    // Auto refresh every 30 seconds
-    const interval = setInterval(() => {
-      checkAuth().then(() => fetchLeads());
-    }, 30000);
-    
-    return () => clearInterval(interval);
-  }, []);
+  useEffect(() => { load(); }, []);
+
+  const bk = overview?.bookings ?? {};
+  const metrics = [
+    {
+      label: 'Total Leads',
+      value: num(bk.total_bookings),
+      display: String(num(bk.total_bookings)),
+      icon: Users,
+      sub: `${num(bk.pending)} pending`,
+      color: 'text-blue-400',
+      bg: 'bg-blue-500/10',
+    },
+    {
+      label: 'Onboarded Clients',
+      value: num(overview?.total_clients),
+      display: String(num(overview?.total_clients)),
+      icon: UserCheck,
+      sub: `${num(overview?.active_clients)} active`,
+      color: 'text-green-400',
+      bg: 'bg-green-500/10',
+    },
+    {
+      label: 'Active Projects',
+      value: num(overview?.active_projects),
+      display: String(num(overview?.active_projects)),
+      icon: FolderOpen,
+      sub: `${num(overview?.total_projects)} total`,
+      color: 'text-purple-400',
+      bg: 'bg-purple-500/10',
+    },
+    {
+      label: 'Total Revenue',
+      value: num(overview?.total_revenue),
+      display: fmt(num(overview?.total_revenue)),
+      icon: DollarSign,
+      sub: `${fmt(num(overview?.total_collected))} collected`,
+      color: 'text-red-400',
+      bg: 'bg-red-500/10',
+    },
+  ];
+
+  const pipeline = [
+    { label: 'Bookings',         count: num(bk.total_bookings) },
+    { label: 'Query Clients',    count: queryCount             },
+    { label: 'Onboarded',        count: num(overview?.total_clients) },
+    { label: 'Projects',         count: num(overview?.total_projects) },
+  ];
 
   return (
-    <AdminLayout title="System Overview">
-      <div className="grid lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-2 space-y-8">
-          {/* Executive Card */}
-          <div className="p-12 premium-card overflow-hidden relative group">
-            <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 pointer-events-none"></div>
-            <div className="relative z-10">
-              <div className="flex items-center gap-3 mb-8">
-                <div className="p-2.5 rounded-xl bg-black/30 backdrop-blur-md border border-white/10">
-                  <Terminal className="w-5 h-5" />
-                </div>
-                <span className="text-[10px] font-black tracking-[0.3em] uppercase text-white/50">Executive Node Alpha</span>
-              </div>
-              <h2 className="text-5xl font-heading font-bold mb-6 tracking-tighter">System Intelligence</h2>
-              <p className="text-white/70 max-w-lg leading-relaxed mb-12 text-lg font-light">
-                Monitoring <span className="text-white font-bold">14</span> autonomous growth agents. Global success rate is at <span className="text-white font-bold">99.2%</span>.
-              </p>
-              <button className="px-10 py-4 bg-black text-white rounded-2xl font-bold hover:scale-105 transition-all text-[10px] uppercase tracking-widest shadow-2xl">
-                Execute Performance Audit
-              </button>
-            </div>
-          </div>
-
-          {/* Incoming Audits (Dynamic) */}
-          <div className="p-10 premium-card">
-            <div className="flex items-center justify-between mb-10">
-              <div className="flex items-center gap-4">
-                <div className="w-10 h-10 rounded-2xl bg-red-600/10 flex items-center justify-center">
-                  <Inbox className="w-5 h-5 text-red-500" />
-                </div>
-                <div>
-                  <h3 className="text-xl font-bold font-heading">Lead Intake Feed</h3>
-                  <p className="text-[9px] text-white/20 font-black uppercase tracking-widest mt-1">Sourced from Landing Page Audit</p>
-                </div>
-              </div>
-              <button
-                onClick={fetchLeads}
-                className={`p-3 rounded-full hover:bg-white/5 transition-all ${isRefreshing ? 'animate-spin' : ''}`}
-              >
-                <RefreshCw className="w-4 h-4 text-white/40" />
-              </button>
-            </div>
-
-            <div className="space-y-4">
-              <AnimatePresence mode="popLayout">
-                {leads.length > 0 ? leads.map((audit) => (
-                  <motion.div
-                    layout
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, scale: 0.95 }}
-                    key={audit.id}
-                    className="flex items-center justify-between p-6 glass-panel transition-all group"
-                  >
-                    <div className="flex items-center gap-6">
-                      <div className="w-12 h-12 rounded-full bg-gradient-to-br from-red-600 to-red-800 flex items-center justify-center font-bold text-sm shadow-xl">
-                        {audit.name ? audit.name[0] : 'U'}
-                      </div>
-                      <div>
-                        <p className="font-bold text-base tracking-tight">{audit.name || 'Anonymous Lead'}</p>
-                        <p className="text-[10px] text-white/30 uppercase tracking-[0.2em] font-black mt-1">
-                          {audit.phone ? `Phone: ${audit.phone}` : 'No Phone'}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <span className="inline-block px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest bg-red-600/10 text-red-500 border border-red-600/20 mb-2">
-                        {audit.status || 'New'}
-                      </span>
-                      <p className="text-[10px] text-white/20 font-mono tracking-tighter">{audit.email || 'No Email'}</p>
-                    </div>
-                  </motion.div>
-                )) : (
-                  <div className="py-20 text-center opacity-20">
-                    <p className="text-sm font-bold uppercase tracking-widest">No leads captured in current session</p>
-                  </div>
-                )}
-              </AnimatePresence>
-            </div>
-          </div>
+    <AdminLayout title="Command Overview">
+      {loading ? (
+        <div className="flex items-center justify-center py-40">
+          <motion.div
+            animate={{ rotate: 360 }}
+            transition={{ repeat: Infinity, duration: 1, ease: 'linear' }}
+            className="w-10 h-10 border-2 border-white/10 border-t-red-600 rounded-full"
+          />
         </div>
-
-        {/* Sidebar Stats */}
+      ) : (
         <div className="space-y-8">
-          {[
-            { label: 'Neural Activity', value: '42.8%', icon: Cpu },
-            { label: 'System Uptime', value: '99.9%', icon: ShieldCheck },
-            { label: 'Throughput', value: '1.2GB/s', icon: Zap },
-          ].map((stat, i) => (
-            <div key={i} className="p-8 premium-card text-center group transition-all">
-              <stat.icon className="w-6 h-6 text-red-600 mx-auto mb-4 group-hover:scale-125 transition-transform" />
-              <p className="text-[10px] font-black text-white/30 uppercase tracking-[0.3em] mb-1">{stat.label}</p>
-              <p className="text-3xl font-heading font-bold">{stat.value}</p>
-            </div>
-          ))}
 
-          <div className="p-8 premium-card">
-            <h4 className="text-sm font-black uppercase tracking-widest text-red-500 mb-6">Security Logs</h4>
-            <div className="space-y-4">
-              {[
-                'Terminal node authenticated',
-                'Encryption layer active',
-                'Lead sync completed',
-                'Audit v4.2 patched'
-              ].map((log, i) => (
-                <div key={i} className="flex gap-3 text-[10px] font-mono text-white/20">
-                  <span className="text-red-500/40">[{10 + i}:42:0{i}]</span>
-                  <span>{log}</span>
+          {/* ── TOP METRICS ── */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            {metrics.map((m, i) => (
+              <motion.div
+                key={m.label}
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: i * 0.07 }}
+                className="p-6 premium-card relative overflow-hidden group"
+              >
+                <div className={`absolute top-0 right-0 w-24 h-24 ${m.bg} blur-3xl opacity-40 pointer-events-none`} />
+                <div className={`w-10 h-10 rounded-2xl ${m.bg} flex items-center justify-center mb-4`}>
+                  <m.icon className={`w-5 h-5 ${m.color}`} />
                 </div>
+                <p className="text-[9px] font-black uppercase tracking-[0.3em] text-white/30 mb-1">{m.label}</p>
+                <p className="text-3xl font-heading font-bold tracking-tighter">{m.display}</p>
+                <p className="text-[10px] text-white/20 font-mono mt-1">{m.sub}</p>
+              </motion.div>
+            ))}
+          </div>
+
+          {/* ── LEAD PIPELINE ── */}
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 }}
+            className="p-8 premium-card"
+          >
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h3 className="text-lg font-bold font-heading">Lead Pipeline</h3>
+                <p className="text-[9px] text-white/20 font-mono uppercase tracking-widest mt-0.5">Conversion funnel overview</p>
+              </div>
+              <div className="text-[9px] font-mono text-white/20 uppercase tracking-widest">
+                {num(overview?.conversion_rate).toFixed(1)}% conversion
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              {pipeline.map((stage, i) => (
+                <React.Fragment key={stage.label}>
+                  <div className="flex-1">
+                    <div className="p-4 rounded-2xl bg-white/5 border border-white/10 text-center group hover:border-red-600/30 transition-all">
+                      <p className="text-2xl font-heading font-bold">{stage.count}</p>
+                      <p className="text-[9px] font-mono text-white/30 uppercase tracking-widest mt-1">{stage.label}</p>
+                    </div>
+                  </div>
+                  {i < pipeline.length - 1 && (
+                    <ArrowRight className="w-4 h-4 text-white/10 flex-shrink-0" />
+                  )}
+                </React.Fragment>
               ))}
             </div>
-          </div>
+          </motion.div>
 
-          <AdminScanner />
-          <AdminUsers />
+          {/* ── MAIN CONTENT ── */}
+          <div className="grid lg:grid-cols-3 gap-8">
+
+            {/* Recent Activity */}
+            <div className="lg:col-span-2 space-y-4">
+              <motion.div
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.4 }}
+                className="p-8 premium-card"
+              >
+                <div className="flex items-center justify-between mb-6">
+                  <div>
+                    <h3 className="text-lg font-bold font-heading">Recent Activity</h3>
+                    <p className="text-[9px] text-white/20 font-mono uppercase tracking-widest mt-0.5">Latest system events</p>
+                  </div>
+                  <button
+                    onClick={() => load(true)}
+                    className={`p-2.5 rounded-full hover:bg-white/5 transition-all ${refreshing ? 'animate-spin' : ''}`}
+                  >
+                    <RefreshCw className="w-4 h-4 text-white/30" />
+                  </button>
+                </div>
+
+                <div className="space-y-3">
+                  <AnimatePresence mode="popLayout">
+                    {activity.length > 0 ? activity.map((entry) => {
+                      const cfg = typeConfig[entry.type];
+                      return (
+                        <motion.div
+                          layout
+                          key={entry.id}
+                          initial={{ opacity: 0, x: -10 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          exit={{ opacity: 0 }}
+                          className="flex items-center justify-between p-5 glass-panel group"
+                        >
+                          <div className="flex items-center gap-4">
+                            <div className={`w-10 h-10 rounded-2xl ${cfg.bg} flex items-center justify-center`}>
+                              <cfg.icon className={`w-4 h-4 ${cfg.color}`} />
+                            </div>
+                            <div>
+                              <p className="font-bold text-sm tracking-tight">{entry.title}</p>
+                              <p className="text-[10px] text-white/30 font-mono mt-0.5">{entry.subtitle}</p>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <span className={`inline-block px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${cfg.bg} ${cfg.color} border border-current/20`}>
+                              {cfg.label}
+                            </span>
+                            <p className="text-[10px] text-white/20 font-mono mt-1">
+                              {new Date(entry.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}
+                            </p>
+                          </div>
+                        </motion.div>
+                      );
+                    }) : (
+                      <div className="py-16 text-center opacity-20">
+                        <p className="text-sm font-bold uppercase tracking-widest">No recent activity</p>
+                      </div>
+                    )}
+                  </AnimatePresence>
+                </div>
+              </motion.div>
+            </div>
+
+            {/* Sidebar */}
+            <div className="space-y-6">
+
+              {/* Sales Snapshot */}
+              <motion.div
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.45 }}
+                className="p-8 premium-card"
+              >
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="w-8 h-8 rounded-xl bg-red-600/10 flex items-center justify-center">
+                    <TrendingUp className="w-4 h-4 text-red-500" />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-bold font-heading">Sales Snapshot</h4>
+                    <p className="text-[9px] text-white/20 font-mono uppercase tracking-widest">Revenue metrics</p>
+                  </div>
+                </div>
+                <div className="space-y-4">
+                  {[
+                    { label: 'Revenue This Month', value: fmt(num(salesStats?.monthly_revenue)) },
+                    { label: 'Avg Project Value',  value: fmt(num(salesStats?.avg_sale))        },
+                    { label: 'Active Retainers',   value: String(num(salesStats?.active_retainers)) },
+                    { label: 'Total Sales',        value: String(num(salesStats?.total_sales_count)) },
+                  ].map((row) => (
+                    <div key={row.label} className="flex justify-between items-baseline">
+                      <p className="text-[10px] font-mono text-white/30 uppercase tracking-widest">{row.label}</p>
+                      <p className="text-lg font-heading font-bold">{row.value}</p>
+                    </div>
+                  ))}
+                </div>
+              </motion.div>
+
+              {/* Booking Breakdown */}
+              <motion.div
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.5 }}
+                className="p-8 premium-card"
+              >
+                <h4 className="text-sm font-bold font-heading mb-4">Booking Breakdown</h4>
+                <div className="space-y-3">
+                  {[
+                    { label: 'Pending',   count: num(bk.pending),   color: 'bg-yellow-500' },
+                    { label: 'Accepted',  count: num(bk.accepted),  color: 'bg-green-500'  },
+                    { label: 'Follow-up', count: num(bk.follow_up), color: 'bg-blue-500'   },
+                    { label: 'Rejected',  count: num(bk.rejected),  color: 'bg-red-500'    },
+                  ].map((row) => {
+                    const total = num(bk.total_bookings) || 1;
+                    const pct = (row.count / total) * 100;
+                    return (
+                      <div key={row.label}>
+                        <div className="flex justify-between mb-1">
+                          <p className="text-[10px] font-mono text-white/30 uppercase tracking-widest">{row.label}</p>
+                          <p className="text-[10px] font-mono text-white/50">{row.count}</p>
+                        </div>
+                        <div className="h-1 rounded-full bg-white/5 overflow-hidden">
+                          <motion.div
+                            initial={{ width: 0 }}
+                            animate={{ width: `${pct}%` }}
+                            transition={{ delay: 0.6, duration: 0.6, ease: 'easeOut' }}
+                            className={`h-full rounded-full ${row.color}`}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </motion.div>
+
+              <AdminScanner />
+            </div>
+          </div>
         </div>
-      </div>
+      )}
     </AdminLayout>
   );
 };

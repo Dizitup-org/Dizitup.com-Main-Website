@@ -12,17 +12,30 @@ export type PortfolioProject = {
   created_at?: string;
 };
 
+function mapItem(p: any): PortfolioProject {
+  return {
+    id: p.id,
+    title: p.title,
+    category: p.category,
+    link: p.link || p.project_url || '',
+    description: p.description,
+    image_url: p.image_url,
+    is_featured: p.is_featured,
+    created_at: p.created_at,
+  };
+}
+
 export async function getPublishedPortfolio(): Promise<PortfolioProject[]> {
   try {
     const res = await api.get('/api/portfolio') as any;
-    return res.portfolio || [];
+    return (res.portfolio || []).map(mapItem);
   } catch (err) { return []; }
 }
 
 export async function getAllPortfolio(): Promise<PortfolioProject[]> {
   try {
     const res = await api.get('/api/admin/portfolio') as any;
-    return res.portfolio || [];
+    return (res.portfolio || []).map(mapItem);
   } catch (err) { return []; }
 }
 
