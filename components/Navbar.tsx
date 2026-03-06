@@ -30,7 +30,7 @@ const Navbar: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const showBack = location.pathname !== '/';
-  const { user, profile, signOut, isAdmin } = useAuth();
+  const { user, profile, signOut, isAdmin, signInAdmin } = useAuth();
   const [open, setOpen] = useState(false);
   const [authOpen, setAuthOpen] = useState(false);
   
@@ -47,7 +47,7 @@ const Navbar: React.FC = () => {
     setAdminError(false);
     
     try {
-      await signIn(adminCreds.user, adminCreds.pass);
+      await signInAdmin(adminCreds.user, adminCreds.pass);
       setAdminModalOpen(false);
       setAdminCreds({ user: '', pass: '' });
       setShowAdminWelcome(true);

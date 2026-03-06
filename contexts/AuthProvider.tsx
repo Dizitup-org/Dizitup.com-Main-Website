@@ -35,19 +35,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     console.log('🔄 AuthProvider initialization - token found:', token ? 'YES' : 'NO');
     
     if (!token) {
-      // DEV MODE: auto-login with credentials from .env so admin panel works without manual login
-      const devEmail = import.meta.env.VITE_DEV_ADMIN_EMAIL;
-      const devPass  = import.meta.env.VITE_DEV_ADMIN_PASSWORD;
-      if (devEmail && devPass) {
-        api.post<{ token: string; user: AuthUser }>('/api/auth/login', { email: devEmail, password: devPass })
-          .then((res) => { setToken(res.token); setUser(res.user); })
-          .catch(() => { /* silently ignore in dev */ })
-          .finally(() => setLoading(false));
-        return;
-      }
-      console.log('❌ No token found, user not authenticated');
-      setLoading(false); 
-      return; 
+      setLoading(false);
+      return;
     }
     
     console.log('🔍 Verifying token with backend...');
