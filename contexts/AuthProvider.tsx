@@ -15,6 +15,7 @@ type AuthContextValue = {
   user: AuthUser | null; loading: boolean; isAdmin: boolean; profile: AuthUser | null;
   signUp: (data: { email: string; password: string; username: string; first_name: string; last_name: string; phone?: string; business_name?: string; }) => Promise<void>;
   signIn: (email: string, password: string) => Promise<void>;
+  signInAdmin: (usernameOrEmail: string, password: string) => Promise<void>;
   signOut: () => void;
   resetPassword: (email: string) => Promise<void>;
   upsertProfile: (data: { first_name?: string; last_name?: string; username?: string; business_name?: string; phone?: string }) => Promise<void>;
@@ -33,7 +34,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const token = getToken();
     console.log('🔄 AuthProvider initialization - token found:', token ? 'YES' : 'NO');
     
-    if (!token) { 
+    if (!token) {
+      // DEV MODE: auto-login with credentials from .env so admin panel works without manual login
+      const devEmail = import.meta.env.VITE_DEV_ADMIN_EMAIL;
+      const devPass  = import.meta.env.VITE_DEV_ADMIN_PASSWORD;
+      if (devEmail && devPass) {
+        api.post<{ token: string; user: AuthUser }>('/api/auth/login', { email: devEmail, password: devPass })
+          .then((res) => { setToken(res.token); setUser(res.user); })
+          .catch(() => { /* silently ignore in dev */ })
+          .finally(() => setLoading(false));
+        return;
+      }
       console.log('❌ No token found, user not authenticated');
       setLoading(false); 
       return; 
@@ -104,6 +115,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const signInAdmin = async (usernameOrEmail: string, password: string) => {
+    const identifier = usernameOrEmail.trim();
+    if (!identifier) throw new Error('Username or email is required');
+
+    await signIn(identifier, password);
+
+    // Re-read user from backend to ensure admin flag is authoritative.
+    const me = await api.get<{ success: boolean; user: AuthUser }>('/api/user/me');
+    if (!me.success || !me.user) {
+      signOut();
+      throw new Error('Failed to verify admin session');
+    }
+    if (!me.user.isAdmin) {
+      signOut();
+      throw new Error('Access denied: admin credentials required');
+    }
+
+    setUser(me.user);
+  };
+
   const signOut = () => { removeToken(); setUser(null); };
 
   const resetPassword = async (email: string) => {
@@ -151,7 +182,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
     return {
       user, loading, isAdmin: computedIsAdmin, profile: user,
-      signUp, signIn, signOut, resetPassword, upsertProfile, uploadAvatar, changePassword, updateEmail,
+      signUp, signIn, signInAdmin, signOut, resetPassword, upsertProfile, uploadAvatar, changePassword, updateEmail,
     };
   }, [user, loading]);
 

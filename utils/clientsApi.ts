@@ -140,7 +140,13 @@ export interface ProjectOption {
 export async function getAdminProjects(): Promise<{ data: ProjectOption[] | null; error: string | null }> {
   try {
     const res = await api.get('/api/admin/projects') as any;
-    return { data: res.projects, error: null };
+    const mapped = (res.projects ?? []).map((p: any) => ({
+      id: p.id,
+      client_name: p.brand_name || p.client_name || '',
+      title: p.project_name || p.title || '',
+      display_name: `${p.brand_name || p.client_name || 'Unknown'} — ${p.project_name || p.title || 'Unnamed'}`,
+    }));
+    return { data: mapped, error: null };
   } catch (err: any) { return { data: null, error: err.message }; }
 }
 
@@ -153,6 +159,7 @@ export async function getAdminSales(): Promise<{ data: AdminSaleEntry[] | null; 
 
 export async function addAdminSale(sale: Omit<AdminSaleEntry, 'id' | 'created_at'>): Promise<{ data: AdminSaleEntry | null; error: string | null }> {
   try {
+    // Backend uses client_name (DB column name)
     const res = await api.post('/api/admin/sales', sale) as any;
     // Clear sales and overview caches to ensure fresh data  
     clearCache('sales');
@@ -164,6 +171,7 @@ export async function addAdminSale(sale: Omit<AdminSaleEntry, 'id' | 'created_at
 
 export async function updateAdminSale(id: string, updates: Partial<AdminSaleEntry>): Promise<{ error: string | null }> {
   try {
+    // Backend uses client_name (DB column name)
     await api.patch(`/api/admin/sales/${id}`, updates);
     // Clear sales and overview caches to ensure fresh data
     clearCache('sales');
@@ -182,4 +190,44 @@ export async function deleteAdminSale(id: string): Promise<{ error: string | nul
     clearCache('monthly');
     return { error: null };
   } catch (err: any) { return { error: err.message }; }
+}
+
+// ============ SALES DASHBOARD ENDPOINTS ============
+export interface SalesOverview {
+  total_revenue: number;
+  monthly_revenue: number;
+  active_retainers: number;
+  avg_sale: number;
+  total_sales_count: number;
+}
+
+export interface SalesChartPoint {
+  name: string;
+  revenue: number;
+}
+
+export interface SalesServiceMixItem {
+  label: string;
+  value: number;
+}
+
+export async function getSalesOverview(): Promise<{ data: SalesOverview | null; error: string | null }> {
+  try {
+    const res = await api.get('/api/admin/sales/overview') as any;
+    return { data: res.overview ?? res.data ?? res, error: null };
+  } catch (err: any) { return { data: null, error: err.message }; }
+}
+
+export async function getSalesChart(period: 'Weekly' | 'Monthly'): Promise<{ data: SalesChartPoint[] | null; error: string | null }> {
+  try {
+    const res = await api.get(`/api/admin/sales/chart?period=${period.toLowerCase()}`) as any;
+    return { data: res.chart ?? res.data ?? [], error: null };
+  } catch (err: any) { return { data: null, error: err.message }; }
+}
+
+export async function getSalesServiceMix(): Promise<{ data: SalesServiceMixItem[] | null; error: string | null }> {
+  try {
+    const res = await api.get('/api/admin/sales/service-mix') as any;
+    return { data: res.service_mix ?? res.serviceMix ?? res.data ?? [], error: null };
+  } catch (err: any) { return { data: null, error: err.message }; }
 }

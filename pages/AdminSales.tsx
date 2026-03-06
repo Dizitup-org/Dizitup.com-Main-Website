@@ -1,10 +1,10 @@
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import AdminLayout from '../components/AdminLayout';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { TrendingUp, Users, DollarSign, Calendar, Plus, X, Trash2, Edit2, Loader2, RefreshCw } from 'lucide-react';
-import { getAdminSales, addAdminSale, updateAdminSale, deleteAdminSale, getAdminProjects, type AdminSaleEntry, type ProjectOption } from '../utils/clientsApi';
+import { getAdminSales, addAdminSale, updateAdminSale, deleteAdminSale, getAdminProjects, getSalesOverview, getSalesChart, getSalesServiceMix, type AdminSaleEntry, type ProjectOption, type SalesOverview, type SalesChartPoint } from '../utils/clientsApi';
 import { broadcastSalesUpdate } from '../utils/salesEvents';
 import toast from 'react-hot-toast';
 
@@ -121,7 +121,7 @@ const SaleModal: React.FC<SaleModalProps> = ({ isOpen, onClose, onSubmit, editSa
     try {
       await onSubmit({
         project_id: formData.project_id,
-        client_name: selectedProject.client_name, // Get client name from selected project
+        client_name: selectedProject.client_name || selectedProject.title || 'Unknown',
         service: formData.service.trim(),
         amount: parseFloat(formData.amount),
         type: formData.type,
@@ -288,137 +288,78 @@ const SaleModal: React.FC<SaleModalProps> = ({ isOpen, onClose, onSubmit, editSa
   );
 };
 
+// ============ SERVICE MIX COLOR MAP ============
+const SERVICE_MIX_COLORS: Record<string, string> = {
+  Retainers: 'bg-red-600',
+  Retainer: 'bg-red-600',
+  'One-time': 'bg-white',
+  Consulting: 'bg-white/20',
+};
+
 // ============ MAIN COMPONENT ============
 const AdminSales: React.FC = () => {
   const [sales, setSales] = useState<AdminSaleEntry[]>([]);
+  const [overview, setOverview] = useState<SalesOverview | null>(null);
+  const [chartData, setChartData] = useState<SalesChartPoint[]>([]);
+  const [serviceMix, setServiceMix] = useState<Array<{ label: string; value: number; color: string }>>([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingSale, setEditingSale] = useState<AdminSaleEntry | null>(null);
   const [chartPeriod, setChartPeriod] = useState<'Weekly' | 'Monthly'>('Weekly');
 
-  // Fetch sales from database
-  const fetchSales = useCallback(async () => {
-    setLoading(true);
+  const loadSales = useCallback(async () => {
     const { data, error } = await getAdminSales();
-    if (error) {
-      toast.error(error);
-    } else {
-      setSales(data || []);
-    }
-    setLoading(false);
+    if (error) toast.error(error);
+    else setSales(data || []);
   }, []);
 
+  const loadOverview = useCallback(async () => {
+    const { data } = await getSalesOverview();
+    if (data) setOverview(data);
+  }, []);
+
+  const loadChart = useCallback(async (period: 'Weekly' | 'Monthly') => {
+    const { data } = await getSalesChart(period);
+    if (data) setChartData(data);
+  }, []);
+
+  const loadServiceMix = useCallback(async () => {
+    const { data } = await getSalesServiceMix();
+    if (data) setServiceMix(data.map(item => ({ ...item, color: SERVICE_MIX_COLORS[item.label] ?? 'bg-white/20' })));
+  }, []);
+
+  const refreshAll = useCallback(async () => {
+    return Promise.all([loadSales(), loadOverview(), loadChart(chartPeriod), loadServiceMix()]);
+  }, [loadSales, loadOverview, loadChart, loadServiceMix, chartPeriod]);
+
+  // Initial load
   useEffect(() => {
-    fetchSales();
-  }, [fetchSales]);
+    setLoading(true);
+    refreshAll().finally(() => setLoading(false));
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ============ CALCULATED METRICS ============
-  const metrics = useMemo(() => {
-    const now = new Date();
-    const currentMonth = now.getMonth();
-    const currentYear = now.getFullYear();
-
-    // Total Revenue (paid only)
-    const totalRevenue = sales
-      .filter(s => s.status === 'Paid')
-      .reduce((acc, s) => acc + s.amount, 0);
-
-    // Monthly Revenue (current month, paid)
-    const monthlyRevenue = sales
-      .filter(s => {
-        const saleDate = new Date(s.sale_date);
-        return s.status === 'Paid' && saleDate.getMonth() === currentMonth && saleDate.getFullYear() === currentYear;
-      })
-      .reduce((acc, s) => acc + s.amount, 0);
-
-    // Active Retainers (unique clients with Retainer type)
-    const activeRetainers = new Set(sales.filter(s => s.type === 'Retainer').map(s => s.client_name)).size;
-
-    // Average Sale
-    const paidSales = sales.filter(s => s.status === 'Paid');
-    const avgSale = paidSales.length > 0 ? totalRevenue / paidSales.length : 0;
-
-    // Service Mix
-    const retainerAmount = sales.filter(s => s.type === 'Retainer').reduce((acc, s) => acc + s.amount, 0);
-    const oneTimeAmount = sales.filter(s => s.type === 'One-time').reduce((acc, s) => acc + s.amount, 0);
-    const consultingAmount = sales.filter(s => s.type === 'Consulting').reduce((acc, s) => acc + s.amount, 0);
-    const totalAmount = retainerAmount + oneTimeAmount + consultingAmount;
-
-    const serviceMix = [
-      { label: 'Retainers', value: totalAmount > 0 ? Math.round((retainerAmount / totalAmount) * 100) : 0, color: 'bg-red-600' },
-      { label: 'One-time', value: totalAmount > 0 ? Math.round((oneTimeAmount / totalAmount) * 100) : 0, color: 'bg-white' },
-      { label: 'Consulting', value: totalAmount > 0 ? Math.round((consultingAmount / totalAmount) * 100) : 0, color: 'bg-white/20' },
-    ];
-
-    return {
-      totalRevenue,
-      monthlyRevenue,
-      activeRetainers,
-      avgSale,
-      serviceMix
-    };
-  }, [sales]);
-
-  // ============ CHART DATA ============
-  const chartData = useMemo(() => {
-    if (chartPeriod === 'Weekly') {
-      // Group by week
-      const weeks: { [key: string]: number } = { 'Week 1': 0, 'Week 2': 0, 'Week 3': 0, 'Week 4': 0 };
-      sales.forEach(s => {
-        const day = new Date(s.sale_date).getDate();
-        if (day <= 7) weeks['Week 1'] += s.amount;
-        else if (day <= 14) weeks['Week 2'] += s.amount;
-        else if (day <= 21) weeks['Week 3'] += s.amount;
-        else weeks['Week 4'] += s.amount;
-      });
-      return Object.entries(weeks).map(([name, revenue]) => ({ name, revenue }));
-    } else {
-      // Group by month
-      const months: { [key: string]: number } = {};
-      const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-      sales.forEach(s => {
-        const month = monthNames[new Date(s.sale_date).getMonth()];
-        months[month] = (months[month] || 0) + s.amount;
-      });
-      return Object.entries(months).map(([name, revenue]) => ({ name, revenue }));
-    }
-  }, [sales, chartPeriod]);
+  // Re-fetch chart when period toggles
+  useEffect(() => {
+    loadChart(chartPeriod);
+  }, [chartPeriod, loadChart]);
 
   // ============ HANDLERS ============
   const handleAddSale = async (saleData: Omit<AdminSaleEntry, 'id' | 'created_at'>) => {
     try {
-      // API call: POST /api/admin/sales with required body fields
       const { data, error } = await addAdminSale(saleData);
       if (error) {
         toast.error(`Failed to add sale: ${error}`);
         throw new Error(error);
-      } 
-      
+      }
       if (data) {
-        // 1. Update local sales list
-        setSales(prev => [data, ...prev]);
-        
-        // 2. Close modal and reset states
         setModalOpen(false);
         setEditingSale(null);
-        
-        // 3. Success notification
-        toast.success('Sale added successfully!', { 
-          icon: '💰',
-          duration: 3000 
-        });
-        
-        // 4. Broadcast update to refresh dashboard stats & charts
+        toast.success('Sale added successfully!', { icon: '💰', duration: 3000 });
         broadcastSalesUpdate({ type: 'add', sale: data });
-        
-        // 5. Optional: Force refresh from server to ensure consistency
-        setTimeout(() => {
-          fetchSales();
-        }, 1000);
+        await refreshAll();
       }
     } catch (error) {
       console.error('Error adding sale:', error);
-      // Don't close modal on error so user can retry
     }
   };
 
@@ -428,13 +369,11 @@ const AdminSales: React.FC = () => {
     if (error) {
       toast.error(error);
     } else {
-      setSales(prev => prev.map(s => s.id === editingSale.id ? { ...s, ...saleData } : s));
       toast.success('Sale updated successfully!');
       setEditingSale(null);
       setModalOpen(false);
-      
-      // Broadcast update to other components
       broadcastSalesUpdate({ type: 'update', saleId: editingSale.id });
+      await refreshAll();
     }
   };
 
@@ -444,18 +383,14 @@ const AdminSales: React.FC = () => {
     if (error) {
       toast.error(error);
     } else {
-      setSales(prev => prev.filter(s => s.id !== id));
       toast.success('Sale deleted');
-      
-      // Broadcast update to other components
       broadcastSalesUpdate({ type: 'delete', saleId: id });
+      await refreshAll();
     }
   };
 
   const formatCurrency = (amount: number) => {
-    if (amount >= 100000) {
-      return `₹${(amount / 100000).toFixed(2)}L`;
-    }
+    if (amount >= 100000) return `₹${(amount / 100000).toFixed(2)}L`;
     return `₹${amount.toLocaleString('en-IN')}`;
   };
 
@@ -469,7 +404,10 @@ const AdminSales: React.FC = () => {
           </div>
           <div className="flex gap-3">
             <button
-              onClick={fetchSales}
+              onClick={() => {
+                setLoading(true);
+                refreshAll().finally(() => setLoading(false));
+              }}
               className="px-4 py-2 rounded-xl bg-white/5 text-white/60 font-bold hover:bg-white/10 transition-colors flex items-center gap-2"
             >
               <RefreshCw className="w-4 h-4" /> Refresh
@@ -485,33 +423,33 @@ const AdminSales: React.FC = () => {
 
         {/* Stats Grid */}
         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <StatCard 
-            label="Total Revenue" 
-            value={formatCurrency(metrics.totalRevenue)} 
-            change={sales.length > 0 ? `${sales.length} sales` : '0 sales'} 
-            icon={DollarSign} 
-            delay={0.1} 
+          <StatCard
+            label="Total Revenue"
+            value={formatCurrency(overview?.total_revenue ?? 0)}
+            change={overview ? `${overview.total_sales_count} sales` : '0 sales'}
+            icon={DollarSign}
+            delay={0.1}
           />
-          <StatCard 
-            label="Monthly Rev" 
-            value={formatCurrency(metrics.monthlyRevenue)} 
-            change="This month" 
-            icon={TrendingUp} 
-            delay={0.2} 
+          <StatCard
+            label="Monthly Rev"
+            value={formatCurrency(overview?.monthly_revenue ?? 0)}
+            change="This month"
+            icon={TrendingUp}
+            delay={0.2}
           />
-          <StatCard 
-            label="Active Retainers" 
-            value={metrics.activeRetainers.toString()} 
-            change={`${metrics.serviceMix[0].value}%`}
-            icon={Users} 
-            delay={0.3} 
+          <StatCard
+            label="Active Retainers"
+            value={String(overview?.active_retainers ?? 0)}
+            change={serviceMix[0] ? `${serviceMix[0].value}%` : '0%'}
+            icon={Users}
+            delay={0.3}
           />
-          <StatCard 
-            label="Avg. Sale" 
-            value={formatCurrency(metrics.avgSale)} 
-            change="Per sale" 
-            icon={Calendar} 
-            delay={0.4} 
+          <StatCard
+            label="Avg. Sale"
+            value={formatCurrency(overview?.avg_sale ?? 0)}
+            change="Per sale"
+            icon={Calendar}
+            delay={0.4}
           />
         </div>
 
@@ -522,8 +460,8 @@ const AdminSales: React.FC = () => {
               <h2 className="text-xl font-bold font-heading">Revenue Performance</h2>
               <div className="flex gap-2">
                 {(['Weekly', 'Monthly'] as const).map((t) => (
-                  <button 
-                    key={t} 
+                  <button
+                    key={t}
                     onClick={() => setChartPeriod(t)}
                     className={`px-4 py-1.5 rounded-full text-xs font-bold transition-colors ${
                       t === chartPeriod ? 'bg-red-600 text-white' : 'bg-white/5 text-white/40 hover:text-white'
@@ -534,7 +472,7 @@ const AdminSales: React.FC = () => {
                 ))}
               </div>
             </div>
-            
+
             <div className="h-[300px] w-full">
               {chartData.length > 0 ? (
                 <ResponsiveContainer width="100%" height="100%">
@@ -548,7 +486,7 @@ const AdminSales: React.FC = () => {
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.05)" />
                     <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: 'rgba(255,255,255,0.3)', fontSize: 12 }} dy={10} />
                     <YAxis axisLine={false} tickLine={false} tick={{ fill: 'rgba(255,255,255,0.3)', fontSize: 12 }} dx={-10} />
-                    <Tooltip 
+                    <Tooltip
                       contentStyle={{ backgroundColor: '#111', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px' }}
                       itemStyle={{ color: '#fff' }}
                       formatter={(value: number) => [`₹${value.toLocaleString()}`, 'Revenue']}
@@ -567,14 +505,14 @@ const AdminSales: React.FC = () => {
           <div className="p-8 rounded-[40px] bg-white/5 border border-white/10">
             <h2 className="text-xl font-bold font-heading mb-6">Service Mix</h2>
             <div className="space-y-6">
-              {metrics.serviceMix.map((item, i) => (
+              {serviceMix.map((item, i) => (
                 <div key={i}>
                   <div className="flex justify-between text-xs font-bold mb-2 uppercase tracking-widest text-white/60">
                     <span>{item.label}</span>
                     <span>{item.value}%</span>
                   </div>
                   <div className="w-full h-2 bg-white/5 rounded-full overflow-hidden">
-                    <motion.div 
+                    <motion.div
                       initial={{ width: 0 }}
                       animate={{ width: `${item.value}%` }}
                       transition={{ duration: 1, delay: i * 0.2 }}
@@ -590,7 +528,7 @@ const AdminSales: React.FC = () => {
         {/* Table Section */}
         <div className="p-8 rounded-[40px] bg-white/5 border border-white/10 overflow-hidden">
           <h2 className="text-xl font-bold font-heading mb-8">Recent Sales</h2>
-          
+
           {loading ? (
             <div className="flex items-center justify-center py-12">
               <Loader2 className="w-8 h-8 animate-spin text-red-600" />
@@ -634,8 +572,8 @@ const AdminSales: React.FC = () => {
                       </td>
                       <td className="py-4">
                         <span className={`text-[10px] px-2 py-1 rounded-full font-bold ${
-                          sale.type === 'Retainer' ? 'bg-red-600/10 text-red-500' : 
-                          sale.type === 'Consulting' ? 'bg-blue-600/10 text-blue-500' : 
+                          sale.type === 'Retainer' ? 'bg-red-600/10 text-red-500' :
+                          sale.type === 'Consulting' ? 'bg-blue-600/10 text-blue-500' :
                           'bg-white/10 text-white'
                         }`}>
                           {sale.type}

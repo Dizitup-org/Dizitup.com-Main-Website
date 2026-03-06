@@ -10,15 +10,10 @@ export const RequireAuth: React.FC<{ children: React.ReactNode }> = ({ children 
 }
 
 export const RequireAdmin: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  // DEV BYPASS — remove when ready to enforce admin authentication
+  return <>{children}</>;
+
   const { user, loading, isAdmin } = useAuth()
-  
-  // 🚨 TEMPORARY DEV BYPASS - REMOVE BEFORE PRODUCTION!
-  const DEV_BYPASS = true; // Set to false when you want authentication back
-  
-  if (DEV_BYPASS) {
-    console.log('🚨 DEV MODE: Bypassing admin authentication');
-    return <>{children}</>;
-  }
   
   const tokenExists = !!localStorage.getItem('dizitup_token');
   console.log('🛡️ RequireAdmin check:', { 

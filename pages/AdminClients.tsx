@@ -43,6 +43,10 @@ const AdminClients: React.FC = () => {
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [isRefreshingAll, setIsRefreshingAll] = useState(false);
 
+  // Project creation state (per onboarded client)
+  const [projectNames, setProjectNames] = useState<Record<string, string>>({});
+  const [projectLoading, setProjectLoading] = useState<Record<string, boolean>>({});
+
   // ============ FETCH FUNCTIONS ============
 
   const fetchBookings = useCallback(async () => {
@@ -86,6 +90,53 @@ const AdminClients: React.FC = () => {
       setQueryClients(data || []);
     }
     setQueryClientsLoading(false);
+  }, []);
+
+  const handleAddProject = useCallback(async (clientId: string, clientName: string) => {
+    const project_name = projectNames[clientId]?.trim();
+    if (!project_name) return;
+
+    setProjectLoading(prev => ({ ...prev, [clientId]: true }));
+    try {
+      const token = localStorage.getItem('dizitup_token');
+      const res = await fetch('http://localhost:4000/api/admin/projects', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ client_id: clientId, client_name: clientName, project_name }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+      setProjectNames(prev => ({ ...prev, [clientId]: '' }));
+      toast.success(`Project "${project_name}" created!`, { icon: '📁' });
+    } catch (err: any) {
+      console.error('Failed to create project:', err);
+      toast.error(err.message || 'Failed to create project');
+    } finally {
+      setProjectLoading(prev => ({ ...prev, [clientId]: false }));
+    }
+  }, [projectNames]);
+
+  const handleDeleteOnboardedClient = useCallback(async (clientId: string, clientName: string) => {
+    if (!confirm(`Delete client "${clientName}"? This cannot be undone.`)) return;
+    setActionLoading(clientId);
+    try {
+      const token = localStorage.getItem('dizitup_token');
+      const res = await fetch(`http://localhost:4000/api/admin/clients/${clientId}`, {
+        method: 'DELETE',
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+      setClients(prev => prev.filter(c => c.id !== clientId));
+      toast.success(`Client "${clientName}" deleted`);
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to delete client');
+    } finally {
+      setActionLoading(null);
+    }
   }, []);
 
   const fetchOnboardClients = useCallback(async () => {
@@ -848,6 +899,8 @@ const AdminClients: React.FC = () => {
                           <th className="px-6 py-4 font-semibold">Phone</th>
                           <th className="px-6 py-4 font-semibold">Onboarded Date</th>
                           <th className="px-6 py-4 font-semibold">Status</th>
+                          <th className="px-6 py-4 font-semibold">Add Project</th>
+                          <th className="px-6 py-4 font-semibold"></th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-white/5">
@@ -875,6 +928,39 @@ const AdminClients: React.FC = () => {
                             </td>
                             <td className="px-6 py-4" onClick={(e) => e.stopPropagation()}>
                               {renderStatusDropdown(client)}
+                            </td>
+                            <td className="px-6 py-4" onClick={(e) => e.stopPropagation()}>
+                              <div className="flex items-center gap-2">
+                                <input
+                                  type="text"
+                                  placeholder="Project Name"
+                                  value={projectNames[client.id] || ''}
+                                  onChange={(e) =>
+                                    setProjectNames(prev => ({ ...prev, [client.id]: e.target.value }))
+                                  }
+                                  onKeyDown={(e) => e.key === 'Enter' && handleAddProject(client.id, client.contact_name || client.company_name || '')}
+                                  className="w-40 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-white text-xs placeholder-white/30 focus:outline-none focus:border-red-600 transition-colors"
+                                />
+                                <button
+                                  onClick={() => handleAddProject(client.id, client.contact_name || client.company_name || '')}
+                                  disabled={projectLoading[client.id] || !projectNames[client.id]?.trim()}
+                                  className="px-3 py-1.5 rounded-lg bg-red-600 text-white text-xs font-bold hover:bg-red-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap"
+                                >
+                                  {projectLoading[client.id] ? 'Adding...' : 'Add Project'}
+                                </button>
+                              </div>
+                            </td>
+                            <td className="px-6 py-4" onClick={(e) => e.stopPropagation()}>
+                              <button
+                                onClick={() => handleDeleteOnboardedClient(client.id, client.contact_name || client.company_name || 'this client')}
+                                disabled={actionLoading === client.id}
+                                className="p-2 rounded-lg text-white/30 hover:text-red-400 hover:bg-red-500/10 transition-all disabled:opacity-40"
+                                title="Delete client"
+                              >
+                                {actionLoading === client.id
+                                  ? <Loader2 className="w-4 h-4 animate-spin" />
+                                  : <Trash2 className="w-4 h-4" />}
+                              </button>
                             </td>
                           </tr>
                         ))}

@@ -8,26 +8,26 @@ import { useAuth } from '../contexts/AuthProvider';
 
 const AdminLogin: React.FC = () => {
   const navigate = useNavigate();
-  const { signIn } = useAuth();
-  const [creds, setCreds] = useState({ user: '', pass: '' });
-  const [error, setError] = useState(false);
+  const { signInAdmin } = useAuth();
+  const [creds, setCreds] = useState({ username: '', pass: '' });
+  const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [showWelcome, setShowWelcome] = useState(false);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    setError(false);
+    setError(null);
     
     try {
       console.log('🚀 Starting login process...');
-      await signIn(creds.user, creds.pass);
+      await signInAdmin(creds.username, creds.pass);
       console.log('✅ SignIn completed, showing welcome...');
       setShowWelcome(true);
     } catch (err: any) {
       console.error('❌ Login error:', err);
-      setError(true);
-      setTimeout(() => setError(false), 3000);
+      setError(err?.message || 'Invalid username or password');
+      setTimeout(() => setError(null), 4000);
     } finally {
       setLoading(false);
     }
@@ -64,13 +64,13 @@ const AdminLogin: React.FC = () => {
 
         <form onSubmit={handleLogin} className="space-y-6">
           <div className="space-y-2">
-            <label className="text-[9px] font-black uppercase tracking-widest text-white/40 ml-2">Email</label>
+            <label className="text-[9px] font-black uppercase tracking-widest text-white/40 ml-2">Username / Email</label>
             <input 
-              type="email" 
-              placeholder="roybrothers@gmail.com"
+              type="text"
+              placeholder="admin username"
               className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 focus:outline-none focus:border-red-600 transition-all font-mono text-sm"
-              value={creds.user}
-              onChange={(e) => setCreds({...creds, user: e.target.value})}
+              value={creds.username}
+              onChange={(e) => setCreds({...creds, username: e.target.value})}
               required
             />
           </div>
@@ -102,7 +102,7 @@ const AdminLogin: React.FC = () => {
             animate={{ opacity: 1, y: 0 }}
             className="mt-6 p-4 rounded-xl bg-red-600/10 border border-red-600/20 flex items-center gap-3 text-red-500 text-[10px] font-black uppercase tracking-widest"
           >
-            <ShieldAlert className="w-4 h-4" /> Access Denied: Invalid Credentials
+            <ShieldAlert className="w-4 h-4" /> Access Denied: {error}
           </motion.div>
         )}
 
