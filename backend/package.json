@@ -4,6 +4,10 @@
     "start": "npm start --prefix dizitup-backend"
   },
   "dependencies": {
+    "@prisma/client": "^7.4.2",
     "bcryptjs": "^3.0.3"
+  },
+  "devDependencies": {
+    "prisma": "^7.4.2"
   }
 }
