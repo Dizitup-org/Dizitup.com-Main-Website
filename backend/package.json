@@ -1,0 +1,9 @@
+{
+  "scripts": {
+    "dev": "npm run dev --prefix dizitup-backend",
+    "start": "npm start --prefix dizitup-backend"
+  },
+  "dependencies": {
+    "bcryptjs": "^3.0.3"
+  }
+}
