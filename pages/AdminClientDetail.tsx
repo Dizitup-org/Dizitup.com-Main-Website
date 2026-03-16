@@ -2,7 +2,7 @@ import React, { useEffect, useState, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import AdminLayout from '../components/AdminLayout';
 import { getOnboardClientById, updateClientNotes } from '../utils/clientsApi';
-import { Loader2, User, Briefcase, Calendar, DollarSign, FileText, TrendingUp, Mail, Phone, Building, Clock, Target, ArrowLeft, Edit3, Save, X, MessageCircle, KeyRound, Send } from 'lucide-react';
+import { Loader2, User, Briefcase, Calendar, DollarSign, FileText, TrendingUp, Mail, Phone, Building, Clock, Target, ArrowLeft, Edit3, Save, X, MessageCircle, KeyRound, Send, Plus, ChevronDown } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { api } from '../utils/apiClient';
 import type { OnboardClientRow, ProjectRow, SaleRow } from '../types';
@@ -34,6 +34,19 @@ const AdminClientDetail: React.FC = () => {
   // Per-project update inputs: { [projectId]: string }
   const [updateInputs, setUpdateInputs] = useState<Record<string, string>>({});
   const [sendingUpdate, setSendingUpdate] = useState<Record<string, boolean>>({});
+
+  // Project creation modal
+  const [showProjectModal, setShowProjectModal] = useState(false);
+  const [newProject, setNewProject] = useState({ title: '', description: '', status: 'active', start_date: '', end_date: '', deadline: '', total_amount: '', expenses: '' });
+  const [creatingProject, setCreatingProject] = useState(false);
+
+  // Payments CRUD
+  const [expandedProject, setExpandedProject] = useState<string | null>(null);
+  const [editingPayment, setEditingPayment] = useState<string | null>(null);
+  const [editPaymentDraft, setEditPaymentDraft] = useState<Record<string, any>>({});
+  const [addPaymentDraft, setAddPaymentDraft] = useState<Record<string, { paid_amount: string; sale_date: string; notes: string; pending_amount: string; expenses: string }>>({});
+  const [savingPayment, setSavingPayment] = useState<string | null>(null);
+  const [addingPayment, setAddingPayment] = useState<string | null>(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -144,6 +157,95 @@ const AdminClientDetail: React.FC = () => {
       toast.error(err?.message || 'Failed to post update');
     } finally {
       setSendingUpdate((prev) => ({ ...prev, [projectId]: false }));
+    }
+  };
+
+  // ============ CREATE PROJECT ============
+
+  const handleCreateProject = async () => {
+    if (!clientId || !newProject.title.trim()) { toast.error('Project title is required'); return; }
+    if (!newProject.total_amount) { toast.error('Total amount is required'); return; }
+    setCreatingProject(true);
+    try {
+      await api.post(`/api/admin/clients/${clientId}/projects`, {
+        title: newProject.title.trim(),
+        description: newProject.description || null,
+        status: newProject.status,
+        start_date: newProject.start_date || null,
+        end_date: newProject.end_date || null,
+        deadline: newProject.deadline || null,
+        total_amount: parseFloat(newProject.total_amount),
+        expenses: parseFloat(newProject.expenses) || 0,
+      });
+      toast.success('Project created');
+      setShowProjectModal(false);
+      setNewProject({ title: '', description: '', status: 'active', start_date: '', end_date: '', deadline: '', total_amount: '', expenses: '' });
+      const { data, error } = await getOnboardClientById(clientId);
+      if (error) throw new Error(error);
+      setClient(data as ClientDetailData);
+      setAdminNotes(data?.admin_notes || '');
+      setFeedback(data?.feedback || '');
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to create project');
+    } finally {
+      setCreatingProject(false);
+    }
+  };
+
+  // ============ ADD PAYMENT ============
+
+  const handleAddPayment = async (projectId: string) => {
+    if (!clientId) return;
+    const draft = addPaymentDraft[projectId];
+    if (!draft?.paid_amount) { toast.error('Paid amount is required'); return; }
+    setAddingPayment(projectId);
+    try {
+      await api.post(`/api/admin/clients/${clientId}/projects/${projectId}/payments`, {
+        paid_amount: parseFloat(draft.paid_amount),
+        sale_date: draft.sale_date || null,
+        notes: draft.notes || null,
+        pending_amount: parseFloat(draft.pending_amount) || 0,
+        expenses: parseFloat(draft.expenses) || 0,
+      });
+      setAddPaymentDraft(prev => ({ ...prev, [projectId]: { paid_amount: '', sale_date: '', notes: '', pending_amount: '', expenses: '' } }));
+      toast.success('Payment added');
+      const { data, error } = await getOnboardClientById(clientId);
+      if (error) throw new Error(error);
+      setClient(data as ClientDetailData);
+      setAdminNotes(data?.admin_notes || '');
+      setFeedback(data?.feedback || '');
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to add payment');
+    } finally {
+      setAddingPayment(null);
+    }
+  };
+
+  // ============ EDIT PAYMENT ============
+
+  const handleSavePayment = async (projectId: string, paymentId: string) => {
+    if (!clientId) return;
+    const draft = editPaymentDraft[paymentId] || {};
+    setSavingPayment(paymentId);
+    try {
+      await api.patch(`/api/admin/clients/${clientId}/projects/${projectId}/payments/${paymentId}`, {
+        paid_amount: draft.paid_amount !== '' && draft.paid_amount != null ? parseFloat(draft.paid_amount) : undefined,
+        sale_date: draft.sale_date || undefined,
+        notes: draft.notes !== undefined ? draft.notes : undefined,
+        pending_amount: draft.pending_amount !== '' && draft.pending_amount != null ? parseFloat(draft.pending_amount) : undefined,
+        expenses: draft.expenses !== '' && draft.expenses != null ? parseFloat(draft.expenses) : undefined,
+      });
+      setEditingPayment(null);
+      toast.success('Payment updated');
+      const { data, error } = await getOnboardClientById(clientId);
+      if (error) throw new Error(error);
+      setClient(data as ClientDetailData);
+      setAdminNotes(data?.admin_notes || '');
+      setFeedback(data?.feedback || '');
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to update payment');
+    } finally {
+      setSavingPayment(null);
     }
   };
 
@@ -353,6 +455,17 @@ const AdminClientDetail: React.FC = () => {
           {/* ============ PROJECTS TAB ============ */}
           {tab === 'projects' && (
             <div className="space-y-6">
+              {/* Action bar */}
+              <div className="flex justify-end">
+                <button
+                  onClick={() => setShowProjectModal(true)}
+                  className="flex items-center gap-2 px-4 py-2 rounded-xl bg-red-600 hover:bg-red-500 text-white text-sm font-semibold transition-all"
+                >
+                  <Plus className="w-4 h-4" />
+                  New Project
+                </button>
+              </div>
+
               {/* Live Project Card */}
               {liveProject && (
                 <div className="p-6 rounded-2xl bg-gradient-to-br from-red-600/10 to-red-800/10 border border-red-500/20 backdrop-blur-xl">
@@ -445,6 +558,63 @@ const AdminClientDetail: React.FC = () => {
                   </tbody>
                 </table>
               </div>
+
+              {/* ---- Create Project Modal ---- */}
+              {showProjectModal && (
+                <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setShowProjectModal(false)}>
+                  <div className="w-full max-w-2xl bg-[#0a0a0a] border border-white/10 rounded-3xl p-8 shadow-2xl" onClick={e => e.stopPropagation()}>
+                    <div className="flex items-center justify-between mb-6">
+                      <h3 className="text-xl font-bold font-heading">New Project</h3>
+                      <button onClick={() => setShowProjectModal(false)} className="text-white/40 hover:text-white transition-colors"><X className="w-5 h-5" /></button>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="md:col-span-2">
+                        <label className="block text-xs text-white/40 uppercase tracking-wider font-semibold mb-2">Title *</label>
+                        <input value={newProject.title} onChange={e => setNewProject(p => ({...p, title: e.target.value}))} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-red-500/50" placeholder="Project title" />
+                      </div>
+                      <div className="md:col-span-2">
+                        <label className="block text-xs text-white/40 uppercase tracking-wider font-semibold mb-2">Description</label>
+                        <textarea value={newProject.description} onChange={e => setNewProject(p => ({...p, description: e.target.value}))} rows={2} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-red-500/50 resize-none" placeholder="Brief description..." />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-white/40 uppercase tracking-wider font-semibold mb-2">Status</label>
+                        <select value={newProject.status} onChange={e => setNewProject(p => ({...p, status: e.target.value}))} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-red-500/50">
+                          <option value="active" className="bg-gray-900">Active</option>
+                          <option value="paused" className="bg-gray-900">Paused</option>
+                          <option value="completed" className="bg-gray-900">Completed</option>
+                          <option value="cancelled" className="bg-gray-900">Cancelled</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-xs text-white/40 uppercase tracking-wider font-semibold mb-2">Total Amount *</label>
+                        <input type="number" value={newProject.total_amount} onChange={e => setNewProject(p => ({...p, total_amount: e.target.value}))} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-red-500/50" placeholder="0" min="0" />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-white/40 uppercase tracking-wider font-semibold mb-2">Expenses</label>
+                        <input type="number" value={newProject.expenses} onChange={e => setNewProject(p => ({...p, expenses: e.target.value}))} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-red-500/50" placeholder="0" min="0" />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-white/40 uppercase tracking-wider font-semibold mb-2">Start Date</label>
+                        <input type="date" value={newProject.start_date} onChange={e => setNewProject(p => ({...p, start_date: e.target.value}))} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-red-500/50" />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-white/40 uppercase tracking-wider font-semibold mb-2">End Date</label>
+                        <input type="date" value={newProject.end_date} onChange={e => setNewProject(p => ({...p, end_date: e.target.value}))} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-red-500/50" />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-white/40 uppercase tracking-wider font-semibold mb-2">Deadline</label>
+                        <input type="date" value={newProject.deadline} onChange={e => setNewProject(p => ({...p, deadline: e.target.value}))} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-red-500/50" />
+                      </div>
+                    </div>
+                    <div className="flex justify-end gap-3 mt-6">
+                      <button onClick={() => setShowProjectModal(false)} className="px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-white/60 hover:text-white text-sm font-semibold transition-all">Cancel</button>
+                      <button onClick={handleCreateProject} disabled={creatingProject} className="flex items-center gap-2 px-5 py-2 rounded-xl bg-red-600 hover:bg-red-500 text-white text-sm font-semibold transition-all disabled:opacity-50">
+                        {creatingProject ? <><Loader2 className="w-4 h-4 animate-spin" /> Creating...</> : 'Create Project'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -475,44 +645,152 @@ const AdminClientDetail: React.FC = () => {
                 </div>
               </div>
 
-              {/* Payment Details Table */}
-              <div className="overflow-x-auto rounded-2xl border border-white/10 backdrop-blur-xl">
-                <table className="min-w-full text-sm">
-                  <thead className="bg-white/[0.03]">
-                    <tr className="text-left text-white/40 text-xs uppercase tracking-wider">
-                      <th className="px-6 py-4 font-semibold">Project</th>
-                      <th className="px-6 py-4 font-semibold">Total</th>
-                      <th className="px-6 py-4 font-semibold">Paid</th>
-                      <th className="px-6 py-4 font-semibold">Pending</th>
-                      <th className="px-6 py-4 font-semibold">Expenses</th>
-                      <th className="px-6 py-4 font-semibold">Profit</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-white/5">
-                    {(client.projects || []).map((p) => {
-                      const total = p.total_amount || 0;
-                      const paid = (p.sales?.reduce((acc, s) => acc + (s.paid_amount || 0), 0)) || 0;
-                      const pending = (p.sales?.reduce((acc, s) => acc + (s.pending_amount || 0), 0)) || 0;
-                      const expenses = (p.sales?.reduce((acc, s) => acc + (s.expenses || 0), 0)) || 0;
-                      const profit = total - expenses;
-                      return (
-                        <tr key={p.id} className="hover:bg-white/[0.03] transition-all">
-                          <td className="px-6 py-4 font-medium text-white">{p.title || p.id}</td>
-                          <td className="px-6 py-4 text-white">₹{total.toLocaleString()}</td>
-                          <td className="px-6 py-4 text-green-400">₹{paid.toLocaleString()}</td>
-                          <td className="px-6 py-4 text-yellow-400">₹{pending.toLocaleString()}</td>
-                          <td className="px-6 py-4 text-red-400">₹{expenses.toLocaleString()}</td>
-                          <td className="px-6 py-4 text-purple-400">₹{profit.toLocaleString()}</td>
-                        </tr>
-                      );
-                    })}
-                    {(!client.projects || client.projects.length === 0) && (
-                      <tr>
-                        <td colSpan={6} className="px-6 py-12 text-center text-white/40">No payment data</td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
+              {/* Per-project payment accordion */}
+              <div className="space-y-3">
+                {(!client.projects || client.projects.length === 0) && (
+                  <div className="py-12 text-center text-white/40">No projects — create a project first to track payments</div>
+                )}
+                {(client.projects || []).map((p) => {
+                  const paidTotal = (p.sales || []).reduce((acc, s) => acc + (s.paid_amount || 0), 0);
+                  const pendingTotal = (p.sales || []).reduce((acc, s) => acc + (s.pending_amount || 0), 0);
+                  const expensesTotal = (p.sales || []).reduce((acc, s) => acc + (s.expenses || 0), 0);
+                  const isOpen = expandedProject === p.id;
+                  const draft = addPaymentDraft[p.id] || { paid_amount: '', sale_date: '', notes: '', pending_amount: '', expenses: '' };
+                  return (
+                    <div key={p.id} className="rounded-2xl border border-white/10 backdrop-blur-xl overflow-hidden">
+                      {/* Accordion Header */}
+                      <button
+                        onClick={() => setExpandedProject(isOpen ? null : p.id)}
+                        className="w-full flex items-center justify-between px-6 py-4 bg-white/[0.02] hover:bg-white/[0.04] transition-all"
+                      >
+                        <div className="flex items-center gap-4 text-left">
+                          <span className="font-semibold text-white">{p.title || 'Untitled'}</span>
+                          {getStatusBadge(p.status)}
+                          <span className="text-xs text-white/40 hidden md:block">Value: ₹{(p.total_amount || 0).toLocaleString()}</span>
+                        </div>
+                        <div className="flex items-center gap-4">
+                          <div className="hidden md:flex gap-3 text-xs">
+                            <span className="text-green-400">+₹{paidTotal.toLocaleString()} paid</span>
+                            <span className="text-yellow-400">₹{pendingTotal.toLocaleString()} pending</span>
+                            <span className="text-red-400">₹{expensesTotal.toLocaleString()} exp</span>
+                          </div>
+                          <ChevronDown className={`w-4 h-4 text-white/40 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+                        </div>
+                      </button>
+
+                      {/* Accordion Body */}
+                      {isOpen && (
+                        <div className="px-6 pb-6">
+                          {/* Existing payment rows */}
+                          {(p.sales || []).length > 0 && (
+                            <div className="overflow-x-auto mb-4">
+                              <table className="min-w-full text-sm">
+                                <thead>
+                                  <tr className="text-left text-white/40 text-xs uppercase tracking-wider border-b border-white/5">
+                                    <th className="pb-2 pt-4 pr-4 font-semibold">Paid</th>
+                                    <th className="pb-2 pt-4 pr-4 font-semibold">Date</th>
+                                    <th className="pb-2 pt-4 pr-4 font-semibold">Pending</th>
+                                    <th className="pb-2 pt-4 pr-4 font-semibold">Expenses</th>
+                                    <th className="pb-2 pt-4 pr-4 font-semibold">Notes</th>
+                                    <th className="pb-2 pt-4 font-semibold"></th>
+                                  </tr>
+                                </thead>
+                                <tbody className="divide-y divide-white/5">
+                                  {(p.sales || []).map((s) => {
+                                    const isEditing = editingPayment === s.id;
+                                    const eDraft = editPaymentDraft[s.id] || {};
+                                    return (
+                                      <tr key={s.id} className="hover:bg-white/[0.02] transition-all">
+                                        <td className="py-3 pr-4">
+                                          {isEditing ? (
+                                            <input type="number" value={eDraft.paid_amount ?? (s.paid_amount ?? '')} onChange={e => setEditPaymentDraft(prev => ({ ...prev, [s.id]: { ...prev[s.id], paid_amount: e.target.value } }))} className="w-24 bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-xs text-white focus:outline-none focus:border-red-500/50" />
+                                          ) : (
+                                            <span className="text-green-400 font-medium">₹{(s.paid_amount || 0).toLocaleString()}</span>
+                                          )}
+                                        </td>
+                                        <td className="py-3 pr-4">
+                                          {isEditing ? (
+                                            <input type="date" value={eDraft.sale_date ?? (s.payment_date ? s.payment_date.split('T')[0] : '')} onChange={e => setEditPaymentDraft(prev => ({ ...prev, [s.id]: { ...prev[s.id], sale_date: e.target.value } }))} className="bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-xs text-white focus:outline-none focus:border-red-500/50" />
+                                          ) : (
+                                            <span className="text-white/60">{s.payment_date ? new Date(s.payment_date).toLocaleDateString() : '—'}</span>
+                                          )}
+                                        </td>
+                                        <td className="py-3 pr-4">
+                                          {isEditing ? (
+                                            <input type="number" value={eDraft.pending_amount ?? (s.pending_amount ?? '')} onChange={e => setEditPaymentDraft(prev => ({ ...prev, [s.id]: { ...prev[s.id], pending_amount: e.target.value } }))} className="w-24 bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-xs text-white focus:outline-none focus:border-red-500/50" />
+                                          ) : (
+                                            <span className="text-yellow-400">₹{(s.pending_amount || 0).toLocaleString()}</span>
+                                          )}
+                                        </td>
+                                        <td className="py-3 pr-4">
+                                          {isEditing ? (
+                                            <input type="number" value={eDraft.expenses ?? (s.expenses ?? '')} onChange={e => setEditPaymentDraft(prev => ({ ...prev, [s.id]: { ...prev[s.id], expenses: e.target.value } }))} className="w-24 bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-xs text-white focus:outline-none focus:border-red-500/50" />
+                                          ) : (
+                                            <span className="text-red-400">₹{(s.expenses || 0).toLocaleString()}</span>
+                                          )}
+                                        </td>
+                                        <td className="py-3 pr-4">
+                                          {isEditing ? (
+                                            <input value={eDraft.notes ?? (s.notes ?? '')} onChange={e => setEditPaymentDraft(prev => ({ ...prev, [s.id]: { ...prev[s.id], notes: e.target.value } }))} className="w-32 bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-xs text-white focus:outline-none focus:border-red-500/50" placeholder="Notes..." />
+                                          ) : (
+                                            <span className="text-white/50 text-xs">{s.notes || '—'}</span>
+                                          )}
+                                        </td>
+                                        <td className="py-3">
+                                          {isEditing ? (
+                                            <div className="flex gap-1">
+                                              <button onClick={() => handleSavePayment(p.id, s.id)} disabled={savingPayment === s.id} className="px-2 py-1 rounded-lg bg-green-500/20 text-green-400 text-xs hover:bg-green-500/30 transition-all disabled:opacity-50">
+                                                {savingPayment === s.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
+                                              </button>
+                                              <button onClick={() => setEditingPayment(null)} className="px-2 py-1 rounded-lg bg-white/5 text-white/40 text-xs hover:bg-white/10 transition-all"><X className="w-3 h-3" /></button>
+                                            </div>
+                                          ) : (
+                                            <button onClick={() => { setEditingPayment(s.id); setEditPaymentDraft(prev => ({ ...prev, [s.id]: { paid_amount: s.paid_amount ?? '', sale_date: s.payment_date ? s.payment_date.split('T')[0] : '', notes: s.notes ?? '', pending_amount: s.pending_amount ?? '', expenses: s.expenses ?? '' } })); }} className="px-2 py-1 rounded-lg bg-white/5 text-white/40 text-xs hover:text-white hover:bg-white/10 transition-all"><Edit3 className="w-3 h-3" /></button>
+                                          )}
+                                        </td>
+                                      </tr>
+                                    );
+                                  })}
+                                </tbody>
+                              </table>
+                            </div>
+                          )}
+
+                          {/* Add Payment Form */}
+                          <div className="border-t border-white/5 pt-4">
+                            <p className="text-xs text-white/40 uppercase tracking-wider font-semibold mb-3">Add Payment</p>
+                            <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                              <div>
+                                <label className="block text-[10px] text-white/30 uppercase tracking-wider mb-1">Paid *</label>
+                                <input type="number" placeholder="0" value={draft.paid_amount} onChange={e => setAddPaymentDraft(prev => ({ ...prev, [p.id]: { ...draft, paid_amount: e.target.value } }))} className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-red-500/50" />
+                              </div>
+                              <div>
+                                <label className="block text-[10px] text-white/30 uppercase tracking-wider mb-1">Date</label>
+                                <input type="date" value={draft.sale_date} onChange={e => setAddPaymentDraft(prev => ({ ...prev, [p.id]: { ...draft, sale_date: e.target.value } }))} className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-red-500/50" />
+                              </div>
+                              <div>
+                                <label className="block text-[10px] text-white/30 uppercase tracking-wider mb-1">Pending</label>
+                                <input type="number" placeholder="0" value={draft.pending_amount} onChange={e => setAddPaymentDraft(prev => ({ ...prev, [p.id]: { ...draft, pending_amount: e.target.value } }))} className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-red-500/50" />
+                              </div>
+                              <div>
+                                <label className="block text-[10px] text-white/30 uppercase tracking-wider mb-1">Expenses</label>
+                                <input type="number" placeholder="0" value={draft.expenses} onChange={e => setAddPaymentDraft(prev => ({ ...prev, [p.id]: { ...draft, expenses: e.target.value } }))} className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-red-500/50" />
+                              </div>
+                              <div>
+                                <label className="block text-[10px] text-white/30 uppercase tracking-wider mb-1">Notes</label>
+                                <input placeholder="Optional" value={draft.notes} onChange={e => setAddPaymentDraft(prev => ({ ...prev, [p.id]: { ...draft, notes: e.target.value } }))} className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-red-500/50" />
+                              </div>
+                            </div>
+                            <button onClick={() => handleAddPayment(p.id)} disabled={addingPayment === p.id || !draft.paid_amount} className="mt-3 flex items-center gap-2 px-4 py-2 rounded-xl bg-red-600 hover:bg-red-500 text-white text-xs font-semibold transition-all disabled:opacity-50">
+                              {addingPayment === p.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
+                              {addingPayment === p.id ? 'Adding...' : 'Add Payment'}
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             </div>
           )}

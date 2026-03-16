@@ -15,6 +15,9 @@ import WelcomeLoader from '../components/WelcomeLoader';
 import CursorGlow from '../components/CursorGlow';
 import TiltCard from '../components/TiltCard';
 import AnimatedCounter from '../components/AnimatedCounter';
+import AuthModal from '../components/AuthModal';
+import ContactAdminModal from '../components/ContactAdminModal';
+import ChatWidget from '../components/ChatWidget';
 import { useBooking } from '../contexts/BookingContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import { BrainCircuit, Zap, Target } from 'lucide-react';
@@ -46,7 +49,10 @@ const WordReveal = ({ text, className = '' }: { text: string; className?: string
 };
 
 const Home: React.FC = () => {
-  const { isOpen: bookingOpen, packageName: bookingPackage, openBooking, closeBooking, setCountry: setBookingCountry } = useBooking();
+  const { isOpen: bookingOpen, packageName: bookingPackage, openBooking, closeBooking, setCountry: setBookingCountry,
+    authPromptOpen, closeAuthPrompt, onBookingLoginSuccess,
+    contactAdminOpen, closeContactAdmin,
+  } = useBooking();
 
   // Determine initial phase
   const initialPhase = useMemo<HomePhase>(() => {
@@ -265,6 +271,22 @@ const Home: React.FC = () => {
             prefilledPackage={bookingPackage}
             country={country}
           />
+
+          {/* Auth prompt (login gate before booking) */}
+          <AuthModal
+            open={authPromptOpen}
+            onClose={closeAuthPrompt}
+            onLoginSuccess={onBookingLoginSuccess}
+          />
+
+          {/* Onboarded client redirect to chat */}
+          <ContactAdminModal
+            open={contactAdminOpen}
+            onClose={closeContactAdmin}
+          />
+
+          {/* Floating in-app chat widget (follow_up + onboarded users only) */}
+          <ChatWidget />
         </motion.div>
       )}
     </div>

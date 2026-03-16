@@ -40,11 +40,13 @@ router.get('/', async (req, res, next) => {
         b.meeting_time,
         b.status,
         b.created_at,
+        u.username,
         -- Is there already a query_clients record?
         (SELECT EXISTS(SELECT 1 FROM query_clients qc WHERE qc.booking_id = b.id)) AS has_follow_up,
         -- Is there already an onboarded client?
         (SELECT EXISTS(SELECT 1 FROM onboard_clients oc WHERE oc.booking_id = b.id)) AS is_onboarded
       FROM bookings b
+      LEFT JOIN users u ON u.id = b.user_id
     `;
 
     const values = [];
@@ -218,15 +220,24 @@ router.patch('/:id/status', async (req, res, next) => {
 // DELETE /api/admin/bookings/:id
 // ----------------------------------------------------------
 router.delete('/:id', async (req, res, next) => {
+  const client = await db.connect();
   try {
-    const result = await db.query(
+    await client.query('BEGIN');
+
+    // Remove child records that reference this booking first
+    await client.query('DELETE FROM query_clients WHERE booking_id = $1', [req.params.id]);
+
+    const result = await client.query(
       'DELETE FROM bookings WHERE id=$1 RETURNING id',
       [req.params.id]
     );
 
     if (result.rows.length === 0) {
+      await client.query('ROLLBACK');
       throw new AppError('Booking not found.', 404);
     }
+
+    await client.query('COMMIT');
 
     res.json({
       success: true,
@@ -234,7 +245,10 @@ router.delete('/:id', async (req, res, next) => {
     });
 
   } catch (err) {
+    await client.query('ROLLBACK').catch(() => {});
     next(err);
+  } finally {
+    client.release();
   }
 });
 

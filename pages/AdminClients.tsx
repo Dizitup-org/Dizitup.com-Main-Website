@@ -43,10 +43,6 @@ const AdminClients: React.FC = () => {
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [isRefreshingAll, setIsRefreshingAll] = useState(false);
 
-  // Project creation state (per onboarded client)
-  const [projectNames, setProjectNames] = useState<Record<string, string>>({});
-  const [projectLoading, setProjectLoading] = useState<Record<string, boolean>>({});
-
   // ============ FETCH FUNCTIONS ============
 
   const fetchBookings = useCallback(async () => {
@@ -91,33 +87,6 @@ const AdminClients: React.FC = () => {
     }
     setQueryClientsLoading(false);
   }, []);
-
-  const handleAddProject = useCallback(async (clientId: string, clientName: string) => {
-    const project_name = projectNames[clientId]?.trim();
-    if (!project_name) return;
-
-    setProjectLoading(prev => ({ ...prev, [clientId]: true }));
-    try {
-      const token = localStorage.getItem('dizitup_token');
-      const res = await fetch('http://localhost:4000/api/admin/projects', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify({ client_id: clientId, client_name: clientName, project_name }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
-      setProjectNames(prev => ({ ...prev, [clientId]: '' }));
-      toast.success(`Project "${project_name}" created!`, { icon: '📁' });
-    } catch (err: any) {
-      console.error('Failed to create project:', err);
-      toast.error(err.message || 'Failed to create project');
-    } finally {
-      setProjectLoading(prev => ({ ...prev, [clientId]: false }));
-    }
-  }, [projectNames]);
 
   const handleDeleteOnboardedClient = useCallback(async (clientId: string, clientName: string) => {
     if (!confirm(`Delete client "${clientName}"? This cannot be undone.`)) return;
@@ -390,6 +359,25 @@ const AdminClients: React.FC = () => {
     }
   };
 
+  const handleMeetingDone = async (booking: BookingRow) => {
+    setActionLoading(booking.id);
+    try {
+      const res = await fetch(`http://localhost:4000/api/admin/bookings/${booking.id}/status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'meeting_done' }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+      setBookings(prev => prev.map(b => b.id === booking.id ? { ...b, status: 'meeting_done' } : b));
+      toast.success('Marked as meeting done', { icon: '✅' });
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to update booking');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
   const handleDeleteBooking = async (booking: BookingRow) => {
     if (!confirm(`Are you sure you want to delete the booking for ${booking.name || 'this client'}?`)) return;
     
@@ -530,6 +518,7 @@ const AdminClients: React.FC = () => {
       'in-progress': { bg: 'bg-blue-500/10', border: 'border-blue-500/20', text: 'text-blue-400', label: 'In Progress' },
       paused: { bg: 'bg-yellow-500/10', border: 'border-yellow-500/20', text: 'text-yellow-400', label: 'Paused' },
       completed: { bg: 'bg-purple-500/10', border: 'border-purple-500/20', text: 'text-purple-400', label: 'Completed' },
+      meeting_done: { bg: 'bg-cyan-500/10', border: 'border-cyan-500/20', text: 'text-cyan-400', label: 'Meeting Done' },
       // Legacy uppercase versions
       Active: { bg: 'bg-green-500/10', border: 'border-green-500/20', text: 'text-green-400', label: 'Active' },
       Paused: { bg: 'bg-yellow-500/10', border: 'border-yellow-500/20', text: 'text-yellow-400', label: 'Paused' },
@@ -691,6 +680,9 @@ const AdminClients: React.FC = () => {
                             </div>
                             <div className="space-y-1">
                               <h3 className="font-semibold text-white">{booking.name || 'Unknown'}</h3>
+                              {booking.username && (
+                                <p className="text-[10px] font-mono text-red-400/80">@{booking.username}</p>
+                              )}
                               <p className="text-sm text-white/50">{booking.email || 'No email'}</p>
                               {booking.agency && (
                                 <p className="text-xs text-white/40">Agency: {booking.agency}</p>
@@ -755,6 +747,18 @@ const AdminClients: React.FC = () => {
                                   <Users className="w-3.5 h-3.5" />
                                 )}
                                 {actionLoading === booking.id ? 'Onboarding...' : 'Onboard'}
+                              </button>
+                              <button
+                                onClick={() => handleMeetingDone(booking)}
+                                disabled={actionLoading === booking.id}
+                                className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 text-xs font-semibold hover:bg-cyan-500/20 transition-all disabled:opacity-50"
+                              >
+                                {actionLoading === booking.id ? (
+                                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                ) : (
+                                  <CheckCircle className="w-3.5 h-3.5" />
+                                )}
+                                Meeting Done
                               </button>
                               <button
                                 onClick={() => handleDeleteBooking(booking)}
@@ -899,7 +903,6 @@ const AdminClients: React.FC = () => {
                           <th className="px-6 py-4 font-semibold">Phone</th>
                           <th className="px-6 py-4 font-semibold">Onboarded Date</th>
                           <th className="px-6 py-4 font-semibold">Status</th>
-                          <th className="px-6 py-4 font-semibold">Add Project</th>
                           <th className="px-6 py-4 font-semibold"></th>
                         </tr>
                       </thead>
@@ -928,27 +931,6 @@ const AdminClients: React.FC = () => {
                             </td>
                             <td className="px-6 py-4" onClick={(e) => e.stopPropagation()}>
                               {renderStatusDropdown(client)}
-                            </td>
-                            <td className="px-6 py-4" onClick={(e) => e.stopPropagation()}>
-                              <div className="flex items-center gap-2">
-                                <input
-                                  type="text"
-                                  placeholder="Project Name"
-                                  value={projectNames[client.id] || ''}
-                                  onChange={(e) =>
-                                    setProjectNames(prev => ({ ...prev, [client.id]: e.target.value }))
-                                  }
-                                  onKeyDown={(e) => e.key === 'Enter' && handleAddProject(client.id, client.contact_name || client.company_name || '')}
-                                  className="w-40 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-white text-xs placeholder-white/30 focus:outline-none focus:border-red-600 transition-colors"
-                                />
-                                <button
-                                  onClick={() => handleAddProject(client.id, client.contact_name || client.company_name || '')}
-                                  disabled={projectLoading[client.id] || !projectNames[client.id]?.trim()}
-                                  className="px-3 py-1.5 rounded-lg bg-red-600 text-white text-xs font-bold hover:bg-red-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap"
-                                >
-                                  {projectLoading[client.id] ? 'Adding...' : 'Add Project'}
-                                </button>
-                              </div>
                             </td>
                             <td className="px-6 py-4" onClick={(e) => e.stopPropagation()}>
                               <button

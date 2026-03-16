@@ -1,35 +1,77 @@
 import React, { useEffect, useState } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
+import { motion, AnimatePresence } from 'framer-motion'
+import { ArrowLeft, User, Shield, Camera, Clock, Mail, Coins, ChevronDown, ChevronUp, LogOut, KeyRound, AtSign, FolderOpen, CalendarDays, Phone } from 'lucide-react'
 import { useAuth } from '../contexts/AuthProvider'
 import toast, { Toaster } from 'react-hot-toast'
 import { api } from '../utils/apiClient'
-import type { ProjectRow, ProjectUpdate } from '../types'
+import type { ProjectRow, ProjectUpdate, BookingRow } from '../types'
 
 type ProjectWithUpdates = ProjectRow & { updates?: ProjectUpdate[] }
 
-const statusColors: Record<string, { bg: string; border: string; text: string }> = {
-  active:    { bg: 'bg-green-500/10',  border: 'border-green-500/20',  text: 'text-green-400' },
-  completed: { bg: 'bg-purple-500/10', border: 'border-purple-500/20', text: 'text-purple-400' },
-  paused:    { bg: 'bg-yellow-500/10', border: 'border-yellow-500/20', text: 'text-yellow-400' },
-  cancelled: { bg: 'bg-red-500/10',    border: 'border-red-500/20',    text: 'text-red-400' },
+const PARTICLES = [
+  { size: 3, x: '5%',  y: '15%', color: 'rgba(220,38,38,0.3)',  duration: '14s', delay: '0s' },
+  { size: 2, x: '85%', y: '10%', color: 'rgba(255,255,255,0.1)', duration: '18s', delay: '2s' },
+  { size: 4, x: '20%', y: '75%', color: 'rgba(220,38,38,0.2)',  duration: '16s', delay: '4s' },
+  { size: 2, x: '72%', y: '60%', color: 'rgba(255,255,255,0.08)', duration: '20s', delay: '1s' },
+  { size: 3, x: '92%', y: '45%', color: 'rgba(220,38,38,0.25)', duration: '15s', delay: '3s' },
+  { size: 2, x: '40%', y: '88%', color: 'rgba(255,255,255,0.07)', duration: '17s', delay: '5s' },
+]
+
+const statusConfig: Record<string, { bg: string; border: string; text: string; dot: string }> = {
+  active:    { bg: 'bg-green-500/10',  border: 'border-green-500/30',  text: 'text-green-400',  dot: 'bg-green-400' },
+  completed: { bg: 'bg-purple-500/10', border: 'border-purple-500/30', text: 'text-purple-400', dot: 'bg-purple-400' },
+  paused:    { bg: 'bg-yellow-500/10', border: 'border-yellow-500/30', text: 'text-yellow-400', dot: 'bg-yellow-400' },
+  cancelled: { bg: 'bg-red-500/10',    border: 'border-red-500/30',    text: 'text-red-400',    dot: 'bg-red-400' },
+  // booking-specific
+  pending:   { bg: 'bg-yellow-500/10', border: 'border-yellow-500/30', text: 'text-yellow-400', dot: 'bg-yellow-400' },
+  accepted:  { bg: 'bg-green-500/10',  border: 'border-green-500/30',  text: 'text-green-400',  dot: 'bg-green-400' },
+  follow_up: { bg: 'bg-orange-500/10', border: 'border-orange-500/30', text: 'text-orange-400', dot: 'bg-orange-400' },
 }
 
 function StatusBadge({ status }: { status: string | null }) {
-  const s = statusColors[status || ''] ?? { bg: 'bg-white/5', border: 'border-white/10', text: 'text-white/60' }
+  const s = statusConfig[status || ''] ?? { bg: 'bg-white/5', border: 'border-white/10', text: 'text-white/60', dot: 'bg-white/40' }
   return (
-    <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border ${s.bg} ${s.border} ${s.text}`}>
+    <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border ${s.bg} ${s.border} ${s.text}`}>
+      <span className={`w-1.5 h-1.5 rounded-full ${s.dot}`} />
       {status || 'Unknown'}
     </span>
   )
 }
 
+const fadeUp = {
+  hidden: { opacity: 0, y: 20 },
+  show: (i: number) => ({ opacity: 1, y: 0, transition: { delay: i * 0.08, duration: 0.45, ease: [0.25, 0.1, 0.25, 1] } }),
+}
+
 const Dashboard: React.FC = () => {
   const { user, profile, upsertProfile, uploadAvatar, signOut, changePassword, updateEmail } = useAuth()
+  const navigate = useNavigate()
   const [newPassword, setNewPassword] = useState('')
   const [newEmail, setNewEmail] = useState('')
   const [projects, setProjects] = useState<ProjectWithUpdates[]>([])
   const [projectsLoading, setProjectsLoading] = useState(true)
   const [showAllProjects, setShowAllProjects] = useState(false)
   const [updating, setUpdating] = useState(false)
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null)
+  const [bookings, setBookings] = useState<BookingRow[]>([])
+  const [bookingsLoading, setBookingsLoading] = useState(true)
+
+  useEffect(() => {
+    let isMounted = true
+    const fetchBookings = async () => {
+      try {
+        const data = await api.get<{ success: boolean; bookings: BookingRow[] }>('/api/user/my-bookings')
+        if (isMounted) setBookings(data.bookings || [])
+      } catch {
+        // non-fatal
+      } finally {
+        if (isMounted) setBookingsLoading(false)
+      }
+    }
+    fetchBookings()
+    return () => { isMounted = false }
+  }, [user])
 
   useEffect(() => {
     let isMounted = true
@@ -39,7 +81,7 @@ const Dashboard: React.FC = () => {
         const data = await api.get<{ success: boolean; projects: ProjectWithUpdates[] }>('/api/user/my-project')
         if (isMounted) setProjects(data.projects || [])
       } catch {
-        // non-fatal — user may not have a project yet
+        // non-fatal
       } finally {
         if (isMounted) setProjectsLoading(false)
       }
@@ -71,148 +113,497 @@ const Dashboard: React.FC = () => {
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
+    setAvatarPreview(URL.createObjectURL(file))
     try {
       await uploadAvatar(file)
       toast.success('Avatar uploaded')
     } catch (err: any) {
       toast.error(err?.message || 'Upload failed')
+      setAvatarPreview(null)
     }
   }
 
+  const displayName = profile?.first_name
+    ? `${profile.first_name}${profile.last_name ? ' ' + profile.last_name : ''}`
+    : (profile?.username || user?.email?.split('@')[0] || 'Client')
+
+  const avatarSrc = avatarPreview || profile?.avatar_url
+
   return (
-    <div className="min-h-screen bg-[#050505] text-white">
-      <Toaster position="top-right" />
-      <main className="container mx-auto px-6 pt-24 pb-24">
-        <h1 className="text-4xl font-heading font-bold mb-8">Dashboard</h1>
+    <div className="relative min-h-screen bg-[#050505] text-white overflow-x-hidden">
+      <Toaster position="top-right" toastOptions={{ style: { background: '#111', color: '#fff', border: '1px solid rgba(255,255,255,0.1)' } }} />
 
-        <section className="grid md:grid-cols-3 gap-8">
-          <div className="p-6 glass-panel">
-            <h2 className="text-xl font-bold mb-4">Profile</h2>
-            <form onSubmit={handleProfileSave} className="space-y-3">
-              <input name="first_name" defaultValue={profile?.first_name || ''} className="w-full glass-input px-4 py-3" placeholder="First name" />
-              <input name="last_name" defaultValue={profile?.last_name || ''} className="w-full glass-input px-4 py-3" placeholder="Last name" />
-              <input name="username" defaultValue={profile?.username || ''} className="w-full glass-input px-4 py-3" placeholder="Username" />
-              <input name="business_name" defaultValue={profile?.business_name || ''} className="w-full glass-input px-4 py-3" placeholder="Business name" />
-              <input name="phone" defaultValue={profile?.phone || ''} className="w-full glass-input px-4 py-3" placeholder="Phone (optional)" />
-              <button disabled={updating} className="w-full premium-btn font-bold">Save</button>
-            </form>
+      {/* Particles */}
+      {PARTICLES.map((p, i) => (
+        <div
+          key={i}
+          className="floating-particle"
+          style={{
+            width: p.size, height: p.size,
+            left: p.x, top: p.y,
+            background: p.color,
+            boxShadow: `0 0 ${p.size * 4}px ${p.color}`,
+            '--duration': p.duration, '--delay': p.delay,
+          } as React.CSSProperties}
+        />
+      ))}
+
+      {/* Background glows */}
+      <div className="absolute inset-0 pointer-events-none overflow-hidden">
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-red-600/4 rounded-full blur-[140px]" />
+        <div className="absolute bottom-0 right-0 w-[500px] h-[500px] bg-red-800/3 rounded-full blur-[120px]" />
+      </div>
+
+      {/* Top header */}
+      <header className="sticky top-0 z-40 border-b border-white/[0.06] bg-[#050505]/80 backdrop-blur-xl">
+        <div className="container mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
+          {/* Back button */}
+          <button
+            onClick={() => navigate('/')}
+            className="flex items-center gap-2 text-xs font-mono font-bold uppercase tracking-widest text-white/40 hover:text-white transition-colors group"
+          >
+            <span className="w-7 h-7 rounded-full bg-white/5 border border-white/10 flex items-center justify-center group-hover:border-red-500/50 group-hover:bg-red-500/10 group-hover:shadow-[0_0_10px_rgba(220,38,38,0.3)] transition-all">
+              <ArrowLeft size={13} />
+            </span>
+            <span className="hidden sm:inline">Back to Home</span>
+          </button>
+
+          {/* Logo */}
+          <Link to="/" className="flex items-center gap-2 group absolute left-1/2 -translate-x-1/2">
+            <div className="w-2 h-2 bg-red-600 rounded-full group-hover:scale-150 transition-transform shadow-[0_0_10px_#ff0000]" />
+            <span className="text-sm font-heading font-bold tracking-tight">DIZITUP</span>
+          </Link>
+
+          {/* Sign out */}
+          <button
+            onClick={() => signOut()}
+            className="flex items-center gap-1.5 text-xs font-mono uppercase tracking-wider text-white/35 hover:text-red-400 transition-colors group"
+          >
+            <LogOut size={13} className="group-hover:translate-x-0.5 transition-transform" />
+            <span className="hidden sm:inline">Sign out</span>
+          </button>
+        </div>
+        {/* Progress line */}
+        <div className="h-[1px] bg-gradient-to-r from-transparent via-red-500/40 to-transparent" />
+      </header>
+
+      <main className="container mx-auto px-4 sm:px-6 pt-10 pb-24">
+
+        {/* Page heading */}
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+          className="mb-10"
+        >
+          <div className="flex items-center gap-2 mb-1">
+            <div className="w-1.5 h-1.5 bg-red-500 rounded-full shadow-[0_0_6px_#ff0000]" />
+            <span className="text-[10px] font-mono font-bold uppercase tracking-[0.2em] text-red-500/80">Client Portal</span>
           </div>
+          <h1 className="text-3xl sm:text-4xl font-heading font-bold">Dashboard</h1>
+          <p className="text-sm text-white/35 mt-1">Welcome back, <span className="text-white/60">{displayName}</span></p>
+        </motion.div>
 
-          <div className="p-6 glass-panel">
-            <h2 className="text-xl font-bold mb-4">Avatar</h2>
-            {profile?.avatar_url && (
-              <img src={profile.avatar_url} alt="avatar" className="w-24 h-24 rounded-xl mb-3 object-cover" />
-            )}
-            <input type="file" accept="image/*" onChange={handleAvatarUpload} />
-            <p className="text-xs text-white/40 mt-2">Uses buckets: avatars/ with path id/filename, validated + compressed.</p>
-          </div>
+        {/* Top cards grid */}
+        <div className="grid md:grid-cols-3 gap-6 mb-10">
 
-          <div className="p-6 glass-panel">
-            <h2 className="text-xl font-bold mb-4">Account</h2>
-            <p className="text-sm text-white/60 mb-2">Joined: {profile?.joined_at ? new Date(profile.joined_at).toLocaleDateString() : '—'}</p>
-            <p className="text-sm text-white/60 mb-2">Email: {profile?.email ?? user?.email ?? '—'}</p>
-            <p className="text-sm text-white/60 mb-2">Credits: {profile?.credits ?? '—'}</p>
-            <div className="space-y-2 mt-2">
-              <input
-                type="password"
-                placeholder="New password"
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                className="w-full glass-input px-3 py-2"
-              />
-              <input
-                type="email"
-                placeholder="New email"
-                value={newEmail}
-                onChange={(e) => setNewEmail(e.target.value)}
-                className="w-full glass-input px-3 py-2"
-              />
-              <div className="flex gap-2">
-                <button onClick={async () => { try { await changePassword(newPassword); toast.success('Password updated'); setNewPassword('') } catch (e: any) { toast.error(e?.message || 'Update failed') } }} className="premium-btn">Change Password</button>
-                <button onClick={async () => { try { await updateEmail(newEmail); toast.success('Email updated'); setNewEmail('') } catch (e: any) { toast.error(e?.message || 'Update failed') } }} className="premium-btn">Change Email</button>
-                <button onClick={() => signOut()} className="premium-btn">Logout</button>
+          {/* Profile card */}
+          <motion.div custom={0} variants={fadeUp} initial="hidden" animate="show" className="glass-panel p-6 relative overflow-hidden">
+            <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+            <div className="flex items-center gap-2 mb-5">
+              <div className="w-7 h-7 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center">
+                <User size={14} className="text-white/50" />
               </div>
+              <h2 className="text-sm font-heading font-bold uppercase tracking-wider text-white/80">Profile</h2>
             </div>
+            <form onSubmit={handleProfileSave} className="space-y-2.5">
+              {([
+                { name: 'first_name', placeholder: 'First name', defaultValue: profile?.first_name || '' },
+                { name: 'last_name', placeholder: 'Last name', defaultValue: profile?.last_name || '' },
+                { name: 'username', placeholder: 'Username', defaultValue: profile?.username || '' },
+                { name: 'business_name', placeholder: 'Business name', defaultValue: profile?.business_name || '' },
+                { name: 'phone', placeholder: 'Phone', defaultValue: profile?.phone || '' },
+              ] as const).map((f) => (
+                <input
+                  key={f.name}
+                  name={f.name}
+                  defaultValue={f.defaultValue}
+                  placeholder={f.placeholder}
+                  className="w-full glass-input px-3 py-2.5 text-sm"
+                />
+              ))}
+              <motion.button
+                type="submit"
+                disabled={updating}
+                whileHover={{ scale: updating ? 1 : 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                className="w-full mt-1 py-2.5 rounded-xl text-sm font-heading font-bold
+                  bg-gradient-to-r from-red-600 to-red-700 hover:from-red-500 hover:to-red-600
+                  disabled:opacity-50 shadow-[0_0_16px_rgba(220,38,38,0.25)]
+                  hover:shadow-[0_0_22px_rgba(220,38,38,0.45)] transition-all duration-300"
+              >
+                {updating ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    Saving…
+                  </span>
+                ) : 'Save Profile'}
+              </motion.button>
+            </form>
+          </motion.div>
+
+          {/* Avatar card */}
+          <motion.div custom={1} variants={fadeUp} initial="hidden" animate="show" className="glass-panel p-6 relative overflow-hidden">
+            <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+            <div className="flex items-center gap-2 mb-5">
+              <div className="w-7 h-7 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center">
+                <Camera size={14} className="text-white/50" />
+              </div>
+              <h2 className="text-sm font-heading font-bold uppercase tracking-wider text-white/80">Avatar</h2>
+            </div>
+
+            {/* Avatar display */}
+            <div className="flex flex-col items-center gap-4">
+              <div className="relative group">
+                <div className="w-24 h-24 rounded-2xl overflow-hidden border border-white/10 bg-white/5 flex items-center justify-center shadow-lg">
+                  {avatarSrc ? (
+                    <img src={avatarSrc} alt="avatar" className="w-full h-full object-cover" />
+                  ) : (
+                    <User size={36} className="text-white/20" />
+                  )}
+                </div>
+                <label
+                  htmlFor="avatar-upload"
+                  className="absolute inset-0 rounded-2xl bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center cursor-pointer"
+                >
+                  <Camera size={18} className="text-white" />
+                </label>
+              </div>
+
+              <input
+                id="avatar-upload"
+                type="file"
+                accept="image/*"
+                onChange={handleAvatarUpload}
+                className="hidden"
+              />
+
+              <label
+                htmlFor="avatar-upload"
+                className="w-full text-center py-2.5 rounded-xl text-xs font-mono font-bold uppercase tracking-wider
+                  premium-btn cursor-pointer hover:border-red-500/40 transition-all"
+              >
+                Upload Photo
+              </label>
+              <p className="text-[11px] text-white/25 text-center leading-relaxed">
+                Stored securely in avatars/ bucket.
+              </p>
+            </div>
+          </motion.div>
+
+          {/* Account card */}
+          <motion.div custom={2} variants={fadeUp} initial="hidden" animate="show" className="glass-panel p-6 relative overflow-hidden">
+            <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+            <div className="flex items-center gap-2 mb-5">
+              <div className="w-7 h-7 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center">
+                <Shield size={14} className="text-white/50" />
+              </div>
+              <h2 className="text-sm font-heading font-bold uppercase tracking-wider text-white/80">Account</h2>
+            </div>
+
+            {/* Account info pills */}
+            <div className="space-y-2 mb-4">
+              {[
+                { icon: <Clock size={12} />, label: 'Joined', value: profile?.joined_at ? new Date(profile.joined_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '—' },
+                { icon: <Mail size={12} />, label: 'Email', value: profile?.email ?? user?.email ?? '—' },
+                { icon: <Coins size={12} />, label: 'Credits', value: profile?.credits != null ? String(profile.credits) : '—' },
+              ].map(({ icon, label, value }) => (
+                <div key={label} className="flex items-center gap-2 px-3 py-2 rounded-lg bg-white/[0.03] border border-white/[0.06]">
+                  <span className="text-white/30">{icon}</span>
+                  <span className="text-xs text-white/40">{label}:</span>
+                  <span className="text-xs text-white/70 ml-auto truncate max-w-[140px]">{value}</span>
+                </div>
+              ))}
+            </div>
+
+            {/* Security actions */}
+            <div className="space-y-2 pt-2 border-t border-white/[0.07]">
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-white/25 pointer-events-none"><KeyRound size={12} /></span>
+                <input
+                  type="password"
+                  placeholder="New password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  className="w-full glass-input px-3 py-2.5 pl-8 text-xs"
+                />
+              </div>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-white/25 pointer-events-none"><AtSign size={12} /></span>
+                <input
+                  type="email"
+                  placeholder="New email"
+                  value={newEmail}
+                  onChange={(e) => setNewEmail(e.target.value)}
+                  className="w-full glass-input px-3 py-2.5 pl-8 text-xs"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  onClick={async () => {
+                    try { await changePassword(newPassword); toast.success('Password updated'); setNewPassword('') }
+                    catch (e: any) { toast.error(e?.message || 'Failed') }
+                  }}
+                  className="premium-btn text-xs py-2 font-bold"
+                >
+                  Change Password
+                </button>
+                <button
+                  onClick={async () => {
+                    try { await updateEmail(newEmail); toast.success('Email updated'); setNewEmail('') }
+                    catch (e: any) { toast.error(e?.message || 'Failed') }
+                  }}
+                  className="premium-btn text-xs py-2 font-bold"
+                >
+                  Change Email
+                </button>
+              </div>
+              <button
+                onClick={() => signOut()}
+                className="w-full premium-btn text-xs py-2.5 font-bold text-red-400/80 hover:text-red-400 border-red-500/20 hover:border-red-500/40 hover:bg-red-500/10 flex items-center justify-center gap-2"
+              >
+                <LogOut size={12} /> Sign Out
+              </button>
+            </div>
+          </motion.div>
+        </div>
+
+        {/* Projects section */}
+        <motion.section
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3, duration: 0.5 }}
+          className="space-y-5"
+        >
+          {/* Section header */}
+          <div className="flex items-center gap-3">
+            <div className="w-7 h-7 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center">
+              <FolderOpen size={14} className="text-white/50" />
+            </div>
+            <div>
+              <h2 className="text-sm font-heading font-bold uppercase tracking-wider text-white/80">My Project</h2>
+            </div>
+            <div className="flex-1 h-[1px] bg-gradient-to-r from-white/10 to-transparent" />
           </div>
-        </section>
 
-        <section className="mt-10 space-y-6">
-          <h2 className="text-xl font-bold">My Project</h2>
-
+          {/* Loading */}
           {projectsLoading && (
-            <div className="p-8 rounded-2xl glass-panel flex items-center gap-3 text-white/60">
-              <span className="animate-spin text-lg">↻</span> Loading project…
+            <div className="p-8 glass-panel flex items-center gap-3 text-white/40">
+              <span className="w-4 h-4 border-2 border-white/10 border-t-white/50 rounded-full animate-spin" />
+              <span className="text-sm">Loading your project…</span>
             </div>
           )}
 
+          {/* Empty */}
           {!projectsLoading && projects.length === 0 && (
-            <div className="p-8 rounded-2xl glass-panel text-center text-white/40">
-              No project assigned yet. Check back soon!
+            <div className="p-10 glass-panel text-center">
+              <div className="w-12 h-12 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center mx-auto mb-3">
+                <FolderOpen size={20} className="text-white/20" />
+              </div>
+              <p className="text-sm text-white/35">No project assigned yet.</p>
+              <p className="text-xs text-white/20 mt-1">Check back soon — your team is on it!</p>
             </div>
           )}
 
+          {/* Projects */}
           {!projectsLoading && projects.length > 0 && (() => {
             const latest = projects[0]
             const others = projects.slice(1)
             return (
               <>
-                {/* Latest project hero card */}
-                <div className="p-6 rounded-2xl premium-card space-y-4">
+                {/* Latest project hero */}
+                <div className="premium-card p-6 space-y-5">
+                  {/* Top accent */}
+                  <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-red-500/40 to-transparent rounded-t-2xl" style={{ position: 'relative' }} />
+
                   <div className="flex items-start justify-between gap-4 flex-wrap">
                     <div>
-                      <h3 className="text-2xl font-bold mb-1">{latest.title || 'Untitled Project'}</h3>
-                      {latest.description && <p className="text-sm text-white/60">{latest.description}</p>}
+                      <p className="text-[10px] font-mono font-bold uppercase tracking-widest text-red-500/70 mb-1">Latest Project</p>
+                      <h3 className="text-xl sm:text-2xl font-heading font-bold">{latest.title || 'Untitled Project'}</h3>
+                      {latest.description && <p className="text-sm text-white/50 mt-1 max-w-xl">{latest.description}</p>}
                     </div>
                     <StatusBadge status={latest.status} />
                   </div>
-                  <div className="flex flex-wrap gap-4 text-sm text-white/60">
-                    {latest.deadline && <span>⏰ Deadline: {new Date(latest.deadline).toLocaleDateString()}</span>}
-                    {latest.total_amount != null && <span>💰 Value: ₹{latest.total_amount.toLocaleString()}</span>}
-                  </div>
 
-                  {/* Project Updates Feed */}
-                  <div className="mt-4 space-y-2">
-                    <p className="text-xs text-white/40 uppercase tracking-wider font-semibold">Updates from Dizitup</p>
-                    {(!latest.updates || latest.updates.length === 0) && (
-                      <p className="text-xs text-white/30 italic">No updates yet.</p>
+                  <div className="flex flex-wrap gap-3">
+                    {latest.deadline && (
+                      <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/[0.04] border border-white/[0.08] text-xs text-white/50">
+                        <Clock size={11} className="text-white/30" />
+                        Deadline: {new Date(latest.deadline).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                      </span>
                     )}
-                    {(latest.updates || []).map((u) => (
-                      <div key={u.id} className="p-3 rounded-xl bg-white/[0.03] border border-white/10 text-sm text-white/80">
-                        <p>{u.message}</p>
-                        <p className="text-[10px] text-white/30 mt-1">{new Date(u.created_at).toLocaleString()}</p>
-                      </div>
-                    ))}
+                    {latest.total_amount != null && (
+                      <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/[0.04] border border-white/[0.08] text-xs text-white/50">
+                        <Coins size={11} className="text-white/30" />
+                        Value: ₹{latest.total_amount.toLocaleString('en-IN')}
+                      </span>
+                    )}
                   </div>
-                </div>
 
-                {/* Other projects (collapsed) */}
-                {others.length > 0 && (
-                  <div>
-                    <button
-                      onClick={() => setShowAllProjects((v) => !v)}
-                      className="text-sm text-white/50 hover:text-white transition-colors mb-3"
-                    >
-                      {showAllProjects ? '▲ Hide' : `▼ Show ${others.length} more project${others.length > 1 ? 's' : ''}`}
-                    </button>
-                    {showAllProjects && (
-                      <div className="space-y-3">
-                        {others.map((p) => (
-                          <div key={p.id} className="p-4 rounded-xl glass-panel flex items-center justify-between gap-4">
-                            <div>
-                              <p className="font-semibold text-sm">{p.title || 'Untitled'}</p>
-                              {p.deadline && <p className="text-xs text-white/40">Deadline: {new Date(p.deadline).toLocaleDateString()}</p>}
-                            </div>
-                            <StatusBadge status={p.status} />
+                  {/* Updates feed */}
+                  <div className="pt-3 border-t border-white/[0.07]">
+                    <p className="text-[10px] font-mono font-bold uppercase tracking-[0.18em] text-white/30 mb-3">Updates from Dizitup</p>
+                    {(!latest.updates || latest.updates.length === 0) ? (
+                      <p className="text-xs text-white/25 italic">No updates yet — your team is working on it.</p>
+                    ) : (
+                      <div className="space-y-2">
+                        {(latest.updates || []).map((u) => (
+                          <div key={u.id} className="p-3 rounded-xl bg-white/[0.03] border border-white/[0.07] hover:border-white/[0.12] transition-colors">
+                            <p className="text-sm text-white/75">{u.message}</p>
+                            <p className="text-[10px] text-white/25 mt-1.5">{new Date(u.created_at).toLocaleString()}</p>
                           </div>
                         ))}
                       </div>
                     )}
                   </div>
+                </div>
+
+                {/* Other projects */}
+                {others.length > 0 && (
+                  <div>
+                    <button
+                      onClick={() => setShowAllProjects((v) => !v)}
+                      className="flex items-center gap-1.5 text-xs font-mono uppercase tracking-wider text-white/35 hover:text-white/60 transition-colors mb-3"
+                    >
+                      {showAllProjects ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+                      {showAllProjects ? 'Hide' : `Show ${others.length} more project${others.length > 1 ? 's' : ''}`}
+                    </button>
+                    <AnimatePresence>
+                      {showAllProjects && (
+                        <motion.div
+                          initial={{ opacity: 0, height: 0 }}
+                          animate={{ opacity: 1, height: 'auto' }}
+                          exit={{ opacity: 0, height: 0 }}
+                          className="space-y-3 overflow-hidden"
+                        >
+                          {others.map((p) => (
+                            <div key={p.id} className="p-4 glass-panel flex items-center justify-between gap-4">
+                              <div>
+                                <p className="font-heading font-bold text-sm">{p.title || 'Untitled'}</p>
+                                {p.deadline && <p className="text-xs text-white/35 mt-0.5">Deadline: {new Date(p.deadline).toLocaleDateString()}</p>}
+                              </div>
+                              <StatusBadge status={p.status} />
+                            </div>
+                          ))}
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
                 )}
               </>
             )
           })()}
-        </section>
+        </motion.section>
+
+        {/* Bookings section */}
+        <motion.section
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.45, duration: 0.5 }}
+          className="mt-10 space-y-5"
+        >
+          {/* Section header */}
+          <div className="flex items-center gap-3">
+            <div className="w-7 h-7 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center">
+              <CalendarDays size={14} className="text-white/50" />
+            </div>
+            <div>
+              <h2 className="text-sm font-heading font-bold uppercase tracking-wider text-white/80">My Bookings</h2>
+            </div>
+            <div className="flex-1 h-[1px] bg-gradient-to-r from-white/10 to-transparent" />
+          </div>
+
+          {/* Loading */}
+          {bookingsLoading && (
+            <div className="p-8 glass-panel flex items-center gap-3 text-white/40">
+              <span className="w-4 h-4 border-2 border-white/10 border-t-white/50 rounded-full animate-spin" />
+              <span className="text-sm">Loading your bookings…</span>
+            </div>
+          )}
+
+          {/* Empty */}
+          {!bookingsLoading && bookings.length === 0 && (
+            <div className="p-10 glass-panel text-center">
+              <div className="w-12 h-12 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center mx-auto mb-3">
+                <CalendarDays size={20} className="text-white/20" />
+              </div>
+              <p className="text-sm text-white/35">No bookings yet.</p>
+              <p className="text-xs text-white/20 mt-1">
+                Book a free strategy call —{' '}
+                <a href="/#book" className="text-red-500/60 hover:text-red-400 underline underline-offset-2 transition-colors">schedule now</a>
+              </p>
+            </div>
+          )}
+
+          {/* Booking cards */}
+          {!bookingsLoading && bookings.length > 0 && (
+            <div className="space-y-3">
+              {bookings.map((b) => {
+                const sc = statusConfig[b.status || ''] ?? { bg: 'bg-white/5', border: 'border-white/10', text: 'text-white/60', dot: 'bg-white/40' }
+                return (
+                  <div key={b.id} className="glass-panel p-5 space-y-3 hover:border-white/20 transition-colors">
+                    <div className="flex items-start justify-between gap-3 flex-wrap">
+                      <div>
+                        <p className="text-[10px] font-mono font-bold uppercase tracking-widest text-white/30 mb-0.5">Strategy Call</p>
+                        <p className="font-heading font-bold text-white/90">{b.project_type || 'General Enquiry'}</p>
+                      </div>
+                      <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border ${sc.bg} ${sc.border} ${sc.text}`}>
+                        <span className={`w-1.5 h-1.5 rounded-full ${sc.dot}`} />
+                        {(b.status || 'pending').replace('_', ' ')}
+                      </span>
+                    </div>
+
+                    <div className="flex flex-wrap gap-3">
+                      {b.meeting_date && (
+                        <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/[0.04] border border-white/[0.08] text-xs text-white/50">
+                          <CalendarDays size={11} className="text-white/30" />
+                          {new Date(b.meeting_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                          {b.meeting_time && <> · {b.meeting_time}</>}
+                        </span>
+                      )}
+                      {b.agency && (
+                        <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/[0.04] border border-white/[0.08] text-xs text-white/50">
+                          <Phone size={11} className="text-white/30" />
+                          {b.agency}
+                        </span>
+                      )}
+                    </div>
+
+                    {b.notes && (
+                      <p className="text-xs text-white/35 border-t border-white/[0.06] pt-3 leading-relaxed">{b.notes}</p>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </motion.section>
+
+        {/* Bottom back link */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.6 }}
+          className="mt-16 flex justify-center"
+        >
+          <button
+            onClick={() => navigate('/')}
+            className="flex items-center gap-2 text-xs font-mono uppercase tracking-widest text-white/20 hover:text-white/50 transition-colors group"
+          >
+            <ArrowLeft size={12} className="group-hover:-translate-x-0.5 transition-transform" />
+            Back to Dizitup Home
+          </button>
+        </motion.div>
 
       </main>
     </div>

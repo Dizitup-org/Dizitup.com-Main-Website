@@ -37,6 +37,7 @@ export interface BookingRow {
   meeting_time: string | null;
   status: 'pending' | 'accepted' | 'follow_up' | 'cancelled' | string | null;
   created_at?: string | null;
+  username?: string | null;
 }
 
 // Query Clients table (Follow-ups) - includes booking data
@@ -93,6 +94,7 @@ export interface ProjectRow {
   end_date: string | null;
   deadline?: string | null;
   total_amount?: number | null;
+  expenses?: number | null;
   sales?: SaleRow[] | null;
   updates?: ProjectUpdate[] | null;
 }

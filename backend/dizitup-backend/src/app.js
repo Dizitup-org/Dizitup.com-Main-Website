@@ -32,6 +32,8 @@ const salesRoutes           = require('./routes/admin/sales');
 const portfolioRoutes       = require('./routes/admin/portfolio');
 const projectsRoutes        = require('./routes/admin/projects');
 const adminUserRoutes       = require('./routes/admin/users');
+const chatRoutes            = require('./routes/chat');
+const adminChatRoutes       = require('./routes/admin/chat');
 
 // Middleware
 const { protect } = require('./middleware/auth');
@@ -104,6 +106,9 @@ app.use('/api/admin/sales',     salesRoutes);
 app.use('/api/admin/portfolio', portfolioRoutes); // admin management
 app.use('/api/admin/projects',  projectsRoutes);
 app.use('/api/admin/users',     adminUserRoutes);
+app.use('/api/admin/chat',      adminChatRoutes);
+// User chat (protect applied inside chat.js per-route)
+app.use('/api/chat',            chatRoutes);
 
 // ============================================================
 // 404 — Route not found

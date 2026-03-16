@@ -8,6 +8,7 @@
 const express = require('express');
 const db = require('../db');
 const { AppError } = require('../utils/errors');
+const { protect } = require('../middleware/auth');
 
 const router = express.Router();
 
@@ -21,7 +22,7 @@ const router = express.Router();
 //   2. Insert booking into bookings table
 //   3. Return success response
 // ----------------------------------------------------------
-router.post('/', async (req, res, next) => {
+router.post('/', protect, async (req, res, next) => {
   try {
     const {
       name,
@@ -51,33 +52,8 @@ router.post('/', async (req, res, next) => {
       });
     }
 
-    // Resolve user_id — find existing user by email or create a new one
-    let user_id;
-    const userResult = await db.query(
-      'SELECT id FROM users WHERE email = $1',
-      [email]
-    );
-    if (userResult.rows.length > 0) {
-      user_id = userResult.rows[0].id;
-    } else {
-      const normalizedEmail = email.trim().toLowerCase();
-      // convert email to safe username
-      const username = normalizedEmail.replace(/[^a-zA-Z0-9]/g, '_');
-
-      const newUser = await db.query(
-        `INSERT INTO users (
-            email,
-            username,
-            password_hash,
-            first_name,
-            last_name
-         )
-         VALUES ($1, $2, 'booking_placeholder_auth', 'Booking', 'User')
-         RETURNING id`,
-        [normalizedEmail, username]
-      );
-      user_id = newUser.rows[0].id;
-    }
+    // Use the authenticated user's ID directly
+    const user_id = req.user.id;
 
     // Insert booking into database using parameterized query
     const result = await db.query(

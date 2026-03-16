@@ -13,6 +13,7 @@ import AdminUsers from './pages/AdminUsers';
 import AdminLogin from './pages/AdminLogin';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
+import AdminChat from './pages/AdminChat';
 import { AuthProvider } from './contexts/AuthProvider';
 import { BookingProvider } from './contexts/BookingContext';
 import { RequireAdmin, RequireAuth } from './components/ProtectedRoute';
@@ -95,6 +96,14 @@ const App: React.FC = () => {
               element={(
                 <RequireAdmin>
                   <AdminUsers />
+                </RequireAdmin>
+              )}
+            />
+            <Route
+              path="/admin/chat"
+              element={(
+                <RequireAdmin>
+                  <AdminChat />
                 </RequireAdmin>
               )}
             />

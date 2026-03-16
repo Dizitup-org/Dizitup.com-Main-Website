@@ -26,6 +26,53 @@ router.get('/me', protect, async (req, res, next) => {
 // Looks up the onboard_clients row linked to this user.
 // Each project includes its updates feed (newest first).
 // ----------------------------------------------------------
+// ----------------------------------------------------------
+// GET /api/user/my-bookings
+// ----------------------------------------------------------
+// Returns all bookings submitted by this user's email.
+// ----------------------------------------------------------
+router.get('/my-bookings', protect, async (req, res, next) => {
+  try {
+    const result = await db.query(
+      `SELECT id, name, email, agency, project_type, meeting_date, meeting_time, status, notes, created_at
+       FROM bookings
+       WHERE email = (SELECT email FROM users WHERE id = $1)
+         AND status != 'meeting_done'
+       ORDER BY created_at DESC`,
+      [req.user.id]
+    );
+    res.json({ success: true, bookings: result.rows });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ----------------------------------------------------------
+// GET /api/user/client-status
+// ----------------------------------------------------------
+// Returns whether the logged-in user is 'onboarded', 'follow_up', or 'none'.
+// Used by the frontend booking gate.
+// ----------------------------------------------------------
+router.get('/client-status', protect, async (req, res, next) => {
+  try {
+    const onboarded = await db.query(
+      'SELECT id FROM onboard_clients WHERE user_id = $1 LIMIT 1',
+      [req.user.id]
+    );
+    if (onboarded.rows.length > 0) {
+      return res.json({ success: true, clientStatus: 'onboarded' });
+    }
+    const followUp = await db.query(
+      'SELECT id FROM query_clients WHERE user_id = $1 LIMIT 1',
+      [req.user.id]
+    );
+    if (followUp.rows.length > 0) {
+      return res.json({ success: true, clientStatus: 'follow_up' });
+    }
+    res.json({ success: true, clientStatus: 'none' });
+  } catch (err) { next(err); }
+});
+
 router.get('/my-project', protect, async (req, res, next) => {
   try {
     // Find the onboarded client linked to this user

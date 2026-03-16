@@ -143,6 +143,31 @@ router.post('/onboard', async (req, res, next) => {
 // ----------------------------------------------------------
 router.get('/:id', async (req, res, next) => {
   try {
+    // Ensure dependent tables exist before querying
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS projects (
+        id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        client_id   UUID REFERENCES onboard_clients(id) ON DELETE CASCADE,
+        title       TEXT,
+        description TEXT,
+        status      TEXT DEFAULT 'active',
+        total_amount NUMERIC(12,2) DEFAULT 0,
+        expenses     NUMERIC(12,2) DEFAULT 0,
+        start_date  DATE,
+        end_date    DATE,
+        deadline    DATE,
+        created_at  TIMESTAMPTZ DEFAULT NOW()
+      )
+    `);
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS project_updates (
+        id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        project_id  UUID REFERENCES projects(id) ON DELETE CASCADE,
+        message     TEXT NOT NULL,
+        created_at  TIMESTAMPTZ DEFAULT NOW()
+      )
+    `);
+
     // Client info
     const clientResult = await db.query(
       `SELECT oc.*, u.username, u.email AS user_email, u.phone AS user_phone
@@ -170,12 +195,14 @@ COALESCE(SUM(s.paid_amount), 0)                     AS total_paid,
 (p.total_amount - COALESCE(SUM(s.paid_amount), 0))  AS pending_amount,
          JSON_AGG(
            JSON_BUILD_OBJECT(
-             'id',           s.id,
-             'paid_amount',  s.paid_amount,
-             'payment_date', s.payment_date,
-             'notes',        s.notes
-           ) ORDER BY s.payment_date
-         ) FILTER (WHERE s.id IS NOT NULL)                      AS payments
+             'id',              s.id,
+             'paid_amount',     s.paid_amount,
+             'payment_date',    s.sale_date,
+             'notes',           s.notes,
+             'pending_amount',  s.pending_amount,
+             'expenses',        s.expenses
+           ) ORDER BY s.sale_date
+         ) FILTER (WHERE s.id IS NOT NULL)                      AS sales
        FROM projects p
        LEFT JOIN sales s ON s.project_id = p.id
        WHERE p.client_id = $1
@@ -220,20 +247,20 @@ COALESCE(SUM(s.paid_amount), 0)                     AS total_paid,
 // ----------------------------------------------------------
 router.post('/:id/projects', async (req, res, next) => {
   try {
-    const { title, description, start_date, end_date, total_amount, expenses } = req.body;
-    validators.required(title,          'Project title');
+    const { title, description, start_date, end_date, deadline, total_amount, expenses, status } = req.body;
+    validators.required(title, 'Project title');
     validators.required(total_amount, 'Project amount');
     validators.positiveNumber(total_amount, 'Project amount');
 
     const result = await db.query(
       `INSERT INTO projects
-         (client_id, title, description, start_date, end_date, total_amount, expenses)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)
+         (client_id, title, description, start_date, end_date, deadline, total_amount, expenses, status)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
        RETURNING *`,
       [
         req.params.id, title, description || null,
-        start_date || null, end_date || null,
-        total_amount, expenses || 0,
+        start_date || null, end_date || null, deadline || null,
+        total_amount, expenses || 0, status || 'active',
       ]
     );
 
@@ -253,25 +280,63 @@ router.post('/:id/projects', async (req, res, next) => {
 // ----------------------------------------------------------
 router.post('/:clientId/projects/:projectId/payments', async (req, res, next) => {
   try {
-    const { amount_paid, payment_date, notes } = req.body;
+    const { paid_amount, sale_date, notes } = req.body;
 
-    validators.required(amount_paid, 'Amount paid');
-    validators.positiveNumber(amount_paid, 'Amount paid');
+    validators.required(paid_amount, 'Amount paid');
+    validators.positiveNumber(paid_amount, 'Amount paid');
 
     const result = await db.query(
-      `INSERT INTO sales (project_id, amount_paid, payment_date, notes)
+      `INSERT INTO sales (project_id, paid_amount, sale_date, notes)
        VALUES ($1, $2, $3, $4)
        RETURNING *`,
       [
         req.params.projectId,
-        amount_paid,
-        payment_date || new Date().toISOString().split('T')[0],
+        paid_amount,
+        sale_date || new Date().toISOString().split('T')[0],
         notes || null,
       ]
     );
 
     res.status(201).json({ success: true, payment: result.rows[0] });
 
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ----------------------------------------------------------
+// PATCH /api/admin/clients/:clientId/projects/:projectId/payments/:paymentId
+// ----------------------------------------------------------
+// Edit an existing payment record
+// Body: { paid_amount?, sale_date?, notes?, pending_amount?, expenses? }
+// ----------------------------------------------------------
+router.patch('/:clientId/projects/:projectId/payments/:paymentId', async (req, res, next) => {
+  try {
+    const { paid_amount, sale_date, notes, pending_amount, expenses } = req.body;
+
+    const result = await db.query(
+      `UPDATE sales
+       SET paid_amount     = COALESCE($1, paid_amount),
+           sale_date       = COALESCE($2::date, sale_date),
+           notes           = COALESCE($3, notes),
+           pending_amount  = COALESCE($4, pending_amount),
+           expenses        = COALESCE($5, expenses)
+       WHERE id = $6 AND project_id = $7
+       RETURNING *`,
+      [
+        paid_amount != null ? paid_amount : null,
+        sale_date || null,
+        notes !== undefined ? notes : null,
+        pending_amount != null ? pending_amount : null,
+        expenses != null ? expenses : null,
+        req.params.paymentId,
+        req.params.projectId,
+      ]
+    );
+
+    if (result.rows.length === 0) throw new AppError('Payment not found.', 404);
+
+    res.json({ success: true, payment: result.rows[0] });
   } catch (err) {
     next(err);
   }

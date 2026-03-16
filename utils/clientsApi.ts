@@ -70,12 +70,14 @@ export async function getOnboardClients() {
 export async function getOnboardClientById(clientId: string) {
   try {
     const res = await api.get(`/api/admin/clients/${clientId}`) as any;
-    return { data: res, error: null };
+    // Backend returns { success, client, projects, totals } — unwrap into a flat object
+    const data = { ...res.client, projects: res.projects ?? [], totals: res.totals ?? {} };
+    return { data, error: null };
   } catch (err: any) { return { data: null, error: err.message }; }
 }
 
 // ============ PROJECTS ============
-export async function addProject(clientId: string, project: { title: string; description?: string; start_date?: string; end_date?: string; total_amount: number; expenses?: number }) {
+export async function addProject(clientId: string, project: { title: string; description?: string; status?: string; start_date?: string; end_date?: string; deadline?: string; total_amount: number; expenses?: number }) {
   try {
     await api.post(`/api/admin/clients/${clientId}/projects`, project);
     clearCache('onboard');
@@ -84,9 +86,17 @@ export async function addProject(clientId: string, project: { title: string; des
 }
 
 // ============ PAYMENTS ============
-export async function addPayment(clientId: string, projectId: string, payment: { paid_amount: number; payment_date?: string; notes?: string }) {
+export async function addPayment(clientId: string, projectId: string, payment: { paid_amount: number; sale_date?: string; notes?: string; pending_amount?: number; expenses?: number }) {
   try {
     await api.post(`/api/admin/clients/${clientId}/projects/${projectId}/payments`, payment);
+    clearCache('onboard');
+    return { error: null };
+  } catch (err: any) { return { error: err.message }; }
+}
+
+export async function editPayment(clientId: string, projectId: string, paymentId: string, payment: { paid_amount?: number; sale_date?: string; notes?: string | null; pending_amount?: number; expenses?: number }) {
+  try {
+    await api.patch(`/api/admin/clients/${clientId}/projects/${projectId}/payments/${paymentId}`, payment);
     clearCache('onboard');
     return { error: null };
   } catch (err: any) { return { error: err.message }; }
