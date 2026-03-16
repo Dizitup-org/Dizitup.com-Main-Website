@@ -71,6 +71,15 @@ export interface OnboardClientRow {
   admin_notes?: string | null;
   feedback?: string | null;
   created_at?: string | null;
+  user_id?: string | null;
+}
+
+// Project updates feed (admin-posted messages per project)
+export interface ProjectUpdate {
+  id: string;
+  project_id: string;
+  message: string;
+  created_at: string;
 }
 
 // Projects table (linked to onboard_clients via client_id)
@@ -85,6 +94,7 @@ export interface ProjectRow {
   deadline?: string | null;
   total_amount?: number | null;
   sales?: SaleRow[] | null;
+  updates?: ProjectUpdate[] | null;
 }
 
 // Sales table (linked to projects via project_id)

@@ -2,8 +2,9 @@ import React, { useEffect, useState, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import AdminLayout from '../components/AdminLayout';
 import { getOnboardClientById, updateClientNotes } from '../utils/clientsApi';
-import { Loader2, User, Briefcase, Calendar, DollarSign, FileText, TrendingUp, Mail, Phone, Building, Clock, Target, ArrowLeft, Edit3, Save, X } from 'lucide-react';
+import { Loader2, User, Briefcase, Calendar, DollarSign, FileText, TrendingUp, Mail, Phone, Building, Clock, Target, ArrowLeft, Edit3, Save, X, MessageCircle, KeyRound, Send } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { api } from '../utils/apiClient';
 import type { OnboardClientRow, ProjectRow, SaleRow } from '../types';
 
 type TabKey = 'identity' | 'projects' | 'payments' | 'notes' | 'summary';
@@ -25,6 +26,14 @@ const AdminClientDetail: React.FC = () => {
   const [adminNotes, setAdminNotes] = useState('');
   const [feedback, setFeedback] = useState('');
   const [savingNotes, setSavingNotes] = useState(false);
+
+  // Create-account modal
+  const [creatingAccount, setCreatingAccount] = useState(false);
+  const [accountCredentials, setAccountCredentials] = useState<{ email: string; temp_password: string } | null>(null);
+
+  // Per-project update inputs: { [projectId]: string }
+  const [updateInputs, setUpdateInputs] = useState<Record<string, string>>({});
+  const [sendingUpdate, setSendingUpdate] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     let isMounted = true;
@@ -99,6 +108,42 @@ const AdminClientDetail: React.FC = () => {
       toast.error(err.message || 'Failed to save notes');
     } finally {
       setSavingNotes(false);
+    }
+  };
+
+  // ============ CREATE CLIENT ACCOUNT ============
+
+  const handleCreateAccount = async () => {
+    if (!clientId) return;
+    setCreatingAccount(true);
+    try {
+      const data = await api.post<{ success: boolean; credentials: { email: string; temp_password: string } }>(
+        `/api/admin/clients/${clientId}/create-account`,
+        {}
+      );
+      setAccountCredentials(data.credentials);
+      toast.success('Credentials generated — share with client');
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to create account');
+    } finally {
+      setCreatingAccount(false);
+    }
+  };
+
+  // ============ SEND PROJECT UPDATE ============
+
+  const handleSendUpdate = async (projectId: string) => {
+    const message = (updateInputs[projectId] || '').trim();
+    if (!message) return;
+    setSendingUpdate((prev) => ({ ...prev, [projectId]: true }));
+    try {
+      await api.post(`/api/admin/projects/${projectId}/updates`, { message });
+      toast.success('Update posted');
+      setUpdateInputs((prev) => ({ ...prev, [projectId]: '' }));
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to post update');
+    } finally {
+      setSendingUpdate((prev) => ({ ...prev, [projectId]: false }));
     }
   };
 
@@ -208,7 +253,37 @@ const AdminClientDetail: React.FC = () => {
 
           {/* ============ IDENTITY TAB ============ */}
           {tab === 'identity' && (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="space-y-4">
+              {/* Create Client Login */}
+              <div className="p-5 rounded-2xl bg-white/[0.02] border border-white/10 backdrop-blur-xl flex items-center justify-between gap-4">
+                <div>
+                  <p className="text-sm font-semibold text-white mb-0.5">Client Portal Login</p>
+                  <p className="text-xs text-white/40">Generate or reset login credentials for this client</p>
+                </div>
+                <button
+                  onClick={handleCreateAccount}
+                  disabled={creatingAccount}
+                  className="flex items-center gap-2 px-4 py-2 rounded-xl bg-red-600 hover:bg-red-500 text-white text-sm font-semibold transition-all disabled:opacity-50"
+                >
+                  {creatingAccount ? <Loader2 className="w-4 h-4 animate-spin" /> : <KeyRound className="w-4 h-4" />}
+                  {client.user_id ? 'Reset Login' : 'Create Login'}
+                </button>
+              </div>
+
+              {/* Credentials modal */}
+              {accountCredentials && (
+                <div className="p-5 rounded-2xl bg-green-500/5 border border-green-500/20 backdrop-blur-xl">
+                  <div className="flex items-center justify-between mb-3">
+                    <p className="text-sm font-bold text-green-400">Credentials — share with client</p>
+                    <button onClick={() => setAccountCredentials(null)} className="text-white/40 hover:text-white"><X className="w-4 h-4" /></button>
+                  </div>
+                  <p className="text-sm text-white/70 mb-1">Email: <span className="font-mono text-white">{accountCredentials.email}</span></p>
+                  <p className="text-sm text-white/70">Temp Password: <span className="font-mono text-white">{accountCredentials.temp_password}</span></p>
+                </div>
+              )}
+
+              {/* Info cards grid */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               <div className="p-6 rounded-2xl bg-white/[0.02] border border-white/10 backdrop-blur-xl">
                 <div className="flex items-center gap-3 mb-3">
                   <User className="w-5 h-5 text-red-500" />
@@ -238,7 +313,20 @@ const AdminClientDetail: React.FC = () => {
                   <Phone className="w-5 h-5 text-red-500" />
                   <span className="text-xs text-white/40 uppercase tracking-wider font-semibold">Phone</span>
                 </div>
-                <p className="text-lg font-medium text-white">{client.phone || '—'}</p>
+                <div className="flex items-center gap-3">
+                  <p className="text-lg font-medium text-white">{client.phone || '—'}</p>
+                  {client.phone && (
+                    <a
+                      href={`https://wa.me/${client.phone.replace(/[^0-9]/g, '')}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-green-500/10 border border-green-500/20 text-green-400 text-xs font-semibold hover:bg-green-500/20 transition-all"
+                    >
+                      <MessageCircle className="w-3.5 h-3.5" />
+                      WhatsApp
+                    </a>
+                  )}
+                </div>
               </div>
 
               <div className="p-6 rounded-2xl bg-white/[0.02] border border-white/10 backdrop-blur-xl">
@@ -257,6 +345,7 @@ const AdminClientDetail: React.FC = () => {
                 <p className="text-lg font-medium text-white">
                   {client.start_date ? new Date(client.start_date).toLocaleDateString() : '—'}
                 </p>
+              </div>
               </div>
             </div>
           )}
@@ -283,6 +372,24 @@ const AdminClientDetail: React.FC = () => {
                       <span>Value: ₹{(liveProject.total_amount || 0).toLocaleString()}</span>
                     </div>
                   </div>
+                  {/* Add update input for live project */}
+                  <div className="mt-4 flex gap-2">
+                    <input
+                      type="text"
+                      placeholder="Post an update to client…"
+                      value={updateInputs[liveProject.id] || ''}
+                      onChange={(e) => setUpdateInputs((prev) => ({ ...prev, [liveProject.id]: e.target.value }))}
+                      onKeyDown={(e) => e.key === 'Enter' && handleSendUpdate(liveProject.id)}
+                      className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-sm text-white placeholder-white/30 focus:outline-none focus:border-red-500/50"
+                    />
+                    <button
+                      onClick={() => handleSendUpdate(liveProject.id)}
+                      disabled={sendingUpdate[liveProject.id] || !updateInputs[liveProject.id]?.trim()}
+                      className="flex items-center gap-2 px-4 py-2 rounded-xl bg-red-600 hover:bg-red-500 text-white text-sm font-semibold transition-all disabled:opacity-40"
+                    >
+                      {sendingUpdate[liveProject.id] ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                    </button>
+                  </div>
                 </div>
               )}
 
@@ -297,6 +404,7 @@ const AdminClientDetail: React.FC = () => {
                       <th className="px-6 py-4 font-semibold">End</th>
                       <th className="px-6 py-4 font-semibold">Deadline</th>
                       <th className="px-6 py-4 font-semibold">Value</th>
+                      <th className="px-6 py-4 font-semibold">Post Update</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-white/5">
@@ -308,11 +416,30 @@ const AdminClientDetail: React.FC = () => {
                         <td className="px-6 py-4 text-white/70">{p.end_date ? new Date(p.end_date).toLocaleDateString() : '—'}</td>
                         <td className="px-6 py-4 text-white/70">{p.deadline ? new Date(p.deadline).toLocaleDateString() : '—'}</td>
                         <td className="px-6 py-4 font-medium text-white">₹{(p.total_amount || 0).toLocaleString()}</td>
+                        <td className="px-6 py-4">
+                          <div className="flex gap-2">
+                            <input
+                              type="text"
+                              placeholder="Update…"
+                              value={updateInputs[p.id] || ''}
+                              onChange={(e) => setUpdateInputs((prev) => ({ ...prev, [p.id]: e.target.value }))}
+                              onKeyDown={(e) => e.key === 'Enter' && handleSendUpdate(p.id)}
+                              className="w-40 bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white placeholder-white/30 focus:outline-none focus:border-red-500/50"
+                            />
+                            <button
+                              onClick={() => handleSendUpdate(p.id)}
+                              disabled={sendingUpdate[p.id] || !updateInputs[p.id]?.trim()}
+                              className="p-1.5 rounded-lg bg-red-600 hover:bg-red-500 text-white transition-all disabled:opacity-40"
+                            >
+                              {sendingUpdate[p.id] ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
+                            </button>
+                          </div>
+                        </td>
                       </tr>
                     ))}
                     {(!client.projects || client.projects.length === 0) && (
                       <tr>
-                        <td colSpan={6} className="px-6 py-12 text-center text-white/40">No projects yet</td>
+                        <td colSpan={7} className="px-6 py-12 text-center text-white/40">No projects yet</td>
                       </tr>
                     )}
                   </tbody>

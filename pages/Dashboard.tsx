@@ -1,69 +1,51 @@
 import React, { useEffect, useState } from 'react'
 import { useAuth } from '../contexts/AuthProvider'
-import { supabase } from '../utils/supabaseClient'
 import toast, { Toaster } from 'react-hot-toast'
-import { subscribeToTable } from '../utils/realtime'
+import { api } from '../utils/apiClient'
+import type { ProjectRow, ProjectUpdate } from '../types'
 
-type Project = { id: string; name: string; status: string }
-type Attendance = { last_scan?: string; total_days?: number }
+type ProjectWithUpdates = ProjectRow & { updates?: ProjectUpdate[] }
+
+const statusColors: Record<string, { bg: string; border: string; text: string }> = {
+  active:    { bg: 'bg-green-500/10',  border: 'border-green-500/20',  text: 'text-green-400' },
+  completed: { bg: 'bg-purple-500/10', border: 'border-purple-500/20', text: 'text-purple-400' },
+  paused:    { bg: 'bg-yellow-500/10', border: 'border-yellow-500/20', text: 'text-yellow-400' },
+  cancelled: { bg: 'bg-red-500/10',    border: 'border-red-500/20',    text: 'text-red-400' },
+}
+
+function StatusBadge({ status }: { status: string | null }) {
+  const s = statusColors[status || ''] ?? { bg: 'bg-white/5', border: 'border-white/10', text: 'text-white/60' }
+  return (
+    <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border ${s.bg} ${s.border} ${s.text}`}>
+      {status || 'Unknown'}
+    </span>
+  )
+}
 
 const Dashboard: React.FC = () => {
   const { user, profile, upsertProfile, uploadAvatar, signOut, changePassword, updateEmail } = useAuth()
   const [newPassword, setNewPassword] = useState('')
   const [newEmail, setNewEmail] = useState('')
-  const [projects, setProjects] = useState<Project[]>([])
-  const [attendance, setAttendance] = useState<Attendance | null>(null)
+  const [projects, setProjects] = useState<ProjectWithUpdates[]>([])
+  const [projectsLoading, setProjectsLoading] = useState(true)
+  const [showAllProjects, setShowAllProjects] = useState(false)
   const [updating, setUpdating] = useState(false)
 
   useEffect(() => {
-    const fetchData = async () => {
-      if (!user) return
-      // Projects scoped by auth.uid()
-      const { data: proj } = await supabase
-        .from('projects')
-        .select('id,name,status')
-        .eq('user_id', user.id)
-        .order('id', { ascending: false })
-      setProjects(proj || [])
-
-      const { data: prof } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', user.id)
-        .single()
-      // Merge profile fields into context (or local display)
-      if (prof) {
-        // phone, business_name, names
+    let isMounted = true
+    const fetchProject = async () => {
+      setProjectsLoading(true)
+      try {
+        const data = await api.get<{ success: boolean; projects: ProjectWithUpdates[] }>('/api/user/my-project')
+        if (isMounted) setProjects(data.projects || [])
+      } catch {
+        // non-fatal — user may not have a project yet
+      } finally {
+        if (isMounted) setProjectsLoading(false)
       }
-
-      const { data: att } = await supabase
-        .from('attendance')
-        .select('last_scan,total_days')
-        .eq('user_id', user.id)
-        .limit(1)
-      setAttendance((att && att[0]) || null)
     }
-    fetchData()
-    // Realtime subscriptions
-    const unsubProjects = subscribeToTable<Project>('projects', (p) => {
-      if (p && (p as any).user_id === user?.id) {
-        setProjects((prev) => [{ id: (p as any).id, name: (p as any).name, status: (p as any).status }, ...prev])
-        toast('Project update', { icon: '📦' })
-      }
-    }, (p) => {
-      if (p && (p as any).user_id === user?.id) {
-        setProjects((prev) => prev.map((x) => (x.id === (p as any).id ? { id: (p as any).id, name: (p as any).name, status: (p as any).status } : x)))
-      }
-    })
-    const unsubAttendance = subscribeToTable<Attendance>('attendance', undefined, (a) => {
-      if (a && (a as any).user_id === user?.id) {
-        setAttendance({ last_scan: (a as any).last_scan, total_days: (a as any).total_days })
-      }
-    })
-    return () => {
-      unsubProjects()
-      unsubAttendance()
-    }
+    fetchProject()
+    return () => { isMounted = false }
   }, [user])
 
   const handleProfileSave = async (e: React.FormEvent) => {
@@ -154,24 +136,84 @@ const Dashboard: React.FC = () => {
           </div>
         </section>
 
-        <section className="mt-10 p-6 premium-card">
-          <h2 className="text-xl font-bold mb-4">Projects</h2>
-          <div className="space-y-2">
-            {projects.map(p => (
-              <div key={p.id} className="flex items-center justify-between p-3 glass-panel">
-                <span>{p.name}</span>
-                <span className="text-xs text-white/60">{p.status}</span>
-              </div>
-            ))}
-            {projects.length === 0 && <p className="text-sm text-white/40">No projects yet.</p>}
-          </div>
+        <section className="mt-10 space-y-6">
+          <h2 className="text-xl font-bold">My Project</h2>
+
+          {projectsLoading && (
+            <div className="p-8 rounded-2xl glass-panel flex items-center gap-3 text-white/60">
+              <span className="animate-spin text-lg">↻</span> Loading project…
+            </div>
+          )}
+
+          {!projectsLoading && projects.length === 0 && (
+            <div className="p-8 rounded-2xl glass-panel text-center text-white/40">
+              No project assigned yet. Check back soon!
+            </div>
+          )}
+
+          {!projectsLoading && projects.length > 0 && (() => {
+            const latest = projects[0]
+            const others = projects.slice(1)
+            return (
+              <>
+                {/* Latest project hero card */}
+                <div className="p-6 rounded-2xl premium-card space-y-4">
+                  <div className="flex items-start justify-between gap-4 flex-wrap">
+                    <div>
+                      <h3 className="text-2xl font-bold mb-1">{latest.title || 'Untitled Project'}</h3>
+                      {latest.description && <p className="text-sm text-white/60">{latest.description}</p>}
+                    </div>
+                    <StatusBadge status={latest.status} />
+                  </div>
+                  <div className="flex flex-wrap gap-4 text-sm text-white/60">
+                    {latest.deadline && <span>⏰ Deadline: {new Date(latest.deadline).toLocaleDateString()}</span>}
+                    {latest.total_amount != null && <span>💰 Value: ₹{latest.total_amount.toLocaleString()}</span>}
+                  </div>
+
+                  {/* Project Updates Feed */}
+                  <div className="mt-4 space-y-2">
+                    <p className="text-xs text-white/40 uppercase tracking-wider font-semibold">Updates from Dizitup</p>
+                    {(!latest.updates || latest.updates.length === 0) && (
+                      <p className="text-xs text-white/30 italic">No updates yet.</p>
+                    )}
+                    {(latest.updates || []).map((u) => (
+                      <div key={u.id} className="p-3 rounded-xl bg-white/[0.03] border border-white/10 text-sm text-white/80">
+                        <p>{u.message}</p>
+                        <p className="text-[10px] text-white/30 mt-1">{new Date(u.created_at).toLocaleString()}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Other projects (collapsed) */}
+                {others.length > 0 && (
+                  <div>
+                    <button
+                      onClick={() => setShowAllProjects((v) => !v)}
+                      className="text-sm text-white/50 hover:text-white transition-colors mb-3"
+                    >
+                      {showAllProjects ? '▲ Hide' : `▼ Show ${others.length} more project${others.length > 1 ? 's' : ''}`}
+                    </button>
+                    {showAllProjects && (
+                      <div className="space-y-3">
+                        {others.map((p) => (
+                          <div key={p.id} className="p-4 rounded-xl glass-panel flex items-center justify-between gap-4">
+                            <div>
+                              <p className="font-semibold text-sm">{p.title || 'Untitled'}</p>
+                              {p.deadline && <p className="text-xs text-white/40">Deadline: {new Date(p.deadline).toLocaleDateString()}</p>}
+                            </div>
+                            <StatusBadge status={p.status} />
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </>
+            )
+          })()}
         </section>
 
-        <section className="mt-10 p-6 premium-card">
-          <h2 className="text-xl font-bold mb-4">Attendance</h2>
-          <p className="text-sm text-white/60">Last scan: {attendance?.last_scan ? new Date(attendance.last_scan).toLocaleString() : '—'}</p>
-          <p className="text-sm text-white/60">Total days: {attendance?.total_days ?? 0}</p>
-        </section>
       </main>
     </div>
   )

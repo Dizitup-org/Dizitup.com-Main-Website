@@ -23,6 +23,7 @@ const cors    = require('cors');
 const authRoutes            = require('./routes/auth');
 const userRoutes            = require('./routes/user');
 const visitorProfileRoutes  = require('./routes/visitorProfile');
+const visitorLeadRoutes     = require('./routes/visitorLeads');
 const publicBookingRoutes   = require('./routes/bookings');
 const overviewRoutes        = require('./routes/admin/overview');
 const bookingRoutes         = require('./routes/admin/bookings');
@@ -30,6 +31,7 @@ const clientRoutes          = require('./routes/admin/clients');
 const salesRoutes           = require('./routes/admin/sales');
 const portfolioRoutes       = require('./routes/admin/portfolio');
 const projectsRoutes        = require('./routes/admin/projects');
+const adminUserRoutes       = require('./routes/admin/users');
 
 // Middleware
 const { protect } = require('./middleware/auth');
@@ -74,6 +76,7 @@ app.get('/health', (_req, res) => {
 // Public routes (no login required)
 app.use('/api/auth',            authRoutes);
 app.use('/api/visitor-profile', visitorProfileRoutes);
+app.use('/api/visitor-leads',   visitorLeadRoutes);
 app.use('/api/bookings',        publicBookingRoutes);
 app.use('/api/portfolio',       portfolioRoutes); // public GET for frontend display
 
@@ -100,6 +103,7 @@ app.use('/api/admin/clients',   clientRoutes);
 app.use('/api/admin/sales',     salesRoutes);
 app.use('/api/admin/portfolio', portfolioRoutes); // admin management
 app.use('/api/admin/projects',  projectsRoutes);
+app.use('/api/admin/users',     adminUserRoutes);
 
 // ============================================================
 // 404 — Route not found

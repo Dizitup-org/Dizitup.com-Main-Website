@@ -19,4 +19,58 @@ router.get('/me', protect, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// ----------------------------------------------------------
+// GET /api/user/my-project
+// ----------------------------------------------------------
+// Returns the authenticated client's projects and admin updates.
+// Looks up the onboard_clients row linked to this user.
+// Each project includes its updates feed (newest first).
+// ----------------------------------------------------------
+router.get('/my-project', protect, async (req, res, next) => {
+  try {
+    // Find the onboarded client linked to this user
+    const clientResult = await db.query(
+      'SELECT id, contact_name, company_name FROM onboard_clients WHERE user_id = $1',
+      [req.user.id]
+    );
+
+    if (clientResult.rows.length === 0) {
+      return res.json({ success: true, projects: [] });
+    }
+
+    const clientId = clientResult.rows[0].id;
+
+    // Fetch projects with their updates
+    const projectsResult = await db.query(
+      `SELECT
+         p.id,
+         p.title,
+         p.description,
+         p.status,
+         p.total_amount,
+         p.start_date,
+         p.end_date,
+         p.deadline,
+         p.created_at,
+         COALESCE(
+           JSON_AGG(
+             JSON_BUILD_OBJECT('id', pu.id, 'message', pu.message, 'created_at', pu.created_at)
+             ORDER BY pu.created_at DESC
+           ) FILTER (WHERE pu.id IS NOT NULL),
+           '[]'
+         ) AS updates
+       FROM projects p
+       LEFT JOIN project_updates pu ON pu.project_id = p.id
+       WHERE p.client_id = $1
+       GROUP BY p.id
+       ORDER BY p.created_at DESC`,
+      [clientId]
+    );
+
+    res.json({ success: true, projects: projectsResult.rows });
+  } catch (err) {
+    next(err);
+  }
+});
+
 module.exports = router;

@@ -2,7 +2,6 @@ import React, { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthProvider'
 import toast, { Toaster } from 'react-hot-toast'
-import { supabase } from '../utils/supabaseClient'
 
 const Login: React.FC = () => {
   const { signIn, signUp, resetPassword, user, isAdmin, loading } = useAuth()
@@ -24,9 +23,7 @@ const Login: React.FC = () => {
     setSubmitting(true)
     try {
       if (mode === 'login') {
-        console.log('[Login] Attempt signInWithPassword')
-        const { error: loginError } = await supabase.auth.signInWithPassword({ email, password })
-        if (loginError) throw loginError
+        await signIn(email, password)
         toast.success('Logged in')
       } else {
         // Validation
@@ -36,41 +33,19 @@ const Login: React.FC = () => {
         if (password !== confirm) {
           throw new Error('Passwords do not match')
         }
-        const emailValid = /.+@.+\..+/.test(email)
-        if (!emailValid) throw new Error('Invalid email')
-        console.log('[Signup] Attempt signUp')
-        await signUp(email, password)
-        // After signup, update profile fields by id
-        const { data: sessionData } = await supabase.auth.getSession()
-        const uid = sessionData.session?.user?.id
-        if (uid) {
-          // Unique username check
-          const { data: existing } = await supabase
-            .from('profiles')
-            .select('id')
-            .eq('username', username)
-            .neq('id', uid)
-            .limit(1)
-          if (existing && existing.length > 0) {
-            throw new Error('Username already taken')
-          }
-          console.log('[Signup] Upsert profile for uid', uid)
-          const { error } = await supabase
-            .from('profiles')
-            .upsert({
-              id: uid,
-              email,
-              first_name: firstName,
-              last_name: lastName,
-              username,
-              business_name: businessName,
-              phone,
-            }, { onConflict: 'id' })
-          if (error) throw error
-        }
-        toast.success('Signup successful. Check email if confirmation required.')
+        if (!/.+@.+\..+/.test(email)) throw new Error('Invalid email')
+        await signUp({
+          email,
+          password,
+          username,
+          first_name: firstName,
+          last_name: lastName,
+          phone: phone || undefined,
+          business_name: businessName || undefined,
+        })
+        toast.success('Account created. You are now logged in.')
       }
-      // Do not redirect here; rely on auth listener + effect below to avoid loops
+      // Redirect handled by useEffect below watching user/isAdmin
     } catch (err: any) {
       console.error('[Login] Error', err)
       toast.error(err?.message || 'Authentication error')
@@ -100,7 +75,8 @@ const Login: React.FC = () => {
     <div className="min-h-screen bg-[#050505] flex items-center justify-center p-6">
       <Toaster position="top-right" />
       <div className="w-full max-w-md p-8 glass-panel">
-        <h1 className="text-2xl font-heading font-bold mb-6">Access</h1>
+        <h1 className="text-2xl font-heading font-bold mb-2">Welcome to Dizitup</h1>
+        <p className="text-sm text-white/40 mb-6">Where AI fits your business.</p>
         <form onSubmit={handleSubmit} className="space-y-4">
           <input
             type="email"

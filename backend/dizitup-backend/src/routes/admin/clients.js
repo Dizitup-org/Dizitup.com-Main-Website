@@ -10,6 +10,8 @@
 // ============================================================
 
 const express = require('express');
+const crypto = require('crypto');
+const bcrypt = require('bcryptjs');
 const db = require('../../db');
 const { AppError } = require('../../utils/errors');
 const { validators } = require('../../middleware/validate');
@@ -145,7 +147,7 @@ router.get('/:id', async (req, res, next) => {
     const clientResult = await db.query(
       `SELECT oc.*, u.username, u.email AS user_email, u.phone AS user_phone
        FROM onboard_clients oc
-       JOIN users u ON u.id = oc.user_id
+       LEFT JOIN users u ON u.id = oc.user_id
        WHERE oc.id = $1`,
       [req.params.id]
     );
@@ -214,25 +216,24 @@ COALESCE(SUM(s.paid_amount), 0)                     AS total_paid,
 // POST /api/admin/clients/:id/projects
 // ----------------------------------------------------------
 // Add a project to an onboarded client
-// Body: { title, description?, start_date?, end_date?, project_amount, expenses? }
+// Body: { title, description?, start_date?, end_date?, total_amount?, expenses? }
 // ----------------------------------------------------------
 router.post('/:id/projects', async (req, res, next) => {
   try {
-    const { title, description, start_date, end_date, project_amount, expenses } = req.body;
-
+    const { title, description, start_date, end_date, total_amount, expenses } = req.body;
     validators.required(title,          'Project title');
-    validators.required(project_amount, 'Project amount');
-    validators.positiveNumber(project_amount, 'Project amount');
+    validators.required(total_amount, 'Project amount');
+    validators.positiveNumber(total_amount, 'Project amount');
 
     const result = await db.query(
       `INSERT INTO projects
-         (client_id, title, description, start_date, end_date, project_amount, expenses)
+         (client_id, title, description, start_date, end_date, total_amount, expenses)
        VALUES ($1, $2, $3, $4, $5, $6, $7)
        RETURNING *`,
       [
         req.params.id, title, description || null,
         start_date || null, end_date || null,
-        project_amount, expenses || 0,
+        total_amount, expenses || 0,
       ]
     );
 
@@ -285,6 +286,75 @@ router.delete('/:id', async (req, res, next) => {
   try {
     await db.query('DELETE FROM onboard_clients WHERE id = $1', [req.params.id]);
     res.json({ success: true });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ----------------------------------------------------------
+// POST /api/admin/clients/:id/create-account
+// ----------------------------------------------------------
+// Create or reset the portal login for an onboarded client.
+// If the client's email already has a user record, the password
+// is reset (useful for credential resets).
+// Returns { email, temp_password } to relay to the client.
+// ----------------------------------------------------------
+router.post('/:id/create-account', async (req, res, next) => {
+  try {
+    const clientResult = await db.query(
+      'SELECT * FROM onboard_clients WHERE id = $1',
+      [req.params.id]
+    );
+    if (clientResult.rows.length === 0) throw new AppError('Client not found.', 404);
+
+    const client = clientResult.rows[0];
+    const email = client.email;
+
+    // Generate a 12-char URL-safe alphanumeric temp password
+    const tempPassword = crypto.randomBytes(9).toString('base64url').slice(0, 12);
+    const hashedPassword = await bcrypt.hash(tempPassword, 12);
+
+    const existingUser = await db.query('SELECT id FROM users WHERE email = $1', [email]);
+
+    let userId;
+    if (existingUser.rows.length > 0) {
+      // Reset password for existing user
+      userId = existingUser.rows[0].id;
+      await db.query(
+        'UPDATE users SET password_hash = $1 WHERE id = $2',
+        [hashedPassword, userId]
+      );
+    } else {
+      // Create a new portal user
+      const baseUsername = (client.contact_name || 'client')
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, '')
+        .slice(0, 16);
+      const uniqueSuffix = crypto.randomBytes(2).toString('hex');
+      const username = `${baseUsername}${uniqueSuffix}`;
+
+      const userResult = await db.query(
+        `INSERT INTO users (username, email, password_hash, first_name, phone)
+         VALUES ($1, $2, $3, $4, $5)
+         RETURNING id`,
+        [username, email, hashedPassword, client.contact_name || '', client.phone || null]
+      );
+      userId = userResult.rows[0].id;
+    }
+
+    // Ensure onboard_clients.user_id is linked
+    await db.query(
+      'UPDATE onboard_clients SET user_id = $1 WHERE id = $2',
+      [userId, req.params.id]
+    );
+
+    res.status(201).json({
+      success: true,
+      credentials: {
+        email,
+        temp_password: tempPassword,
+      },
+    });
   } catch (err) {
     next(err);
   }

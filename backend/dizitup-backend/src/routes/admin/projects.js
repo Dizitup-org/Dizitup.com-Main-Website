@@ -83,5 +83,40 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
+// ----------------------------------------------------------
+// POST /api/admin/projects/:id/updates
+// ----------------------------------------------------------
+// Post an admin update message against a project.
+// Body: { message }
+// Table is auto-created on first use.
+// ----------------------------------------------------------
+router.post('/:id/updates', async (req, res) => {
+  try {
+    const { message } = req.body;
+    if (!message || !String(message).trim()) {
+      return res.status(400).json({ success: false, error: 'message is required' });
+    }
+
+    // Ensure table exists
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS project_updates (
+        id          UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+        project_id  UUID        NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+        message     TEXT        NOT NULL,
+        created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
+
+    const result = await db.query(
+      `INSERT INTO project_updates (project_id, message) VALUES ($1, $2) RETURNING *`,
+      [req.params.id, String(message).trim()]
+    );
+
+    res.status(201).json({ success: true, update: result.rows[0] });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 module.exports = router;
 
