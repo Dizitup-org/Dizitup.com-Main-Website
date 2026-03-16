@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react'
 import { useAuth } from '../contexts/AuthProvider'
-import { api } from '../utils/apiClient'
+import { supabase } from '../utils/supabaseClient'
 import toast, { Toaster } from 'react-hot-toast'
+import { subscribeToTable } from '../utils/realtime'
 
 type Project = { id: string; name: string; status: string }
 type Attendance = { last_scan?: string; total_days?: number }
@@ -17,17 +18,52 @@ const Dashboard: React.FC = () => {
   useEffect(() => {
     const fetchData = async () => {
       if (!user) return
-      try {
-        const projRes = await api.get<{ projects: Project[] }>('/api/user/projects')
-        setProjects(projRes.projects || [])
-      } catch { setProjects([]) }
+      // Projects scoped by auth.uid()
+      const { data: proj } = await supabase
+        .from('projects')
+        .select('id,name,status')
+        .eq('user_id', user.id)
+        .order('id', { ascending: false })
+      setProjects(proj || [])
 
-      try {
-        const attRes = await api.get<{ last_scan?: string; total_days?: number }>('/api/user/attendance')
-        setAttendance(attRes || null)
-      } catch { setAttendance(null) }
+      const { data: prof } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user.id)
+        .single()
+      // Merge profile fields into context (or local display)
+      if (prof) {
+        // phone, business_name, names
+      }
+
+      const { data: att } = await supabase
+        .from('attendance')
+        .select('last_scan,total_days')
+        .eq('user_id', user.id)
+        .limit(1)
+      setAttendance((att && att[0]) || null)
     }
     fetchData()
+    // Realtime subscriptions
+    const unsubProjects = subscribeToTable<Project>('projects', (p) => {
+      if (p && (p as any).user_id === user?.id) {
+        setProjects((prev) => [{ id: (p as any).id, name: (p as any).name, status: (p as any).status }, ...prev])
+        toast('Project update', { icon: '📦' })
+      }
+    }, (p) => {
+      if (p && (p as any).user_id === user?.id) {
+        setProjects((prev) => prev.map((x) => (x.id === (p as any).id ? { id: (p as any).id, name: (p as any).name, status: (p as any).status } : x)))
+      }
+    })
+    const unsubAttendance = subscribeToTable<Attendance>('attendance', undefined, (a) => {
+      if (a && (a as any).user_id === user?.id) {
+        setAttendance({ last_scan: (a as any).last_scan, total_days: (a as any).total_days })
+      }
+    })
+    return () => {
+      unsubProjects()
+      unsubAttendance()
+    }
   }, [user])
 
   const handleProfileSave = async (e: React.FormEvent) => {
