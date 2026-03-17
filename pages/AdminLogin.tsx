@@ -5,6 +5,9 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { ShieldAlert, Terminal, Lock } from 'lucide-react';
 import AdminWelcome from '../components/AdminWelcome';
 import { useAuth } from '../contexts/AuthProvider';
+import { getToken } from '../utils/apiClient';
+
+const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000';
 
 const AdminLogin: React.FC = () => {
   const navigate = useNavigate();
@@ -33,11 +36,19 @@ const AdminLogin: React.FC = () => {
     }
   };
 
-  const handleWelcomeComplete = () => {
-    console.log('🎉 Welcome complete, navigating based on role...');
-    if (user?.adminRole === 'manager') navigate('/admin/manager/projects');
-    else if (user?.adminRole === 'employee') navigate('/admin/employee/tasks');
-    else navigate('/admin');
+  const handleWelcomeComplete = async () => {
+    try {
+      const res = await fetch(`${BASE_URL}/api/user/me`, {
+        headers: { Authorization: `Bearer ${getToken()}` },
+      });
+      const data = await res.json();
+      const role = data?.user?.adminRole;
+      if (role === 'manager') navigate('/admin/manager/projects');
+      else if (role === 'employee') navigate('/admin/employee/tasks');
+      else navigate('/admin');
+    } catch {
+      navigate('/admin');
+    }
   };
 
   return (
