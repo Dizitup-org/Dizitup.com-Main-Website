@@ -1,11 +1,21 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useRef, useCallback } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { ArrowLeft, User, Shield, Camera, Clock, Mail, Coins, ChevronDown, ChevronUp, LogOut, KeyRound, AtSign, FolderOpen, CalendarDays, Phone } from 'lucide-react'
+import { ArrowLeft, User, Shield, Camera, Clock, Mail, Coins, ChevronDown, ChevronUp, LogOut, KeyRound, AtSign, FolderOpen, CalendarDays, Phone, MessageCircle, Send, Loader2 } from 'lucide-react'
 import { useAuth } from '../contexts/AuthProvider'
 import toast, { Toaster } from 'react-hot-toast'
-import { api } from '../utils/apiClient'
+import { api, getToken } from '../utils/apiClient'
 import type { ProjectRow, ProjectUpdate, BookingRow } from '../types'
+
+const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000'
+
+interface ChatMessage {
+  id: string
+  sender_type: 'user' | 'admin'
+  message: string
+  is_read: boolean
+  created_at: string
+}
 
 type ProjectWithUpdates = ProjectRow & { updates?: ProjectUpdate[] }
 
@@ -57,6 +67,16 @@ const Dashboard: React.FC = () => {
   const [bookings, setBookings] = useState<BookingRow[]>([])
   const [bookingsLoading, setBookingsLoading] = useState(true)
 
+  // Client status for chat visibility (mirrors ChatWidget restriction)
+  const [clientStatus, setClientStatus] = useState<'none' | 'follow_up' | 'onboarded' | null>(null)
+
+  // Admin chat state
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([])
+  const [chatInput, setChatInput] = useState('')
+  const [chatSending, setChatSending] = useState(false)
+  const chatEndRef = useRef<HTMLDivElement>(null)
+  const chatPollRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
   useEffect(() => {
     let isMounted = true
     const fetchBookings = async () => {
@@ -72,6 +92,68 @@ const Dashboard: React.FC = () => {
     fetchBookings()
     return () => { isMounted = false }
   }, [user])
+
+  // Fetch client status
+  useEffect(() => {
+    if (!user) { setClientStatus('none'); return }
+    const token = getToken()
+    fetch(`${BASE_URL}/api/user/client-status`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    })
+      .then(r => r.json())
+      .then(d => setClientStatus(d.clientStatus ?? 'none'))
+      .catch(() => setClientStatus('none'))
+  }, [user])
+
+  // Chat fetch + polling
+  const fetchChatMessages = useCallback(async () => {
+    const token = getToken()
+    try {
+      const res = await fetch(`${BASE_URL}/api/chat/messages`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      })
+      const data = await res.json()
+      if (data.success) {
+        setChatMessages(data.messages ?? [])
+      }
+    } catch { /* silent */ }
+  }, [])
+
+  useEffect(() => {
+    if (clientStatus === 'follow_up' || clientStatus === 'onboarded') {
+      fetchChatMessages()
+      chatPollRef.current = setInterval(fetchChatMessages, 4000)
+    }
+    return () => { if (chatPollRef.current) clearInterval(chatPollRef.current) }
+  }, [clientStatus, fetchChatMessages])
+
+  // Scroll chat to bottom on new messages
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [chatMessages])
+
+  const sendChatMessage = async () => {
+    if (!chatInput.trim() || chatSending) return
+    setChatSending(true)
+    const token = getToken()
+    try {
+      const res = await fetch(`${BASE_URL}/api/chat/message`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ message: chatInput.trim() }),
+      })
+      const data = await res.json()
+      if (data.success) {
+        setChatInput('')
+        await fetchChatMessages()
+      }
+    } catch { /* silent */ } finally {
+      setChatSending(false)
+    }
+  }
 
   useEffect(() => {
     let isMounted = true
@@ -588,6 +670,111 @@ const Dashboard: React.FC = () => {
             </div>
           )}
         </motion.section>
+
+        {/* ── Chat with Dizitup Admin ─────────────────────────── */}
+        {(clientStatus === 'follow_up' || clientStatus === 'onboarded') && (
+          <motion.section
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.55, duration: 0.5 }}
+            className="mt-10 space-y-5"
+          >
+            {/* Section header */}
+            <div className="flex items-center gap-3">
+              <div className="w-7 h-7 rounded-lg bg-red-600/10 border border-red-500/20 flex items-center justify-center">
+                <MessageCircle size={14} className="text-red-400" />
+              </div>
+              <div>
+                <h2 className="text-sm font-heading font-bold uppercase tracking-wider text-white/80">Chat with Dizitup Admin</h2>
+              </div>
+              <div className="flex-1 h-[1px] bg-gradient-to-r from-red-500/20 to-transparent" />
+              <span className="flex items-center gap-1.5 text-[10px] font-mono text-green-400/70">
+                <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
+                Online
+              </span>
+            </div>
+
+            {/* Chat panel */}
+            <div className="glass-panel flex flex-col overflow-hidden" style={{ minHeight: '560px' }}>
+              {/* Chat header */}
+              <div className="flex items-center gap-3 px-6 py-4 border-b border-white/[0.06] bg-white/[0.02]">
+                <div className="w-9 h-9 rounded-full bg-gradient-to-br from-red-600 to-red-900 flex items-center justify-center shadow-[0_0_14px_rgba(220,38,38,0.35)]">
+                  <MessageCircle size={15} className="text-white" />
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-white">Dizitup Admin</p>
+                  <p className="text-[10px] text-green-400 font-mono">● Online · replies within minutes</p>
+                </div>
+              </div>
+
+              {/* Messages */}
+              <div className="flex-1 overflow-y-auto px-5 py-5 space-y-3 scrollbar-thin scrollbar-track-transparent scrollbar-thumb-white/10">
+                {chatMessages.length === 0 && (
+                  <div className="flex flex-col items-center justify-center h-full gap-3 py-16 text-center">
+                    <div className="w-12 h-12 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center">
+                      <MessageCircle size={20} className="text-white/20" />
+                    </div>
+                    <p className="text-sm text-white/35">No messages yet</p>
+                    <p className="text-xs text-white/20">Send a message to start chatting with the admin team</p>
+                  </div>
+                )}
+                {chatMessages.map(msg => (
+                  <div
+                    key={msg.id}
+                    className={`flex ${msg.sender_type === 'user' ? 'justify-end' : 'justify-start'}`}
+                  >
+                    <div
+                      className={`max-w-[72%] px-4 py-2.5 rounded-2xl text-sm leading-relaxed ${
+                        msg.sender_type === 'user'
+                          ? 'bg-red-600 text-white rounded-br-sm shadow-[0_2px_12px_rgba(220,38,38,0.25)]'
+                          : 'bg-white/[0.06] border border-white/10 text-white/80 rounded-bl-sm'
+                      }`}
+                    >
+                      {msg.sender_type === 'admin' && (
+                        <p className="text-[9px] font-bold uppercase tracking-wider text-white/40 mb-1">Admin</p>
+                      )}
+                      {msg.message}
+                      <p className={`text-[9px] mt-1 ${msg.sender_type === 'user' ? 'text-white/50' : 'text-white/30'}`}>
+                        {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+                <div ref={chatEndRef} />
+              </div>
+
+              {/* Input area */}
+              <div className="px-5 py-4 border-t border-white/[0.06] bg-white/[0.02]">
+                <div className="flex items-end gap-3">
+                  <textarea
+                    value={chatInput}
+                    onChange={e => setChatInput(e.target.value)}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChatMessage() }
+                    }}
+                    placeholder="Type a message to admin…"
+                    rows={1}
+                    className="flex-1 bg-white/[0.05] border border-white/10 rounded-2xl px-4 py-3 text-sm text-white placeholder-white/20 focus:outline-none focus:border-red-600/50 resize-none transition-all"
+                    style={{ maxHeight: '120px', overflowY: 'auto' }}
+                  />
+                  <button
+                    onClick={sendChatMessage}
+                    disabled={!chatInput.trim() || chatSending}
+                    className="w-11 h-11 flex-shrink-0 rounded-full bg-red-600 hover:bg-red-500 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center transition-all shadow-[0_0_12px_rgba(220,38,38,0.3)] hover:shadow-[0_0_18px_rgba(220,38,38,0.5)]"
+                  >
+                    {chatSending
+                      ? <Loader2 size={16} className="text-white animate-spin" />
+                      : <Send size={16} className="text-white" />
+                    }
+                  </button>
+                </div>
+                <p className="text-[10px] text-white/20 mt-2 text-center">
+                  Messages are visible to the Dizitup admin team · Press Enter to send
+                </p>
+              </div>
+            </div>
+          </motion.section>
+        )}
 
         {/* Bottom back link */}
         <motion.div

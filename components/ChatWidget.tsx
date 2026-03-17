@@ -1,19 +1,11 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { MessageCircle, X, Send, Loader2 } from 'lucide-react';
+import { MessageCircle, X, Sparkles } from 'lucide-react';
 import { useAuth } from '../contexts/AuthProvider';
 import { useBooking } from '../contexts/BookingContext';
 import { getToken } from '../utils/apiClient';
 
 const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000';
-
-interface ChatMessage {
-  id: string;
-  sender_type: 'user' | 'admin';
-  message: string;
-  is_read: boolean;
-  created_at: string;
-}
 
 const ChatWidget: React.FC = () => {
   const { user } = useAuth();
@@ -21,13 +13,6 @@ const ChatWidget: React.FC = () => {
 
   const [clientStatus, setClientStatus] = useState<'none' | 'follow_up' | 'onboarded' | null>(null);
   const [panelOpen, setPanelOpen] = useState(false);
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [conversationId, setConversationId] = useState<string | null>(null);
-  const [input, setInput] = useState('');
-  const [sending, setSending] = useState(false);
-  const [unreadCount, setUnreadCount] = useState(0);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Check client status on mount when user is logged in
   useEffect(() => {
@@ -49,79 +34,6 @@ const ChatWidget: React.FC = () => {
     }
   }, [chatForceOpen, clearChatForceOpen]);
 
-  // Auto-scroll to bottom
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
-
-  const fetchMessages = useCallback(async () => {
-    const token = getToken();
-    try {
-      const res = await fetch(`${BASE_URL}/api/chat/messages`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
-      const data = await res.json();
-      if (data.success) {
-        setMessages(data.messages ?? []);
-        if (data.conversationId) setConversationId(data.conversationId);
-        // Count unread admin messages (not read yet = user hasn't opened panel)
-        if (!panelOpen) {
-          const unread = (data.messages ?? []).filter(
-            (m: ChatMessage) => m.sender_type === 'admin' && !m.is_read
-          ).length;
-          setUnreadCount(unread);
-        }
-      }
-    } catch { /* silent */ }
-  }, [panelOpen]);
-
-  // Poll every 3s while panel is open
-  useEffect(() => {
-    if (panelOpen && (clientStatus === 'follow_up' || clientStatus === 'onboarded')) {
-      fetchMessages();
-      pollRef.current = setInterval(fetchMessages, 3000);
-      setUnreadCount(0);
-    } else {
-      if (pollRef.current) clearInterval(pollRef.current);
-    }
-    return () => { if (pollRef.current) clearInterval(pollRef.current); };
-  }, [panelOpen, clientStatus, fetchMessages]);
-
-  // Background poll for unread badge (every 15s)
-  useEffect(() => {
-    if (!panelOpen && (clientStatus === 'follow_up' || clientStatus === 'onboarded')) {
-      const bg = setInterval(fetchMessages, 15000);
-      return () => clearInterval(bg);
-    }
-  }, [panelOpen, clientStatus, fetchMessages]);
-
-  const sendMessage = async () => {
-    if (!input.trim() || sending) return;
-    setSending(true);
-    const token = getToken();
-    try {
-      const res = await fetch(`${BASE_URL}/api/chat/message`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify({ message: input.trim() }),
-      });
-      const data = await res.json();
-      if (data.success) {
-        setInput('');
-        await fetchMessages();
-      }
-    } catch { /* silent */ } finally {
-      setSending(false);
-    }
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
-  };
-
   // Only render for follow_up or onboarded users
   if (!user || clientStatus === null || clientStatus === 'none') return null;
 
@@ -140,12 +52,7 @@ const ChatWidget: React.FC = () => {
               onClick={() => setPanelOpen(true)}
               className="relative w-14 h-14 rounded-full bg-red-600 shadow-lg shadow-red-600/40 flex items-center justify-center"
             >
-              <MessageCircle className="w-6 h-6 text-white" />
-              {unreadCount > 0 && (
-                <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-white text-red-600 text-[10px] font-bold flex items-center justify-center">
-                  {unreadCount > 9 ? '9+' : unreadCount}
-                </span>
-              )}
+              <Sparkles className="w-6 h-6 text-white" />
             </motion.button>
           )}
         </AnimatePresence>
@@ -164,12 +71,12 @@ const ChatWidget: React.FC = () => {
             {/* Header */}
             <div className="flex items-center justify-between px-5 py-4 border-b border-white/5 bg-white/[0.02]">
               <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-full bg-gradient-to-br from-red-600 to-red-900 flex items-center justify-center">
-                  <MessageCircle className="w-4 h-4 text-white" />
+                <div className="w-9 h-9 rounded-full bg-gradient-to-br from-red-600 to-red-900 flex items-center justify-center shadow-[0_0_16px_rgba(220,38,38,0.4)]">
+                  <Sparkles className="w-4 h-4 text-white" />
                 </div>
                 <div>
-                  <p className="text-sm font-bold text-white">Dizitup Admin</p>
-                  <p className="text-[10px] text-green-400 font-mono">● Online</p>
+                  <p className="text-sm font-bold text-white">Chat with Dizi</p>
+                  <p className="text-[10px] text-amber-400/80 font-mono">✦ AI Assistant · Coming Soon</p>
                 </div>
               </div>
               <button
@@ -180,61 +87,45 @@ const ChatWidget: React.FC = () => {
               </button>
             </div>
 
-            {/* Messages */}
-            <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3 scrollbar-thin scrollbar-track-transparent scrollbar-thumb-white/10">
-              {messages.length === 0 && (
-                <div className="text-center py-8">
-                  <p className="text-white/30 text-sm">Start a conversation with admin</p>
+            {/* Coming Soon Body */}
+            <div className="flex-1 flex flex-col items-center justify-center px-6 py-8 gap-5">
+              {/* Animated glow orb */}
+              <div className="relative">
+                <div className="w-20 h-20 rounded-full bg-gradient-to-br from-red-600/30 to-red-900/20 border border-red-500/20 flex items-center justify-center shadow-[0_0_40px_rgba(220,38,38,0.2)]">
+                  <Sparkles className="w-8 h-8 text-red-400" />
                 </div>
-              )}
-              {messages.map(msg => (
-                <div
-                  key={msg.id}
-                  className={`flex ${msg.sender_type === 'user' ? 'justify-end' : 'justify-start'}`}
-                >
-                  <div
-                    className={`max-w-[75%] px-4 py-2.5 rounded-2xl text-sm leading-relaxed ${
-                      msg.sender_type === 'user'
-                        ? 'bg-red-600 text-white rounded-br-sm'
-                        : 'bg-white/[0.06] border border-white/10 text-white/80 rounded-bl-sm'
-                    }`}
-                  >
-                    {msg.sender_type === 'admin' && (
-                      <p className="text-[9px] font-bold uppercase tracking-wider text-white/40 mb-1">Admin</p>
-                    )}
-                    {msg.message}
-                    <p className={`text-[9px] mt-1 ${msg.sender_type === 'user' ? 'text-white/50' : 'text-white/30'}`}>
-                      {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </p>
-                  </div>
+                <div className="absolute inset-0 rounded-full bg-red-500/10 animate-ping" />
+              </div>
+
+              <div className="text-center space-y-2">
+                <p className="text-white font-heading font-bold text-lg">Dizi is coming</p>
+                <p className="text-white/40 text-sm leading-relaxed max-w-[220px]">
+                  Your personal AI assistant from Dizitup is being built.
+                </p>
+              </div>
+
+              <div className="w-full px-2">
+                <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-red-600/10 border border-red-500/20">
+                  <span className="w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse" />
+                  <span className="text-[11px] text-red-400/80 font-mono">Training in progress…</span>
                 </div>
-              ))}
-              <div ref={messagesEndRef} />
+              </div>
+
+              <p className="text-[10px] text-white/20 text-center">
+                Need help now?{' '}
+                <span className="text-white/40 underline underline-offset-2">Chat with admin in your Dashboard →</span>
+              </p>
             </div>
 
-            {/* Input */}
+            {/* Disabled Input — Coming Soon */}
             <div className="px-4 py-4 border-t border-white/5 bg-white/[0.02]">
               <div className="flex items-end gap-2">
-                <textarea
-                  value={input}
-                  onChange={e => setInput(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                  placeholder="Type a message..."
-                  rows={1}
-                  className="flex-1 bg-white/[0.05] border border-white/10 rounded-2xl px-4 py-3 text-sm text-white placeholder-white/20 focus:outline-none focus:border-red-600/50 resize-none transition-all"
-                  style={{ maxHeight: '100px', overflowY: 'auto' }}
-                />
-                <button
-                  onClick={sendMessage}
-                  disabled={!input.trim() || sending}
-                  className="w-10 h-10 flex-shrink-0 rounded-full bg-red-600 hover:bg-red-500 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center transition-all"
-                >
-                  {sending ? (
-                    <Loader2 className="w-4 h-4 text-white animate-spin" />
-                  ) : (
-                    <Send className="w-4 h-4 text-white" />
-                  )}
-                </button>
+                <div className="flex-1 bg-white/[0.03] border border-white/[0.06] rounded-2xl px-4 py-3 text-sm text-white/20 cursor-not-allowed select-none">
+                  Dizi AI coming soon…
+                </div>
+                <div className="w-10 h-10 flex-shrink-0 rounded-full bg-red-600/30 border border-red-500/20 flex items-center justify-center cursor-not-allowed">
+                  <Sparkles className="w-4 h-4 text-red-400/50" />
+                </div>
               </div>
             </div>
           </motion.div>
