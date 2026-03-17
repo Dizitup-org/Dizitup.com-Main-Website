@@ -34,10 +34,13 @@ const projectsRoutes        = require('./routes/admin/projects');
 const adminUserRoutes       = require('./routes/admin/users');
 const chatRoutes            = require('./routes/chat');
 const adminChatRoutes       = require('./routes/admin/chat');
+const managerRoutes         = require('./routes/manager/index');
+const employeeRoutes        = require('./routes/employee/index');
 
 // Middleware
 const { protect } = require('./middleware/auth');
 const { isAdmin } = require('./middleware/isAdmin');
+const requireRole = require('./middleware/requireRole');
 const { errorHandler } = require('./utils/errors');
 
 const app = express();
@@ -90,23 +93,28 @@ app.use('/api/user', userRoutes);
 // ============================================================
 // protect  → verifies JWT
 // isAdmin  → checks admins table
-// Both must pass for admin routes to be accessible
+// requireRole → checks specific role(s)
+// All three must pass for admin routes to be accessible
 // ============================================================
-// DEV ONLY: Authentication temporarily disabled for admin routes
-// Re-enable protect + isAdmin once full workflow is confirmed working:
-//   app.use('/api/admin/overview',  protect, isAdmin, overviewRoutes);
-//   app.use('/api/admin/bookings',  protect, isAdmin, bookingRoutes);
-//   app.use('/api/admin/clients',   protect, isAdmin, clientRoutes);
-//   app.use('/api/admin/sales',     protect, isAdmin, salesRoutes);
-//   app.use('/api/admin/portfolio', protect, isAdmin, portfolioRoutes);
-app.use('/api/admin/overview',  overviewRoutes);
-app.use('/api/admin/bookings',  bookingRoutes);
-app.use('/api/admin/clients',   clientRoutes);
-app.use('/api/admin/sales',     salesRoutes);
-app.use('/api/admin/portfolio', portfolioRoutes); // admin management
-app.use('/api/admin/projects',  projectsRoutes);
-app.use('/api/admin/users',     adminUserRoutes);
-app.use('/api/admin/chat',      adminChatRoutes);
+app.use('/api/admin/overview',  protect, isAdmin, requireRole('admin'), overviewRoutes);
+app.use('/api/admin/bookings',  protect, isAdmin, requireRole('admin'), bookingRoutes);
+app.use('/api/admin/clients',   protect, isAdmin, requireRole('admin'), clientRoutes);
+app.use('/api/admin/sales',     protect, isAdmin, requireRole('admin'), salesRoutes);
+app.use('/api/admin/portfolio', protect, isAdmin, requireRole('admin'), portfolioRoutes); // admin management
+app.use('/api/admin/projects',  protect, isAdmin, requireRole('admin'), projectsRoutes);
+app.use('/api/admin/users',     protect, isAdmin, adminUserRoutes); // staff routes have per-route requireRole('admin')
+app.use('/api/admin/chat',      protect, isAdmin, requireRole('admin'), adminChatRoutes);
+
+// ============================================================
+// MANAGER ROUTES — accessible by admin + manager
+// ============================================================
+app.use('/api/manager', protect, isAdmin, requireRole('admin', 'manager'), managerRoutes);
+
+// ============================================================
+// EMPLOYEE ROUTES — accessible by admin + manager + employee
+// ============================================================
+app.use('/api/employee', protect, isAdmin, requireRole('admin', 'manager', 'employee'), employeeRoutes);
+
 // User chat (protect applied inside chat.js per-route)
 app.use('/api/chat',            chatRoutes);
 
@@ -136,3 +144,4 @@ app.listen(PORT, async () => {
 });
 
 module.exports = app;
+

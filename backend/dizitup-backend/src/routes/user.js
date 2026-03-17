@@ -5,16 +5,26 @@ const router = express.Router();
 
 router.get('/me', protect, async (req, res, next) => {
   try {
-    const u = await db.query(
-      'SELECT id, username, email, first_name, last_name, phone, business_name FROM users WHERE id = $1',
+    const result = await db.query(
+      `SELECT u.id, u.username, u.email, u.first_name, u.last_name, u.phone, u.business_name,
+              a.role as admin_role
+       FROM users u
+       LEFT JOIN admins a ON a.user_id = u.id
+       WHERE u.id = $1`,
       [req.user.id]
     );
-    if (!u.rows.length) return res.status(404).json({ success: false, error: 'User not found.' });
-    const a = await db.query('SELECT role FROM admins WHERE user_id = $1', [req.user.id]);
-    const isAdmin = a.rows.length > 0;
+    if (!result.rows.length) return res.status(404).json({ success: false, error: 'User not found.' });
+    const row = result.rows[0];
+    const isAdmin = !!row.admin_role;
     res.json({
       success: true,
-      user: { ...u.rows[0], isAdmin, adminRole: isAdmin ? a.rows[0].role : null }
+      user: {
+        id: row.id, username: row.username, email: row.email,
+        first_name: row.first_name, last_name: row.last_name,
+        phone: row.phone, business_name: row.business_name,
+        isAdmin,
+        adminRole: row.admin_role || null
+      }
     });
   } catch (err) { next(err); }
 });

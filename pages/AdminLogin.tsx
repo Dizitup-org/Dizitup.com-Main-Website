@@ -8,7 +8,7 @@ import { useAuth } from '../contexts/AuthProvider';
 
 const AdminLogin: React.FC = () => {
   const navigate = useNavigate();
-  const { signInAdmin } = useAuth();
+  const { signInAdmin, user } = useAuth();
   const [creds, setCreds] = useState({ username: '', pass: '' });
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -34,8 +34,10 @@ const AdminLogin: React.FC = () => {
   };
 
   const handleWelcomeComplete = () => {
-    console.log('🎉 Welcome complete, navigating to admin dashboard...');
-    navigate('/admin');
+    console.log('🎉 Welcome complete, navigating based on role...');
+    if (user?.adminRole === 'manager') navigate('/admin/manager/projects');
+    else if (user?.adminRole === 'employee') navigate('/admin/employee/tasks');
+    else navigate('/admin');
   };
 
   return (

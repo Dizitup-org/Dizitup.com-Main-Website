@@ -14,9 +14,13 @@ import AdminLogin from './pages/AdminLogin';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import AdminChat from './pages/AdminChat';
+import ManagerProjects from './pages/ManagerProjects';
+import ManagerTeam from './pages/ManagerTeam';
+import EmployeeTasks from './pages/EmployeeTasks';
+import EmployeeProjects from './pages/EmployeeProjects';
 import { AuthProvider } from './contexts/AuthProvider';
 import { BookingProvider } from './contexts/BookingContext';
-import { RequireAdmin, RequireAuth } from './components/ProtectedRoute';
+import { RequireAdmin, RequireAuth, RequireRole } from './components/ProtectedRoute';
 import { Toaster } from 'react-hot-toast';
 
 const App: React.FC = () => {
@@ -105,6 +109,42 @@ const App: React.FC = () => {
                 <RequireAdmin>
                   <AdminChat />
                 </RequireAdmin>
+              )}
+            />
+
+            {/* Manager Routes */}
+            <Route
+              path="/admin/manager/projects"
+              element={(
+                <RequireRole roles={['admin', 'manager']}>
+                  <ManagerProjects />
+                </RequireRole>
+              )}
+            />
+            <Route
+              path="/admin/manager/team"
+              element={(
+                <RequireRole roles={['admin', 'manager']}>
+                  <ManagerTeam />
+                </RequireRole>
+              )}
+            />
+
+            {/* Employee Routes */}
+            <Route
+              path="/admin/employee/tasks"
+              element={(
+                <RequireRole roles={['admin', 'manager', 'employee']}>
+                  <EmployeeTasks />
+                </RequireRole>
+              )}
+            />
+            <Route
+              path="/admin/employee/projects"
+              element={(
+                <RequireRole roles={['admin', 'manager', 'employee']}>
+                  <EmployeeProjects />
+                </RequireRole>
               )}
             />
 
