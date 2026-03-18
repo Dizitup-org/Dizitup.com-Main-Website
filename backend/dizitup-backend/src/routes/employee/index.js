@@ -10,6 +10,22 @@ const express = require('express');
 const db = require('../../db');
 const router = express.Router();
 
+// Auto-create task_notes table
+(async () => {
+  try {
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS task_notes (
+        id            UUID         PRIMARY KEY DEFAULT gen_random_uuid(),
+        task_id       UUID         REFERENCES tasks(id) ON DELETE CASCADE,
+        employee_id   UUID         REFERENCES users(id),
+        employee_name VARCHAR(255),
+        note          TEXT         NOT NULL,
+        created_at    TIMESTAMPTZ  DEFAULT NOW()
+      )
+    `);
+  } catch (err) { console.error('task_notes table init:', err.message); }
+})();
+
 // ----------------------------------------------------------
 // GET /api/employee/projects
 // ----------------------------------------------------------
@@ -31,9 +47,12 @@ router.get('/projects', async (req, res, next) => {
 router.get('/tasks', async (req, res, next) => {
   try {
     const result = await db.query(`
-      SELECT t.*, p.title as project_title FROM tasks t
-      JOIN projects p ON p.id = t.project_id
-      WHERE t.employee_id = $1 ORDER BY t.deadline ASC NULLS LAST
+      SELECT t.*, p.title as project_title, oc.company_name
+      FROM tasks t
+      LEFT JOIN projects p ON p.id = t.project_id
+      LEFT JOIN onboard_clients oc ON oc.id = p.client_id
+      WHERE t.employee_id = $1
+      ORDER BY t.created_at DESC
     `, [req.admin.id]);
     res.json({ success: true, tasks: result.rows });
   } catch (err) { next(err); }
@@ -121,6 +140,35 @@ router.get('/updates/:projectId', async (req, res, next) => {
     );
 
     res.json({ success: true, updates: result.rows });
+  } catch (err) { next(err); }
+});
+
+// ----------------------------------------------------------
+// POST /api/employee/tasks/:id/notes
+// ----------------------------------------------------------
+router.post('/tasks/:id/notes', async (req, res, next) => {
+  try {
+    const { note, employee_name } = req.body;
+    if (!note || !note.trim()) return res.status(400).json({ success: false, message: 'note is required' });
+    const result = await db.query(
+      `INSERT INTO task_notes (task_id, employee_id, employee_name, note)
+       VALUES ($1, $2, $3, $4) RETURNING *`,
+      [req.params.id, req.user.id, (employee_name || 'Employee').trim(), note.trim()]
+    );
+    res.status(201).json({ success: true, note: result.rows[0] });
+  } catch (err) { next(err); }
+});
+
+// ----------------------------------------------------------
+// GET /api/employee/tasks/:id/notes
+// ----------------------------------------------------------
+router.get('/tasks/:id/notes', async (req, res, next) => {
+  try {
+    const result = await db.query(
+      'SELECT * FROM task_notes WHERE task_id = $1 ORDER BY created_at ASC',
+      [req.params.id]
+    );
+    res.json({ success: true, notes: result.rows });
   } catch (err) { next(err); }
 });
 

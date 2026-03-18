@@ -34,6 +34,7 @@ const AdminClientDetail: React.FC = () => {
   // Per-project update inputs: { [projectId]: string }
   const [updateInputs, setUpdateInputs] = useState<Record<string, string>>({});
   const [sendingUpdate, setSendingUpdate] = useState<Record<string, boolean>>({});
+  const [projectUpdates, setProjectUpdates] = useState<Record<string, any[]>>({});
 
   // Project creation modal
   const [showProjectModal, setShowProjectModal] = useState(false);
@@ -72,6 +73,16 @@ const AdminClientDetail: React.FC = () => {
     fetchClient();
     return () => { isMounted = false; };
   }, [clientId]);
+
+  // Load updates for all projects when switching to projects tab
+  useEffect(() => {
+    if (tab !== 'projects' || !client?.projects?.length) return;
+    client.projects.forEach((p) => {
+      api.get<{ updates: any[] }>(`/api/admin/projects/${p.id}/updates`)
+        .then((data) => setProjectUpdates((prev) => ({ ...prev, [p.id]: data.updates || [] })))
+        .catch(() => {});
+    });
+  }, [tab, client]);
 
   // ============ COMPUTED VALUES ============
 
@@ -153,6 +164,10 @@ const AdminClientDetail: React.FC = () => {
       await api.post(`/api/admin/projects/${projectId}/updates`, { message });
       toast.success('Update posted');
       setUpdateInputs((prev) => ({ ...prev, [projectId]: '' }));
+      // Refresh updates list for this project
+      api.get<{ updates: any[] }>(`/api/admin/projects/${projectId}/updates`)
+        .then((data) => setProjectUpdates((prev) => ({ ...prev, [projectId]: data.updates || [] })))
+        .catch(() => {});
     } catch (err: any) {
       toast.error(err?.message || 'Failed to post update');
     } finally {
@@ -503,6 +518,18 @@ const AdminClientDetail: React.FC = () => {
                       {sendingUpdate[liveProject.id] ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
                     </button>
                   </div>
+                  {/* Updates feed */}
+                  {(projectUpdates[liveProject.id] || []).length > 0 && (
+                    <div className="mt-4 space-y-2">
+                      <p className="text-[10px] font-mono font-bold uppercase tracking-widest text-white/30">Posted Updates</p>
+                      {(projectUpdates[liveProject.id] || []).map((u: any) => (
+                        <div key={u.id} className="p-3 rounded-xl bg-white/[0.03] border border-white/[0.07]">
+                          <p className="text-sm text-white/75">{u.message}</p>
+                          <p className="text-[10px] text-white/30 mt-1.5">{new Date(u.created_at).toLocaleString()}</p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
 

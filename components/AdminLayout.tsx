@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { NavLink, Link, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, BarChart3, Users, Settings, LogOut, Search, Layout, ArrowLeft, Home as HomeIcon, Shield, FolderOpen, UserPlus, MessageCircle } from 'lucide-react';
+import { LayoutDashboard, BarChart3, Users, LogOut, Search, Layout, ArrowLeft, Home as HomeIcon, Shield, FolderOpen, UserPlus, MessageCircle, CheckSquare } from 'lucide-react';
 import { useAuth } from '../contexts/AuthProvider';
 import { getToken } from '../utils/apiClient';
 
@@ -59,16 +59,29 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, title }) => {
         </div>
 
         <nav className="flex-grow px-4 space-y-2">
-          {[
-            { to: '/admin', icon: LayoutDashboard, label: 'Overview' },
-            { to: '/admin/sales', icon: BarChart3, label: 'Sales' },
-            { to: '/admin/portfolio', icon: Layout, label: 'Portfolio' },
-            { to: '/admin/clients', icon: Users, label: 'Clients' },
-            { to: '/admin/projects', icon: FolderOpen, label: 'Projects' },
-            { to: '/admin/users', icon: UserPlus, label: 'Users' },
-            { to: '/admin/chat', icon: MessageCircle, label: 'Chat' },
-            { to: '#', icon: Settings, label: 'Settings' },
-          ].map((item, i) => (
+          {(user?.adminRole === 'manager'
+            ? [
+                { to: '/admin/manager/projects', icon: FolderOpen, label: 'Projects' },
+                { to: '/admin/manager/team', icon: Users, label: 'Team' },
+                { to: '/admin/manager/chat', icon: MessageCircle, label: 'Chat' },
+              ]
+            : user?.adminRole === 'employee'
+            ? [
+                { to: '/admin/employee/tasks', icon: CheckSquare, label: 'My Tasks' },
+                { to: '/admin/employee/projects', icon: FolderOpen, label: 'My Projects' },
+                { to: '/admin/chat', icon: MessageCircle, label: 'Chat' },
+              ]
+            : [
+                { to: '/admin', icon: LayoutDashboard, label: 'Overview' },
+                { to: '/admin/clients', icon: Users, label: 'Clients' },
+                { to: '/admin/projects', icon: FolderOpen, label: 'Projects' },
+                { to: '/admin/sales', icon: BarChart3, label: 'Sales' },
+                { to: '/admin/portfolio', icon: Layout, label: 'Portfolio' },
+                { to: '/admin/users', icon: UserPlus, label: 'Users' },
+                { to: '/admin/chat', icon: MessageCircle, label: 'Chat' },
+                { to: '/admin/manager/team', icon: UserPlus, label: 'Team' },
+              ]
+          ).map((item, i) => (
             <NavLink
               key={i}
               to={item.to}
@@ -122,10 +135,12 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, title }) => {
             </div>
             <div className="flex items-center gap-3 border-l border-white/10 pl-6">
               <div className="text-right">
-                <p className="text-sm font-bold">Roy Brothers</p>
-                <p className="text-[10px] text-white/30">Founder</p>
+                <p className="text-sm font-bold">{user?.first_name} {user?.last_name}</p>
+                <p className="text-[10px] text-white/30 capitalize">{user?.adminRole ?? 'admin'}</p>
               </div>
-              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-red-600 to-red-900 flex items-center justify-center font-bold text-sm">RB</div>
+              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-red-600 to-red-900 flex items-center justify-center font-bold text-sm">
+                {user?.first_name?.[0]}{user?.last_name?.[0]}
+              </div>
             </div>
           </div>
         </header>

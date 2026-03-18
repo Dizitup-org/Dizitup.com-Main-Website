@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useAuth } from '../contexts/AuthProvider';
 
 interface AdminWelcomeProps {
   onComplete: () => void;
@@ -7,6 +8,8 @@ interface AdminWelcomeProps {
 
 const AdminWelcome: React.FC<AdminWelcomeProps> = ({ onComplete }) => {
   const [phase, setPhase] = useState<1 | 2 | 3>(1);
+  const { user } = useAuth();
+  const firstName = user?.first_name || 'Admin';
 
   useEffect(() => {
     // Phase 1: "Welcome Roy Brothers" - 2s
@@ -86,7 +89,7 @@ const AdminWelcome: React.FC<AdminWelcomeProps> = ({ onComplete }) => {
                 transition={{ delay: 0.4, duration: 0.6 }}
                 className="text-red-500"
               >
-                Roy Brothers
+                {firstName}
               </motion.span>
             </h1>
           </motion.div>
@@ -103,14 +106,14 @@ const AdminWelcome: React.FC<AdminWelcomeProps> = ({ onComplete }) => {
             className="text-center relative z-10"
           >
             <h2 className="text-4xl md:text-6xl font-heading font-light tracking-tight text-white/80 italic">
-              To a path to{' '}
+              path to{' '}
               <motion.span
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.3, duration: 0.5 }}
                 className="font-bold text-red-500 not-italic"
               >
-                Crores
+                crores 🚀
               </motion.span>
             </h2>
             <motion.div

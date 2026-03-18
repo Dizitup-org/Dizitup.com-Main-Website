@@ -3,9 +3,10 @@ import AdminLayout from '../components/AdminLayout';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Users, UserPlus, Mail, Phone, Briefcase,
-  Trash2, Edit3, X, Loader2, RefreshCw, Shield,
+  Trash2, Edit3, X, Loader2, RefreshCw, Shield, Copy, CheckCircle,
 } from 'lucide-react';
 import { getToken } from '../utils/apiClient';
+import { useAuth } from '../contexts/AuthProvider';
 import toast from 'react-hot-toast';
 
 const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000';
@@ -27,6 +28,7 @@ const ROLE_COLORS: Record<string, string> = {
 const defaultForm = { username: '', email: '', password: '', first_name: '', last_name: '', phone: '', role: 'employee' };
 
 const ManagerTeam: React.FC = () => {
+  const { user } = useAuth();
   const [staff, setStaff] = useState<StaffMember[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -34,12 +36,14 @@ const ManagerTeam: React.FC = () => {
   const [editRole, setEditRole] = useState('');
   const [form, setForm] = useState(defaultForm);
   const [submitting, setSubmitting] = useState(false);
+  const [credentials, setCredentials] = useState<{ email: string; password: string } | null>(null);
+  const [copied, setCopied] = useState(false);
 
   const fetchStaff = useCallback(async () => {
     try {
-      const res = await fetch(`${BASE_URL}/api/admin/users/staff`, { headers: authHeaders() });
+      const res = await fetch(`${BASE_URL}/api/manager/employees`, { headers: authHeaders() });
       const data = await res.json();
-      if (data.success) setStaff(data.staff);
+      if (data.success) setStaff(data.employees);
     } catch { toast.error('Failed to load team'); } finally { setLoading(false); }
   }, []);
 
@@ -47,26 +51,32 @@ const ManagerTeam: React.FC = () => {
 
   const createStaff = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.username || !form.email || !form.password || !form.first_name) {
-      toast.error('Please fill all required fields'); return;
+    if (!form.username || !form.email || !form.first_name) {
+      toast.error('First name, username and email are required'); return;
     }
     setSubmitting(true);
     try {
-      const res = await fetch(`${BASE_URL}/api/admin/users/staff`, {
+      const res = await fetch(`${BASE_URL}/api/manager/employees`, {
         method: 'POST',
         headers: authHeaders(),
         body: JSON.stringify(form),
       });
       const data = await res.json();
       if (data.success) {
-        toast.success(`${form.role.charAt(0).toUpperCase() + form.role.slice(1)} created`);
-        setShowModal(false);
+        setCredentials({ email: data.employee.email, password: data.temp_password });
         setForm(defaultForm);
         fetchStaff();
       } else {
         toast.error(data.message || 'Failed to create staff');
       }
     } catch { toast.error('Network error'); } finally { setSubmitting(false); }
+  };
+
+  const copyCredentials = () => {
+    if (!credentials) return;
+    navigator.clipboard.writeText(`Email: ${credentials.email}\nPassword: ${credentials.password}`);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   };
 
   const changeRole = async (adminId: string, newRole: string) => {
@@ -85,7 +95,7 @@ const ManagerTeam: React.FC = () => {
   const removeAccess = async (adminId: string, name: string) => {
     if (!window.confirm(`Remove ${name}'s staff access? Their user account will remain.`)) return;
     try {
-      const res = await fetch(`${BASE_URL}/api/admin/users/staff/${adminId}`, {
+      const res = await fetch(`${BASE_URL}/api/manager/employees/${adminId}`, {
         method: 'DELETE',
         headers: authHeaders(),
       });
@@ -125,7 +135,10 @@ const ManagerTeam: React.FC = () => {
           </div>
         ) : (
           <div className="space-y-8">
-            {[{ label: 'Managers', data: managers, role: 'manager' }, { label: 'Employees', data: employees, role: 'employee' }].map(({ label, data }) => (
+            {(user?.adminRole === 'manager'
+              ? [{ label: 'Employees', data: employees, role: 'employee' }]
+              : [{ label: 'Managers', data: managers, role: 'manager' }, { label: 'Employees', data: employees, role: 'employee' }]
+            ).map(({ label, data }) => (
               <div key={label}>
                 <div className="flex items-center gap-3 mb-4">
                   <div className="w-7 h-7 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center">
@@ -211,7 +224,7 @@ const ManagerTeam: React.FC = () => {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
-            onClick={e => { if (e.target === e.currentTarget) setShowModal(false); }}
+            onClick={e => { if (e.target === e.currentTarget) { setShowModal(false); setCredentials(null); } }}
           >
             <motion.div
               initial={{ scale: 0.95, opacity: 0 }}
@@ -220,11 +233,41 @@ const ManagerTeam: React.FC = () => {
               className="w-full max-w-md p-8 rounded-[2rem] bg-[#0f0f0f] border border-white/10 shadow-2xl"
             >
               <div className="flex items-center justify-between mb-6">
-                <h2 className="text-lg font-heading font-bold">Add Staff Member</h2>
-                <button onClick={() => setShowModal(false)} className="p-2 rounded-xl bg-white/5 hover:bg-white/10 transition-all">
+                <h2 className="text-lg font-heading font-bold">{credentials ? 'Staff Created ✓' : 'Add Staff Member'}</h2>
+                <button onClick={() => { setShowModal(false); setCredentials(null); }} className="p-2 rounded-xl bg-white/5 hover:bg-white/10 transition-all">
                   <X size={16} className="text-white/40" />
                 </button>
               </div>
+              {credentials ? (
+                <div className="space-y-4">
+                  <div className="p-4 rounded-xl bg-green-500/10 border border-green-500/20 space-y-3">
+                    <p className="text-xs font-bold text-green-400 uppercase tracking-widest">Share these login credentials</p>
+                    <div className="space-y-2">
+                      <div className="bg-white/[0.06] rounded-xl px-4 py-3">
+                        <p className="text-[9px] text-white/30 uppercase tracking-wider mb-1">Email</p>
+                        <p className="text-sm font-mono text-white">{credentials.email}</p>
+                      </div>
+                      <div className="bg-white/[0.06] rounded-xl px-4 py-3">
+                        <p className="text-[9px] text-white/30 uppercase tracking-wider mb-1">Password</p>
+                        <p className="text-sm font-mono text-white tracking-widest">{credentials.password}</p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={copyCredentials}
+                      className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-sm font-bold transition-all"
+                    >
+                      {copied ? <CheckCircle size={14} className="text-green-400" /> : <Copy size={14} />}
+                      {copied ? 'Copied!' : 'Copy Credentials'}
+                    </button>
+                  </div>
+                  <button
+                    onClick={() => { setCredentials(null); setShowModal(false); }}
+                    className="w-full py-3 rounded-xl bg-red-600 hover:bg-red-500 font-bold text-sm transition-all"
+                  >
+                    Done
+                  </button>
+                </div>
+              ) : (
               <form onSubmit={createStaff} className="space-y-3">
                 <div className="grid grid-cols-2 gap-3">
                   <input required placeholder="First name *" value={form.first_name} onChange={e => setForm(f => ({ ...f, first_name: e.target.value }))}
@@ -236,7 +279,7 @@ const ManagerTeam: React.FC = () => {
                   className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder-white/20 focus:outline-none focus:border-red-600/50" />
                 <input required type="email" placeholder="Email *" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
                   className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder-white/20 focus:outline-none focus:border-red-600/50" />
-                <input required type="password" placeholder="Password *" value={form.password} onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
+                <input type="password" placeholder="Password (leave blank to auto-generate)" value={form.password} onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
                   className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder-white/20 focus:outline-none focus:border-red-600/50" />
                 <input placeholder="Phone" value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))}
                   className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder-white/20 focus:outline-none focus:border-red-600/50" />
@@ -251,6 +294,7 @@ const ManagerTeam: React.FC = () => {
                   {submitting ? 'Creating…' : 'Create Staff Member'}
                 </button>
               </form>
+              )}
             </motion.div>
           </motion.div>
         )}

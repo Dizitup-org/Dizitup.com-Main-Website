@@ -38,6 +38,22 @@ const router = express.Router();
     `);
     await db.query(`CREATE INDEX IF NOT EXISTS idx_chat_msg_conv ON chat_messages(conversation_id, created_at)`).catch(() => {});
     await db.query(`CREATE INDEX IF NOT EXISTS idx_chat_conv_user ON chat_conversations(user_id)`).catch(() => {});
+
+    // Team/channel messages table (admin ↔ manager ↔ employee channels)
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS team_messages (
+        id          UUID         PRIMARY KEY DEFAULT gen_random_uuid(),
+        channel     VARCHAR(200) NOT NULL,
+        sender_name VARCHAR(255) NOT NULL,
+        message     TEXT         NOT NULL,
+        created_at  TIMESTAMPTZ  DEFAULT NOW()
+      )
+    `);
+    await db.query(
+      `CREATE INDEX IF NOT EXISTS idx_team_msg_channel ON team_messages(channel, created_at)`
+    ).catch(() => {});
+    // Add sender_id to existing tables (idempotent)
+    await db.query(`ALTER TABLE team_messages ADD COLUMN IF NOT EXISTS sender_id UUID`).catch(() => {});
   } catch (err) {
     console.error('Chat table init error:', err.message);
   }
@@ -136,6 +152,61 @@ router.post('/message', protect, async (req, res, next) => {
     );
 
     res.status(201).json({ success: true, message: result.rows[0] });
+  } catch (err) { next(err); }
+});
+
+// ----------------------------------------------------------
+// GET /api/chat/channel/:channel
+// Team channel chat — last 50 messages, admin+manager+employee
+// ----------------------------------------------------------
+router.get('/channel/:channel', protect, async (req, res, next) => {
+  try {
+    const result = await db.query(
+      `SELECT id, sender_name, sender_id, message, created_at
+       FROM team_messages
+       WHERE channel = $1
+       ORDER BY created_at ASC
+       LIMIT 50`,
+      [req.params.channel]
+    );
+    res.json({ success: true, messages: result.rows });
+  } catch (err) { next(err); }
+});
+
+// ----------------------------------------------------------
+// POST /api/chat/channel/:channel
+// Body: { message: string, sender_name: string }
+// ----------------------------------------------------------
+router.post('/channel/:channel', protect, async (req, res, next) => {
+  try {
+    const { message, sender_name } = req.body;
+    if (!message || !message.trim()) {
+      return res.status(400).json({ success: false, message: 'message is required' });
+    }
+    const name = (sender_name || 'Unknown').trim();
+    const result = await db.query(
+      `INSERT INTO team_messages (channel, sender_name, sender_id, message)
+       VALUES ($1, $2, $3, $4)
+       RETURNING id, sender_name, sender_id, message, created_at`,
+      [req.params.channel, name, req.user.id, message.trim()]
+    );
+    res.json({ success: true, message: result.rows[0] });
+  } catch (err) { next(err); }
+});
+
+// ----------------------------------------------------------
+// DELETE /api/chat/channel/:channel/messages/:id — own messages only
+// ----------------------------------------------------------
+router.delete('/channel/:channel/messages/:id', protect, async (req, res, next) => {
+  try {
+    const result = await db.query(
+      `DELETE FROM team_messages WHERE id = $1 AND sender_id = $2 RETURNING id`,
+      [req.params.id, req.user.id]
+    );
+    if (result.rows.length === 0) {
+      return res.status(403).json({ success: false, message: 'Not your message' });
+    }
+    res.json({ success: true, deleted: result.rows[0].id });
   } catch (err) { next(err); }
 });
 

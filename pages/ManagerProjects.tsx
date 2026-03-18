@@ -8,19 +8,22 @@ import {
 import { api, getToken } from '../utils/apiClient';
 
 const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000';
-const authHeaders = () => {
+const authHeaders = (): Record<string, string> => {
   const t = getToken();
-  return t ? { Authorization: `Bearer ${t}` } : {};
+  if (!t) return {};
+  return { Authorization: `Bearer ${t}` };
 };
 
 interface Project {
   id: string; title: string; description: string; status: string;
   deadline: string | null; total_amount: number | null;
+  company_name?: string; contact_name?: string;
   employee_count: number; task_count: number; completed_tasks: number;
 }
 interface Employee { id: string; user_id: string; role: string; username: string; email: string; first_name: string; last_name: string; active_projects: number; }
 interface Assignment { id: string; employee_id: string; username: string; first_name: string; last_name: string; email: string; }
 interface Task { id: string; project_id: string; title: string; description: string; status: string; deadline: string | null; first_name: string | null; last_name: string | null; username: string | null; employee_id: string | null; }
+interface TaskNote { id: string; task_id: string; employee_name: string; note: string; created_at: string; first_name?: string; last_name?: string; }
 
 const STATUS_COLORS: Record<string, string> = {
   active: 'text-green-400 bg-green-500/10 border-green-500/20',
@@ -50,6 +53,8 @@ const ManagerProjects: React.FC = () => {
   const [newTask, setNewTask] = useState({ title: '', description: '', deadline: '', employee_id: '', status: 'pending' });
   const [addingTask, setAddingTask] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [expandedTaskId, setExpandedTaskId] = useState<string | null>(null);
+  const [taskNotes, setTaskNotes] = useState<Record<string, TaskNote[]>>({});
 
   const fetchProjects = useCallback(async () => {
     try {
@@ -77,6 +82,14 @@ const ManagerProjects: React.FC = () => {
     const [aData, tData] = await Promise.all([aRes.json(), tRes.json()]);
     if (aData.success) setAssignments(prev => ({ ...prev, [projectId]: aData.assignments }));
     if (tData.success) setTasks(prev => ({ ...prev, [projectId]: tData.tasks }));
+  };
+
+  const loadTaskNotes = async (taskId: string) => {
+    try {
+      const res = await fetch(`${BASE_URL}/api/manager/tasks/${taskId}/notes`, { headers: authHeaders() });
+      const data = await res.json();
+      if (data.success) setTaskNotes(prev => ({ ...prev, [taskId]: data.notes }));
+    } catch { /* silent */ }
   };
 
   const toggleExpand = async (id: string) => {
@@ -167,13 +180,14 @@ const ManagerProjects: React.FC = () => {
             {projects.map(p => (
               <div key={p.id} className="rounded-2xl bg-white/[0.03] border border-white/[0.08] hover:border-white/20 transition-all overflow-hidden">
                 {/* Project header row */}
-                <button onClick={() => toggleExpand(p.id)} className="w-full flex items-center justify-between px-6 py-4 text-left gap-4">
+                <div role="button" tabIndex={0} onClick={() => toggleExpand(p.id)} onKeyDown={e => e.key === 'Enter' && toggleExpand(p.id)} className="w-full flex items-center justify-between px-6 py-4 gap-4 cursor-pointer select-none">
                   <div className="flex items-center gap-4 min-w-0">
                     <div className="w-9 h-9 rounded-xl bg-red-600/10 border border-red-500/20 flex items-center justify-center flex-shrink-0">
                       <FolderOpen size={15} className="text-red-400" />
                     </div>
                     <div className="min-w-0">
                       <p className="font-heading font-bold text-sm truncate">{p.title}</p>
+                      {p.company_name && <p className="text-[10px] text-white/40 font-mono mt-0.5 truncate">{p.company_name}</p>}
                       {p.deadline && (
                         <p className="text-[10px] text-white/30 flex items-center gap-1 mt-0.5">
                           <Clock size={9} /> {new Date(p.deadline).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
@@ -181,7 +195,7 @@ const ManagerProjects: React.FC = () => {
                       )}
                     </div>
                   </div>
-                  <div className="flex items-center gap-3 flex-shrink-0">
+                  <div className="flex items-center gap-2 flex-shrink-0">
                     <StatusBadge status={p.status} />
                     <div className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white/5 text-xs text-white/50">
                       <Users size={11} /> {p.employee_count}
@@ -189,9 +203,19 @@ const ManagerProjects: React.FC = () => {
                     <div className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white/5 text-xs text-white/50">
                       <CheckSquare size={11} /> {p.completed_tasks}/{p.task_count}
                     </div>
+                    <button
+                      onClick={e => {
+                        e.stopPropagation();
+                        setAddingTask(addingTask === p.id ? null : p.id);
+                        if (expandedId !== p.id) { setExpandedId(p.id); loadProjectDetails(p.id); }
+                      }}
+                      className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-red-600/10 hover:bg-red-600/20 border border-red-500/20 text-[10px] text-red-400 font-bold transition-all"
+                    >
+                      <Plus size={10} /> Task
+                    </button>
                     {expandedId === p.id ? <ChevronUp size={15} className="text-white/30" /> : <ChevronDown size={15} className="text-white/30" />}
                   </div>
-                </button>
+                </div>
 
                 {/* Task progress bar */}
                 {p.task_count > 0 && (
@@ -334,30 +358,62 @@ const ManagerProjects: React.FC = () => {
                               <p className="text-xs text-white/25 italic">No tasks yet</p>
                             ) : (
                               (tasks[p.id] ?? []).map(t => (
-                                <div key={t.id} className="flex items-start justify-between gap-3 px-3 py-2.5 rounded-xl bg-white/[0.04] border border-white/[0.07]">
-                                  <div className="flex-1 min-w-0">
-                                    <p className="text-sm font-medium truncate">{t.title}</p>
-                                    {(t.first_name || t.username) && (
-                                      <p className="text-[10px] text-white/30 mt-0.5">{t.first_name ? `${t.first_name} ${t.last_name}` : t.username}</p>
-                                    )}
-                                    {t.deadline && (
-                                      <p className="text-[10px] text-white/25 mt-0.5"><Clock size={9} className="inline mr-1" />{new Date(t.deadline).toLocaleDateString()}</p>
-                                    )}
+                                <div key={t.id} className="rounded-xl bg-white/[0.04] border border-white/[0.07] overflow-hidden">
+                                  <div className="flex items-start justify-between gap-3 px-3 py-2.5">
+                                    <div className="flex-1 min-w-0">
+                                      <p className="text-sm font-medium truncate">{t.title}</p>
+                                      {(t.first_name || t.username) && (
+                                        <p className="text-[10px] text-white/30 mt-0.5">{t.first_name ? `${t.first_name} ${t.last_name}` : t.username}</p>
+                                      )}
+                                      {t.deadline && (
+                                        <p className="text-[10px] text-white/25 mt-0.5"><Clock size={9} className="inline mr-1" />{new Date(t.deadline).toLocaleDateString()}</p>
+                                      )}
+                                    </div>
+                                    <div className="flex items-center gap-1.5 flex-shrink-0">
+                                      <select
+                                        value={t.status}
+                                        onChange={e => updateTaskStatus(t.id, e.target.value, p.id)}
+                                        className={`text-[10px] font-bold uppercase tracking-wider rounded-lg px-2 py-1 border focus:outline-none bg-transparent cursor-pointer ${STATUS_COLORS[t.status] ?? 'text-white/40 border-white/10'}`}
+                                      >
+                                        {['pending', 'in_progress', 'completed', 'blocked'].map(s => (
+                                          <option key={s} value={s} className="bg-[#1a1a1a] text-white normal-case">{s.replace('_', ' ')}</option>
+                                        ))}
+                                      </select>
+                                      <button
+                                        onClick={() => {
+                                          if (expandedTaskId === t.id) { setExpandedTaskId(null); }
+                                          else { setExpandedTaskId(t.id); loadTaskNotes(t.id); }
+                                        }}
+                                        className="p-1 rounded-lg bg-white/5 hover:bg-white/10 text-white/30 transition-all"
+                                      >
+                                        {expandedTaskId === t.id ? <ChevronUp size={11} /> : <ChevronDown size={11} />}
+                                      </button>
+                                      <button onClick={() => deleteTask(t.id, p.id)} className="p-1 rounded-lg hover:bg-red-500/10 text-white/20 hover:text-red-400 transition-all">
+                                        <Trash2 size={11} />
+                                      </button>
+                                    </div>
                                   </div>
-                                  <div className="flex items-center gap-1.5 flex-shrink-0">
-                                    <select
-                                      value={t.status}
-                                      onChange={e => updateTaskStatus(t.id, e.target.value, p.id)}
-                                      className={`text-[10px] font-bold uppercase tracking-wider rounded-lg px-2 py-1 border focus:outline-none bg-transparent cursor-pointer ${STATUS_COLORS[t.status] ?? 'text-white/40 border-white/10'}`}
-                                    >
-                                      {['pending', 'in_progress', 'completed', 'blocked'].map(s => (
-                                        <option key={s} value={s} className="bg-[#1a1a1a] text-white normal-case">{s.replace('_', ' ')}</option>
-                                      ))}
-                                    </select>
-                                    <button onClick={() => deleteTask(t.id, p.id)} className="p-1 rounded-lg hover:bg-red-500/10 text-white/20 hover:text-red-400 transition-all">
-                                      <Trash2 size={11} />
-                                    </button>
-                                  </div>
+                                  {expandedTaskId === t.id && (
+                                    <div className="border-t border-white/[0.06] px-3 py-3 space-y-2">
+                                      {!taskNotes[t.id] ? (
+                                        <div className="flex items-center gap-2 text-xs text-white/30"><Loader2 size={11} className="animate-spin" /> Loading notes…</div>
+                                      ) : taskNotes[t.id].length === 0 ? (
+                                        <p className="text-xs text-white/20 italic">No notes from employee yet</p>
+                                      ) : (
+                                        taskNotes[t.id].map(n => (
+                                          <div key={n.id} className="px-3 py-2 rounded-xl bg-white/[0.03] border border-white/[0.06] space-y-1">
+                                            <div className="flex items-center justify-between">
+                                              <p className="text-[10px] font-bold text-white/50">
+                                                {n.first_name ? `${n.first_name} ${n.last_name}` : n.employee_name}
+                                              </p>
+                                              <p className="text-[9px] text-white/25 font-mono">{new Date(n.created_at).toLocaleDateString()}</p>
+                                            </div>
+                                            <p className="text-xs text-white/60 leading-relaxed">{n.note}</p>
+                                          </div>
+                                        ))
+                                      )}
+                                    </div>
+                                  )}
                                 </div>
                               ))
                             )}

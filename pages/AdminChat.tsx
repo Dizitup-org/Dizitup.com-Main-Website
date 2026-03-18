@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import AdminLayout from '../components/AdminLayout';
+import ChatBox from '../components/ChatBox';
 import { MessageCircle, Send, Loader2, Users, Circle } from 'lucide-react';
+import { useAuth } from '../contexts/AuthProvider';
 
 const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000';
 
@@ -25,6 +27,9 @@ interface ChatMessage {
 }
 
 const AdminChat: React.FC = () => {
+  const { user } = useAuth();
+  const senderName = `${user?.first_name || ''} ${user?.last_name || ''}`.trim() || 'Admin';
+  const [tab, setTab] = useState<'clients' | 'team'>('clients');
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [selectedConv, setSelectedConv] = useState<Conversation | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -121,8 +126,41 @@ const AdminChat: React.FC = () => {
   };
 
   return (
-    <AdminLayout title="Client Chat">
-      <div className="flex h-[calc(100vh-5rem)] rounded-2xl overflow-hidden border border-white/5">
+    <AdminLayout title="Chat">
+      {/* Tab bar */}
+      <div className="flex gap-2 mb-6">
+        <button
+          onClick={() => setTab('clients')}
+          className={`px-5 py-2 rounded-xl text-sm font-bold transition-all ${
+            tab === 'clients' ? 'bg-red-600 text-white' : 'bg-white/5 text-white/40 hover:text-white hover:bg-white/10'
+          }`}
+        >
+          Client Chats
+        </button>
+        <button
+          onClick={() => setTab('team')}
+          className={`px-5 py-2 rounded-xl text-sm font-bold transition-all ${
+            tab === 'team' ? 'bg-red-600 text-white' : 'bg-white/5 text-white/40 hover:text-white hover:bg-white/10'
+          }`}
+        >
+          Manager Channel
+        </button>
+      </div>
+
+      {/* Tab 2: Manager channel chat */}
+      {tab === 'team' && (
+        <div className="max-w-2xl">
+          <ChatBox
+            channel="admin_manager"
+            senderName={senderName}
+            label="Admin ↔ Manager"
+          />
+        </div>
+      )}
+
+      {/* Tab 1: Client conversations */}
+      {tab === 'clients' && (
+      <div className="flex h-[calc(100vh-10rem)] rounded-2xl overflow-hidden border border-white/5">
 
         {/* Left: Conversations list */}
         <div className="w-80 flex-shrink-0 border-r border-white/5 flex flex-col bg-white/[0.01]">
@@ -269,6 +307,7 @@ const AdminChat: React.FC = () => {
           )}
         </div>
       </div>
+      )}
     </AdminLayout>
   );
 };

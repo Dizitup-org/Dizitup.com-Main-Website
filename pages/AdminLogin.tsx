@@ -36,19 +36,11 @@ const AdminLogin: React.FC = () => {
     }
   };
 
-  const handleWelcomeComplete = async () => {
-    try {
-      const res = await fetch(`${BASE_URL}/api/user/me`, {
-        headers: { Authorization: `Bearer ${getToken()}` },
-      });
-      const data = await res.json();
-      const role = data?.user?.adminRole;
-      if (role === 'manager') navigate('/admin/manager/projects');
-      else if (role === 'employee') navigate('/admin/employee/tasks');
-      else navigate('/admin');
-    } catch {
-      navigate('/admin');
-    }
+  const handleWelcomeComplete = () => {
+    const role = user?.adminRole;
+    if (role === 'manager') navigate('/admin/manager/projects');
+    else if (role === 'employee') navigate('/admin/employee/tasks');
+    else navigate('/admin');
   };
 
   return (

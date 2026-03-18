@@ -234,6 +234,7 @@ COALESCE(SUM(s.paid_amount), 0)                     AS total_paid,
     });
 
   } catch (err) {
+    console.error('[GET /clients/:id] Error:', err.message, err.stack);
     next(err);
   }
 });

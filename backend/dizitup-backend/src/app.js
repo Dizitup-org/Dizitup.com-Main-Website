@@ -36,6 +36,7 @@ const chatRoutes            = require('./routes/chat');
 const adminChatRoutes       = require('./routes/admin/chat');
 const managerRoutes         = require('./routes/manager/index');
 const employeeRoutes        = require('./routes/employee/index');
+const staffChatRoutes       = require('./routes/staff-chat');
 
 // Middleware
 const { protect } = require('./middleware/auth');
@@ -114,6 +115,11 @@ app.use('/api/manager', protect, isAdmin, requireRole('admin', 'manager'), manag
 // EMPLOYEE ROUTES — accessible by admin + manager + employee
 // ============================================================
 app.use('/api/employee', protect, isAdmin, requireRole('admin', 'manager', 'employee'), employeeRoutes);
+
+// ============================================================
+// STAFF CHANNEL CHAT — accessible by admin + manager + employee
+// ============================================================
+app.use('/api/staff/chat', protect, isAdmin, requireRole('admin', 'manager', 'employee'), staffChatRoutes);
 
 // User chat (protect applied inside chat.js per-route)
 app.use('/api/chat',            chatRoutes);

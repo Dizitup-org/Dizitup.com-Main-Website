@@ -118,5 +118,19 @@ router.post('/:id/updates', async (req, res) => {
   }
 });
 
+// GET /api/admin/projects/:id/updates — fetch all updates for a project
+router.get('/:id/updates', async (req, res) => {
+  try {
+    const result = await db.query(
+      `SELECT * FROM project_updates WHERE project_id = $1 ORDER BY created_at DESC`,
+      [req.params.id]
+    );
+    res.json({ success: true, updates: result.rows });
+  } catch (err) {
+    console.error('[GET /projects/:id/updates]', err.message);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 module.exports = router;
 
