@@ -3,7 +3,7 @@ import { useAuth } from '../contexts/AuthProvider'
 import toast from 'react-hot-toast'
 import { useNavigate } from 'react-router-dom'
 
-const AuthModal: React.FC<{ open: boolean; onClose: () => void; onLoginSuccess?: () => void }> = ({ open, onClose, onLoginSuccess }) => {
+const AuthModal: React.FC<{ open: boolean; onClose: () => void }> = ({ open, onClose }) => {
   const { signIn, signUp, isAdmin, loading } = useAuth()
   const navigate = useNavigate()
   const [mode, setMode] = useState<'login' | 'signup'>('login')
@@ -24,7 +24,6 @@ const AuthModal: React.FC<{ open: boolean; onClose: () => void; onLoginSuccess?:
         await signIn(email, password)
         onClose()
         toast.success('Logged in')
-        onLoginSuccess?.()
       } else {
         if (!email || !password || !confirm) throw new Error('Fill required fields')
         if (password !== confirm) throw new Error('Passwords do not match')
