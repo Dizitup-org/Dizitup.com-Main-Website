@@ -15,14 +15,14 @@ const authHeaders = (): Record<string, string> => {
 };
 
 interface Project {
-  id: string; title: string; description: string; status: string;
-  deadline: string | null; total_amount: number | null;
+  id: string; title: string; description: string; notes?: string; admin_notes?: string;
+  status: string; status_note?: string; deadline: string | null;
   company_name?: string; contact_name?: string;
   employee_count: number; task_count: number; completed_tasks: number;
 }
 interface Employee { id: string; user_id: string; role: string; username: string; email: string; first_name: string; last_name: string; active_projects: number; }
 interface Assignment { id: string; employee_id: string; username: string; first_name: string; last_name: string; email: string; }
-interface Task { id: string; project_id: string; title: string; description: string; status: string; deadline: string | null; first_name: string | null; last_name: string | null; username: string | null; employee_id: string | null; }
+interface Task { id: string; project_id: string; title: string; description: string; status: string; deadline: string | null; first_name: string | null; last_name: string | null; username: string | null; employee_id: string | null; manager_notes?: string | null; priority?: string | null; }
 interface TaskNote { id: string; task_id: string; employee_name: string; note: string; created_at: string; first_name?: string; last_name?: string; }
 
 const STATUS_COLORS: Record<string, string> = {
@@ -33,11 +33,21 @@ const STATUS_COLORS: Record<string, string> = {
   pending: 'text-yellow-400 bg-yellow-500/10 border-yellow-500/20',
   in_progress: 'text-blue-400 bg-blue-500/10 border-blue-500/20',
   blocked: 'text-red-400 bg-red-500/10 border-red-500/20',
+  sent_to_manager: 'text-yellow-400 bg-yellow-500/10 border-yellow-500/20',
+  assigned_to_staff: 'text-blue-400 bg-blue-500/10 border-blue-500/20',
+  under_execution: 'text-orange-400 bg-orange-500/10 border-orange-500/20',
+};
+
+const STATUS_LABELS: Record<string, string> = {
+  sent_to_manager: 'Sent to Manager',
+  assigned_to_staff: 'Assigned to Staff',
+  under_execution: 'Under Execution',
+  completed: 'Completed',
 };
 
 const StatusBadge = ({ status }: { status: string }) => (
   <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border ${STATUS_COLORS[status] ?? 'text-white/40 bg-white/5 border-white/10'}`}>
-    {status.replace('_', ' ')}
+    {STATUS_LABELS[status] ?? status.replace(/_/g, ' ')}
   </span>
 );
 
@@ -50,7 +60,7 @@ const ManagerProjects: React.FC = () => {
   const [tasks, setTasks] = useState<Record<string, Task[]>>({});
   const [assigningId, setAssigningId] = useState<string | null>(null);
   const [selectedEmployee, setSelectedEmployee] = useState('');
-  const [newTask, setNewTask] = useState({ title: '', description: '', deadline: '', employee_id: '', status: 'pending' });
+  const [newTask, setNewTask] = useState({ title: '', description: '', deadline: '', employee_id: '', status: 'pending', manager_notes: '', priority: 'medium' });
   const [addingTask, setAddingTask] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [expandedTaskId, setExpandedTaskId] = useState<string | null>(null);
@@ -72,7 +82,12 @@ const ManagerProjects: React.FC = () => {
     } catch { /* silent */ }
   }, []);
 
-  useEffect(() => { fetchProjects(); fetchTeam(); }, [fetchProjects, fetchTeam]);
+  useEffect(() => {
+    fetchProjects();
+    fetchTeam();
+    const interval = setInterval(fetchProjects, 15000);
+    return () => clearInterval(interval);
+  }, [fetchProjects, fetchTeam]);
 
   const loadProjectDetails = async (projectId: string) => {
     const [aRes, tRes] = await Promise.all([
@@ -131,7 +146,7 @@ const ManagerProjects: React.FC = () => {
       if (data.success) {
         await loadProjectDetails(projectId);
         setAddingTask(null);
-        setNewTask({ title: '', description: '', deadline: '', employee_id: '', status: 'pending' });
+        setNewTask({ title: '', description: '', deadline: '', employee_id: '', status: 'pending', manager_notes: '', priority: 'medium' });
         fetchProjects();
       }
     } catch { /* silent */ } finally { setSubmitting(false); }
@@ -338,6 +353,22 @@ const ManagerProjects: React.FC = () => {
                                   ))}
                                 </select>
                               </div>
+                              <select
+                                value={newTask.priority}
+                                onChange={e => setNewTask(t => ({ ...t, priority: e.target.value }))}
+                                className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-red-600/50"
+                              >
+                                <option value="low">Priority: Low</option>
+                                <option value="medium">Priority: Medium</option>
+                                <option value="high">Priority: High</option>
+                              </select>
+                              <textarea
+                                placeholder="Manager notes (optional)"
+                                value={newTask.manager_notes}
+                                onChange={e => setNewTask(t => ({ ...t, manager_notes: e.target.value }))}
+                                rows={2}
+                                className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white placeholder-white/20 focus:outline-none focus:border-red-600/50 resize-none"
+                              />
                               <div className="flex gap-2">
                                 <button
                                   onClick={() => createTask(p.id)}
@@ -357,65 +388,74 @@ const ManagerProjects: React.FC = () => {
                             {(tasks[p.id] ?? []).length === 0 ? (
                               <p className="text-xs text-white/25 italic">No tasks yet</p>
                             ) : (
-                              (tasks[p.id] ?? []).map(t => (
-                                <div key={t.id} className="rounded-xl bg-white/[0.04] border border-white/[0.07] overflow-hidden">
-                                  <div className="flex items-start justify-between gap-3 px-3 py-2.5">
-                                    <div className="flex-1 min-w-0">
-                                      <p className="text-sm font-medium truncate">{t.title}</p>
-                                      {(t.first_name || t.username) && (
-                                        <p className="text-[10px] text-white/30 mt-0.5">{t.first_name ? `${t.first_name} ${t.last_name}` : t.username}</p>
-                                      )}
-                                      {t.deadline && (
-                                        <p className="text-[10px] text-white/25 mt-0.5"><Clock size={9} className="inline mr-1" />{new Date(t.deadline).toLocaleDateString()}</p>
-                                      )}
+                              (tasks[p.id] ?? []).map(t => {
+                                const isCompleted = t.status === 'completed';
+                                const priColor = ({ low: 'text-white/30 border-white/10 bg-white/5', medium: 'text-yellow-400 border-yellow-500/20 bg-yellow-500/5', high: 'text-red-400 border-red-500/20 bg-red-500/5' } as Record<string, string>)[t.priority ?? 'medium'] ?? 'text-yellow-400 border-yellow-500/20 bg-yellow-500/5';
+                                const dotColor = ({ completed: 'border-green-500 bg-green-500', in_progress: 'border-blue-400 bg-blue-400/20', accepted: 'border-teal-400 bg-teal-400/10', pending: 'border-white/20 bg-transparent', blocked: 'border-red-400 bg-red-400/10' } as Record<string, string>)[t.status] ?? 'border-white/20 bg-transparent';
+                                return (
+                                  <div key={t.id} className={`rounded-xl border overflow-hidden transition-all ${isCompleted ? 'border-green-500/10 bg-green-500/[0.03]' : 'bg-white/[0.04] border-white/[0.07]'}`}>
+                                    <div className="flex items-start gap-3 px-3 py-2.5">
+                                      <div className={`mt-1 w-4 h-4 rounded-full flex-shrink-0 border-2 flex items-center justify-center ${dotColor}`}>
+                                        {isCompleted && <svg width="8" height="6" viewBox="0 0 8 6"><path d="M1 3L3 5L7 1" stroke="white" strokeWidth="1.5" strokeLinecap="round"/></svg>}
+                                      </div>
+                                      <div className="flex-1 min-w-0 space-y-1">
+                                        <p className={`text-sm font-medium truncate ${isCompleted ? 'line-through text-white/30' : ''}`}>{t.title}</p>
+                                        <div className="flex items-center gap-2 flex-wrap">
+                                          {(t.first_name || t.username) && (
+                                            <span className="text-[10px] text-white/40">{t.first_name ? `${t.first_name} ${t.last_name}` : t.username}</span>
+                                          )}
+                                          <span className={`text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full border ${STATUS_COLORS[t.status] ?? 'text-white/40 border-white/10 bg-white/5'}`}>
+                                            {STATUS_LABELS[t.status] ?? t.status.replace(/_/g, ' ')}
+                                          </span>
+                                          <span className={`text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full border ${priColor}`}>
+                                            {t.priority ?? 'medium'}
+                                          </span>
+                                          {t.deadline && (
+                                            <span className="text-[10px] text-white/25 font-mono flex items-center gap-1">
+                                              <Clock size={9} />{new Date(t.deadline).toLocaleDateString()}
+                                            </span>
+                                          )}
+                                        </div>
+                                      </div>
+                                      <div className="flex items-center gap-1 flex-shrink-0">
+                                        <button
+                                          onClick={() => {
+                                            if (expandedTaskId === t.id) { setExpandedTaskId(null); }
+                                            else { setExpandedTaskId(t.id); loadTaskNotes(t.id); }
+                                          }}
+                                          className="p-1 rounded-lg bg-white/5 hover:bg-white/10 text-white/30 transition-all"
+                                        >
+                                          {expandedTaskId === t.id ? <ChevronUp size={11} /> : <ChevronDown size={11} />}
+                                        </button>
+                                        <button onClick={() => deleteTask(t.id, p.id)} className="p-1 rounded-lg hover:bg-red-500/10 text-white/20 hover:text-red-400 transition-all">
+                                          <Trash2 size={11} />
+                                        </button>
+                                      </div>
                                     </div>
-                                    <div className="flex items-center gap-1.5 flex-shrink-0">
-                                      <select
-                                        value={t.status}
-                                        onChange={e => updateTaskStatus(t.id, e.target.value, p.id)}
-                                        className={`text-[10px] font-bold uppercase tracking-wider rounded-lg px-2 py-1 border focus:outline-none bg-transparent cursor-pointer ${STATUS_COLORS[t.status] ?? 'text-white/40 border-white/10'}`}
-                                      >
-                                        {['pending', 'in_progress', 'completed', 'blocked'].map(s => (
-                                          <option key={s} value={s} className="bg-[#1a1a1a] text-white normal-case">{s.replace('_', ' ')}</option>
-                                        ))}
-                                      </select>
-                                      <button
-                                        onClick={() => {
-                                          if (expandedTaskId === t.id) { setExpandedTaskId(null); }
-                                          else { setExpandedTaskId(t.id); loadTaskNotes(t.id); }
-                                        }}
-                                        className="p-1 rounded-lg bg-white/5 hover:bg-white/10 text-white/30 transition-all"
-                                      >
-                                        {expandedTaskId === t.id ? <ChevronUp size={11} /> : <ChevronDown size={11} />}
-                                      </button>
-                                      <button onClick={() => deleteTask(t.id, p.id)} className="p-1 rounded-lg hover:bg-red-500/10 text-white/20 hover:text-red-400 transition-all">
-                                        <Trash2 size={11} />
-                                      </button>
-                                    </div>
-                                  </div>
-                                  {expandedTaskId === t.id && (
-                                    <div className="border-t border-white/[0.06] px-3 py-3 space-y-2">
-                                      {!taskNotes[t.id] ? (
-                                        <div className="flex items-center gap-2 text-xs text-white/30"><Loader2 size={11} className="animate-spin" /> Loading notes…</div>
-                                      ) : taskNotes[t.id].length === 0 ? (
-                                        <p className="text-xs text-white/20 italic">No notes from employee yet</p>
-                                      ) : (
-                                        taskNotes[t.id].map(n => (
-                                          <div key={n.id} className="px-3 py-2 rounded-xl bg-white/[0.03] border border-white/[0.06] space-y-1">
-                                            <div className="flex items-center justify-between">
-                                              <p className="text-[10px] font-bold text-white/50">
-                                                {n.first_name ? `${n.first_name} ${n.last_name}` : n.employee_name}
-                                              </p>
-                                              <p className="text-[9px] text-white/25 font-mono">{new Date(n.created_at).toLocaleDateString()}</p>
+                                    {expandedTaskId === t.id && (
+                                      <div className="border-t border-white/[0.06] px-3 py-3 space-y-2">
+                                        {!taskNotes[t.id] ? (
+                                          <div className="flex items-center gap-2 text-xs text-white/30"><Loader2 size={11} className="animate-spin" /> Loading notes…</div>
+                                        ) : taskNotes[t.id].length === 0 ? (
+                                          <p className="text-xs text-white/20 italic">No notes from employee yet</p>
+                                        ) : (
+                                          taskNotes[t.id].map(n => (
+                                            <div key={n.id} className="px-3 py-2 rounded-xl bg-white/[0.03] border border-white/[0.06] space-y-1">
+                                              <div className="flex items-center justify-between">
+                                                <p className="text-[10px] font-bold text-white/50">
+                                                  {n.first_name ? `${n.first_name} ${n.last_name}` : n.employee_name}
+                                                </p>
+                                                <p className="text-[9px] text-white/25 font-mono">{new Date(n.created_at).toLocaleDateString()}</p>
+                                              </div>
+                                              <p className="text-xs text-white/60 leading-relaxed">{n.note}</p>
                                             </div>
-                                            <p className="text-xs text-white/60 leading-relaxed">{n.note}</p>
-                                          </div>
-                                        ))
-                                      )}
-                                    </div>
-                                  )}
-                                </div>
-                              ))
+                                          ))
+                                        )}
+                                      </div>
+                                    )}
+                                  </div>
+                                );
+                              })
                             )}
                           </div>
                         </div>

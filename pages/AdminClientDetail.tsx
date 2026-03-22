@@ -2,7 +2,10 @@ import React, { useEffect, useState, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import AdminLayout from '../components/AdminLayout';
 import { getOnboardClientById, updateClientNotes } from '../utils/clientsApi';
-import { Loader2, User, Briefcase, Calendar, DollarSign, FileText, TrendingUp, Mail, Phone, Building, Clock, Target, ArrowLeft, Edit3, Save, X } from 'lucide-react';
+import { getToken } from '../utils/apiClient';
+
+const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000';
+import { Loader2, User, Briefcase, Calendar, DollarSign, FileText, TrendingUp, Mail, Phone, Building, Clock, Target, ArrowLeft, Edit3, Save, X, Plus } from 'lucide-react';
 import toast from 'react-hot-toast';
 import type { OnboardClientRow, ProjectRow, SaleRow } from '../types';
 
@@ -26,6 +29,11 @@ const AdminClientDetail: React.FC = () => {
   const [feedback, setFeedback] = useState('');
   const [savingNotes, setSavingNotes] = useState(false);
 
+  // Add Project form
+  const [showAddProject, setShowAddProject] = useState(false);
+  const [addProjectForm, setAddProjectForm] = useState({ title: '', description: '', admin_notes: '', total_amount: '', deadline: '', start_date: '' });
+  const [addingProject, setAddingProject] = useState(false);
+
   useEffect(() => {
     let isMounted = true;
     const fetchClient = async () => {
@@ -48,7 +56,19 @@ const AdminClientDetail: React.FC = () => {
       }
     };
     fetchClient();
-    return () => { isMounted = false; };
+
+    // Auto-refresh project status every 15 seconds (silent)
+    const interval = setInterval(async () => {
+      if (!clientId) return;
+      try {
+        const { data } = await getOnboardClientById(clientId);
+        if (data && isMounted) {
+          setClient(prev => prev ? { ...prev, projects: data.projects } : prev);
+        }
+      } catch { /* silent */ }
+    }, 15000);
+
+    return () => { isMounted = false; clearInterval(interval); };
   }, [clientId]);
 
   // ============ COMPUTED VALUES ============
@@ -102,20 +122,59 @@ const AdminClientDetail: React.FC = () => {
     }
   };
 
+  // ============ ADD PROJECT ============
+  const handleAddProject = async () => {
+    if (!addProjectForm.title.trim() || !addProjectForm.total_amount) {
+      toast.error('Title and amount are required');
+      return;
+    }
+    setAddingProject(true);
+    try {
+      const token = getToken();
+      const res = await fetch(`${BASE_URL}/api/admin/clients/${clientId}/projects`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify({
+          title: addProjectForm.title,
+          description: addProjectForm.description || undefined,
+          admin_notes: addProjectForm.admin_notes || undefined,
+          total_amount: parseFloat(addProjectForm.total_amount),
+          deadline: addProjectForm.deadline || undefined,
+          start_date: addProjectForm.start_date || undefined,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        toast.success('Project added');
+        setClient(prev => prev ? { ...prev, projects: [...(prev.projects || []), { ...data.project, sales: [] }] } : prev);
+        setShowAddProject(false);
+        setAddProjectForm({ title: '', description: '', admin_notes: '', total_amount: '', deadline: '', start_date: '' });
+      } else {
+        toast.error(data.message || data.error || 'Failed to add project');
+      }
+    } catch { toast.error('Network error'); } finally { setAddingProject(false); }
+  };
+
   // ============ STATUS BADGE ============
 
-  const getStatusBadge = (status: string | null) => {
-    const statusMap: Record<string, { bg: string; border: string; text: string }> = {
-      active: { bg: 'bg-green-500/10', border: 'border-green-500/20', text: 'text-green-400' },
-      completed: { bg: 'bg-purple-500/10', border: 'border-purple-500/20', text: 'text-purple-400' },
-      paused: { bg: 'bg-yellow-500/10', border: 'border-yellow-500/20', text: 'text-yellow-400' },
-      cancelled: { bg: 'bg-red-500/10', border: 'border-red-500/20', text: 'text-red-400' },
+  const getStatusBadge = (status: string | null, statusNote?: string | null) => {
+    const statusMap: Record<string, { bg: string; border: string; text: string; label?: string }> = {
+      active:            { bg: 'bg-green-500/10',  border: 'border-green-500/20',  text: 'text-green-400' },
+      completed:         { bg: 'bg-purple-500/10', border: 'border-purple-500/20', text: 'text-purple-400' },
+      paused:            { bg: 'bg-yellow-500/10', border: 'border-yellow-500/20', text: 'text-yellow-400' },
+      cancelled:         { bg: 'bg-red-500/10',    border: 'border-red-500/20',    text: 'text-red-400' },
+      sent_to_manager:   { bg: 'bg-yellow-500/10', border: 'border-yellow-500/20', text: 'text-yellow-400', label: 'Sent to Manager' },
+      assigned_to_staff: { bg: 'bg-blue-500/10',   border: 'border-blue-500/20',   text: 'text-blue-400',   label: 'Assigned to Staff' },
+      under_execution:   { bg: 'bg-orange-500/10', border: 'border-orange-500/20', text: 'text-orange-400', label: 'Under Execution' },
     };
     const s = statusMap[status || ''] || { bg: 'bg-white/5', border: 'border-white/10', text: 'text-white/60' };
     return (
-      <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border ${s.bg} ${s.border} ${s.text}`}>
-        {status || 'Unknown'}
-      </span>
+      <div className="space-y-1">
+        <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border ${s.bg} ${s.border} ${s.text}`}>
+          {s.label ?? (status || 'Unknown')}
+        </span>
+        {statusNote && <p className="text-[10px] text-white/40 italic pl-1">{statusNote}</p>}
+      </div>
     );
   };
 
@@ -264,6 +323,84 @@ const AdminClientDetail: React.FC = () => {
           {/* ============ PROJECTS TAB ============ */}
           {tab === 'projects' && (
             <div className="space-y-6">
+              {/* Header + Add Project */}
+              <div className="flex items-center justify-between">
+                <h3 className="text-xs font-mono font-bold uppercase tracking-widest text-white/40">
+                  {(client.projects || []).length} project{(client.projects || []).length !== 1 ? 's' : ''}
+                </h3>
+                <button
+                  onClick={() => setShowAddProject(v => !v)}
+                  className="flex items-center gap-2 px-4 py-2 rounded-xl bg-red-600 hover:bg-red-500 text-sm font-bold transition-all shadow-[0_0_14px_rgba(220,38,38,0.2)]"
+                >
+                  <Plus className="w-4 h-4" /> Add Project
+                </button>
+              </div>
+
+              {/* Inline Add Project Form */}
+              {showAddProject && (
+                <div className="p-5 rounded-2xl bg-white/[0.03] border border-white/10 space-y-3">
+                  <p className="text-[10px] font-mono font-bold uppercase tracking-widest text-white/30">New Project</p>
+                  <input
+                    placeholder="Title *"
+                    value={addProjectForm.title}
+                    onChange={e => setAddProjectForm(f => ({ ...f, title: e.target.value }))}
+                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white placeholder-white/20 focus:outline-none focus:border-red-600/50"
+                  />
+                  <textarea
+                    placeholder="Description"
+                    value={addProjectForm.description}
+                    onChange={e => setAddProjectForm(f => ({ ...f, description: e.target.value }))}
+                    rows={2}
+                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white placeholder-white/20 focus:outline-none focus:border-red-600/50 resize-none"
+                  />
+                  <textarea
+                    placeholder="Admin notes (internal only)"
+                    value={addProjectForm.admin_notes}
+                    onChange={e => setAddProjectForm(f => ({ ...f, admin_notes: e.target.value }))}
+                    rows={2}
+                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white placeholder-white/20 focus:outline-none focus:border-red-600/50 resize-none"
+                  />
+                  <div className="grid grid-cols-3 gap-3">
+                    <input
+                      type="number"
+                      placeholder="Total Amount *"
+                      value={addProjectForm.total_amount}
+                      onChange={e => setAddProjectForm(f => ({ ...f, total_amount: e.target.value }))}
+                      className="bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white placeholder-white/20 focus:outline-none focus:border-red-600/50"
+                    />
+                    <input
+                      type="date"
+                      title="Start Date"
+                      value={addProjectForm.start_date}
+                      onChange={e => setAddProjectForm(f => ({ ...f, start_date: e.target.value }))}
+                      className="bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-red-600/50"
+                    />
+                    <input
+                      type="date"
+                      title="Deadline"
+                      value={addProjectForm.deadline}
+                      onChange={e => setAddProjectForm(f => ({ ...f, deadline: e.target.value }))}
+                      className="bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-red-600/50"
+                    />
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={handleAddProject}
+                      disabled={!addProjectForm.title.trim() || !addProjectForm.total_amount || addingProject}
+                      className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-red-600 hover:bg-red-500 disabled:opacity-40 text-sm font-bold transition-all"
+                    >
+                      {addingProject ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />} Add Project
+                    </button>
+                    <button
+                      onClick={() => { setShowAddProject(false); setAddProjectForm({ title: '', description: '', admin_notes: '', total_amount: '', deadline: '', start_date: '' }); }}
+                      className="px-4 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-sm transition-all"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              )}
+
               {/* Live Project Card */}
               {liveProject && (
                 <div className="p-6 rounded-2xl bg-gradient-to-br from-red-600/10 to-red-800/10 border border-red-500/20 backdrop-blur-xl">
@@ -303,7 +440,7 @@ const AdminClientDetail: React.FC = () => {
                     {(client.projects || []).map((p) => (
                       <tr key={p.id} className="hover:bg-white/[0.03] transition-all">
                         <td className="px-6 py-4 font-medium text-white">{p.title || 'Untitled'}</td>
-                        <td className="px-6 py-4">{getStatusBadge(p.status)}</td>
+                        <td className="px-6 py-4">{getStatusBadge(p.status, (p as any).status_note)}</td>
                         <td className="px-6 py-4 text-white/70">{p.start_date ? new Date(p.start_date).toLocaleDateString() : '—'}</td>
                         <td className="px-6 py-4 text-white/70">{p.end_date ? new Date(p.end_date).toLocaleDateString() : '—'}</td>
                         <td className="px-6 py-4 text-white/70">{p.deadline ? new Date(p.deadline).toLocaleDateString() : '—'}</td>

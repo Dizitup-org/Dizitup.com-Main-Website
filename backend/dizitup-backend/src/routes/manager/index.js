@@ -10,7 +10,7 @@ const express = require('express');
 const db = require('../../db');
 const router = express.Router();
 
-// Auto-create tasks table if not exists
+// Auto-create tasks table if not exists; ensure manager_id column on users
 (async () => {
   try {
     await db.query(`
@@ -27,6 +27,7 @@ const router = express.Router();
         created_at   TIMESTAMPTZ DEFAULT NOW()
       )
     `);
+    await db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS manager_id UUID REFERENCES users(id)`);
   } catch (err) { console.error('Tasks table init:', err.message, err.stack); }
 })();
 
@@ -66,12 +67,19 @@ router.post('/employees', async (req, res, next) => {
     if (existing.rows.length > 0) {
       return res.status(409).json({ success: false, message: 'An account with this email already exists' });
     }
+    // Fix 1: Check for duplicate username before insert
+    const usernameCheck = await client.query('SELECT id FROM users WHERE username = $1', [username]);
+    if (usernameCheck.rows.length > 0) {
+      const suggested = `${username}_${Math.floor(Math.random() * 100)}`;
+      return res.status(400).json({ success: false, error: `Username already taken. Try: ${suggested}` });
+    }
     const password_hash = await bcrypt.hash(plainPassword, 10);
+    const managerId = req.user?.id || null;
     await client.query('BEGIN');
     const userResult = await client.query(
-      `INSERT INTO users (username, email, password_hash, first_name, last_name, phone)
-       VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
-      [username, email.toLowerCase().trim(), password_hash, first_name, last_name, phone || null]
+      `INSERT INTO users (username, email, password_hash, first_name, last_name, phone, manager_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
+      [username, email.toLowerCase().trim(), password_hash, first_name, last_name, phone || null, managerId]
     );
     const newUser = userResult.rows[0];
     const adminResult = await client.query(
@@ -87,6 +95,14 @@ router.post('/employees', async (req, res, next) => {
   } catch (err) {
     await client.query('ROLLBACK');
     console.error('[POST /manager/employees]', err.message, err.stack);
+    // Fix 2: Handle PostgreSQL unique violation (23505)
+    if (err.code === '23505') {
+      if (err.constraint && err.constraint.includes('username')) {
+        const suggested = `${req.body.username}_${Math.floor(Math.random() * 100)}`;
+        return res.status(400).json({ success: false, error: `Username already taken. Try: ${suggested}` });
+      }
+      return res.status(409).json({ success: false, error: 'An account with this email already exists' });
+    }
     next(err);
   } finally { client.release(); }
 });
@@ -130,7 +146,9 @@ router.get('/tasks', async (req, res, next) => {
 router.get('/projects', async (req, res, next) => {
   try {
     const result = await db.query(`
-      SELECT p.*, oc.company_name, oc.contact_name,
+      SELECT p.id, p.title, p.description, p.notes, p.admin_notes,
+             p.status, p.status_note, p.deadline, p.start_date, p.end_date, p.created_at,
+             oc.company_name, oc.contact_name,
         (SELECT COUNT(*) FROM project_assignments pa WHERE pa.project_id = p.id AND pa.status = 'active') as employee_count,
         (SELECT COUNT(*) FROM tasks t WHERE t.project_id = p.id) as task_count,
         (SELECT COUNT(*) FROM tasks t WHERE t.project_id = p.id AND t.status = 'completed') as completed_tasks
@@ -218,14 +236,14 @@ router.get('/project/:projectId/tasks', async (req, res, next) => {
 // ----------------------------------------------------------
 router.post('/tasks', async (req, res, next) => {
   try {
-    const { project_id, employee_id, title, description, deadline, status } = req.body;
+    const { project_id, employee_id, title, description, deadline, status, manager_notes } = req.body;
     if (!project_id || !title) {
       return res.status(400).json({ success: false, message: 'project_id and title are required' });
     }
 
     const result = await db.query(
-      `INSERT INTO tasks (project_id, employee_id, title, description, deadline, status, assigned_by)
-       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
+      `INSERT INTO tasks (project_id, employee_id, title, description, deadline, status, assigned_by, manager_notes)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
       [
         project_id,
         employee_id || null,
@@ -233,9 +251,17 @@ router.post('/tasks', async (req, res, next) => {
         description || null,
         deadline || null,
         status || 'pending',
-        req.admin.id
+        req.admin.id,
+        manager_notes || null
       ]
     );
+
+    // Auto-update project status to 'assigned_to_staff'
+    await db.query(
+      `UPDATE projects SET status = 'assigned_to_staff' WHERE id = $1`,
+      [project_id]
+    );
+
     res.json({ success: true, task: result.rows[0] });
   } catch (err) { next(err); }
 });

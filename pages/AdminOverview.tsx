@@ -42,6 +42,7 @@ const AdminOverview: React.FC = () => {
   const [queryCount, setQueryCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [projectPipeline, setProjectPipeline] = useState<Record<string, number>>({});
 
   const load = async (silent = false) => {
     if (!silent) setLoading(true);
@@ -61,6 +62,15 @@ const AdminOverview: React.FC = () => {
       setOverview(overviewRes.data || overviewRes);
       setSalesStats(salesRes.data);
       setQueryCount((queryRes.clients || []).length);
+
+      // Compute project pipeline counts from status
+      const allProjects: any[] = projectsRes.projects || [];
+      const statusCounts: Record<string, number> = {};
+      allProjects.forEach((p: any) => {
+        const s = p.status || 'unknown';
+        statusCounts[s] = (statusCounts[s] || 0) + 1;
+      });
+      setProjectPipeline(statusCounts);
 
       const entries: ActivityEntry[] = [
         ...(bookingsRes.bookings || []).map((b: any) => ({
@@ -213,6 +223,37 @@ const AdminOverview: React.FC = () => {
                   {i < pipeline.length - 1 && (
                     <ArrowRight className="w-4 h-4 text-white/10 flex-shrink-0" />
                   )}
+                </React.Fragment>
+              ))}
+            </div>
+          </motion.div>
+
+          {/* ── PROJECT PIPELINE ── */}
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.38 }}
+            className="p-8 premium-card"
+          >
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h3 className="text-lg font-bold font-heading">Project Pipeline</h3>
+                <p className="text-[9px] text-white/20 font-mono uppercase tracking-widest mt-0.5">Projects by execution status</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 flex-wrap">
+              {[
+                { key: 'sent_to_manager',   label: 'Sent to Manager',   color: 'border-yellow-500/20 bg-yellow-500/5 text-yellow-400' },
+                { key: 'assigned_to_staff', label: 'Assigned to Staff', color: 'border-blue-500/20 bg-blue-500/5 text-blue-400' },
+                { key: 'under_execution',   label: 'Under Execution',   color: 'border-orange-500/20 bg-orange-500/5 text-orange-400' },
+                { key: 'completed',         label: 'Completed',         color: 'border-green-500/20 bg-green-500/5 text-green-400' },
+              ].map((stage, i, arr) => (
+                <React.Fragment key={stage.key}>
+                  <div className={`flex-1 p-4 rounded-2xl border text-center group hover:opacity-90 transition-all ${stage.color}`}>
+                    <p className="text-2xl font-heading font-bold">{projectPipeline[stage.key] ?? 0}</p>
+                    <p className="text-[9px] font-mono uppercase tracking-widest mt-1 opacity-70">{stage.label}</p>
+                  </div>
+                  {i < arr.length - 1 && <ArrowRight className="w-4 h-4 text-white/10 flex-shrink-0" />}
                 </React.Fragment>
               ))}
             </div>

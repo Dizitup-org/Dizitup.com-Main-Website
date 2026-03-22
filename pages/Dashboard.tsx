@@ -29,22 +29,33 @@ const PARTICLES = [
 ]
 
 const statusConfig: Record<string, { bg: string; border: string; text: string; dot: string }> = {
-  active:    { bg: 'bg-green-500/10',  border: 'border-green-500/30',  text: 'text-green-400',  dot: 'bg-green-400' },
-  completed: { bg: 'bg-purple-500/10', border: 'border-purple-500/30', text: 'text-purple-400', dot: 'bg-purple-400' },
-  paused:    { bg: 'bg-yellow-500/10', border: 'border-yellow-500/30', text: 'text-yellow-400', dot: 'bg-yellow-400' },
-  cancelled: { bg: 'bg-red-500/10',    border: 'border-red-500/30',    text: 'text-red-400',    dot: 'bg-red-400' },
+  active:            { bg: 'bg-green-500/10',  border: 'border-green-500/30',  text: 'text-green-400',  dot: 'bg-green-400' },
+  completed:         { bg: 'bg-purple-500/10', border: 'border-purple-500/30', text: 'text-purple-400', dot: 'bg-purple-400' },
+  paused:            { bg: 'bg-yellow-500/10', border: 'border-yellow-500/30', text: 'text-yellow-400', dot: 'bg-yellow-400' },
+  cancelled:         { bg: 'bg-red-500/10',    border: 'border-red-500/30',    text: 'text-red-400',    dot: 'bg-red-400' },
   // booking-specific
-  pending:   { bg: 'bg-yellow-500/10', border: 'border-yellow-500/30', text: 'text-yellow-400', dot: 'bg-yellow-400' },
-  accepted:  { bg: 'bg-green-500/10',  border: 'border-green-500/30',  text: 'text-green-400',  dot: 'bg-green-400' },
-  follow_up: { bg: 'bg-orange-500/10', border: 'border-orange-500/30', text: 'text-orange-400', dot: 'bg-orange-400' },
+  pending:           { bg: 'bg-yellow-500/10', border: 'border-yellow-500/30', text: 'text-yellow-400', dot: 'bg-yellow-400' },
+  accepted:          { bg: 'bg-green-500/10',  border: 'border-green-500/30',  text: 'text-green-400',  dot: 'bg-green-400' },
+  follow_up:         { bg: 'bg-orange-500/10', border: 'border-orange-500/30', text: 'text-orange-400', dot: 'bg-orange-400' },
+  // project workflow statuses
+  sent_to_manager:   { bg: 'bg-yellow-500/10', border: 'border-yellow-500/30', text: 'text-yellow-400', dot: 'bg-yellow-400' },
+  assigned_to_staff: { bg: 'bg-blue-500/10',   border: 'border-blue-500/30',   text: 'text-blue-400',   dot: 'bg-blue-400' },
+  under_execution:   { bg: 'bg-orange-500/10', border: 'border-orange-500/30', text: 'text-orange-400', dot: 'bg-orange-400' },
+}
+
+const STATUS_LABELS: Record<string, string> = {
+  sent_to_manager:   'Sent to Manager',
+  assigned_to_staff: 'Assigned to Staff',
+  under_execution:   'Under Execution',
 }
 
 function StatusBadge({ status }: { status: string | null }) {
   const s = statusConfig[status || ''] ?? { bg: 'bg-white/5', border: 'border-white/10', text: 'text-white/60', dot: 'bg-white/40' }
+  const label = STATUS_LABELS[status || ''] ?? (status || 'Unknown')
   return (
     <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border ${s.bg} ${s.border} ${s.text}`}>
       <span className={`w-1.5 h-1.5 rounded-full ${s.dot}`} />
-      {status || 'Unknown'}
+      {label}
     </span>
   )
 }
@@ -514,7 +525,10 @@ const Dashboard: React.FC = () => {
                       <h3 className="text-xl sm:text-2xl font-heading font-bold">{latest.title || 'Untitled Project'}</h3>
                       {latest.description && <p className="text-sm text-white/50 mt-1 max-w-xl">{latest.description}</p>}
                     </div>
-                    <StatusBadge status={latest.status} />
+                    <div className="flex flex-col items-end gap-1">
+                      <StatusBadge status={latest.status} />
+                      {(latest as any).status_note && <p className="text-[10px] text-white/35 italic">{(latest as any).status_note}</p>}
+                    </div>
                   </div>
 
                   <div className="flex flex-wrap gap-3">

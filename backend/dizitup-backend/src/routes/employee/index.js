@@ -47,7 +47,7 @@ router.get('/projects', async (req, res, next) => {
 router.get('/tasks', async (req, res, next) => {
   try {
     const result = await db.query(`
-      SELECT t.*, p.title as project_title, oc.company_name
+      SELECT t.*, t.manager_notes, p.title as project_title, oc.company_name
       FROM tasks t
       LEFT JOIN projects p ON p.id = t.project_id
       LEFT JOIN onboard_clients oc ON oc.id = p.client_id
@@ -64,7 +64,7 @@ router.get('/tasks', async (req, res, next) => {
 router.patch('/tasks/:id/status', async (req, res, next) => {
   try {
     const { status } = req.body;
-    const validStatuses = ['pending', 'in_progress', 'completed', 'blocked'];
+    const validStatuses = ['pending', 'accepted', 'in_progress', 'completed', 'blocked'];
 
     if (!status || !validStatuses.includes(status)) {
       return res.status(400).json({
@@ -83,7 +83,36 @@ router.patch('/tasks/:id/status', async (req, res, next) => {
       return res.status(404).json({ success: false, message: 'Task not found or not assigned to you' });
     }
 
-    res.json({ success: true, task: result.rows[0] });
+    const task = result.rows[0];
+
+    // Update project status based on task status transition
+    if (status === 'in_progress' && task.project_id) {
+      // Get employee name for status_note
+      const empResult = await db.query(
+        `SELECT u.first_name, u.last_name FROM users u JOIN admins a ON a.user_id = u.id WHERE a.id = $1`,
+        [req.admin.id]
+      );
+      const emp = empResult.rows[0];
+      const empName = emp ? `${emp.first_name || ''} ${emp.last_name || ''}`.trim() : 'employee';
+      await db.query(
+        `UPDATE projects SET status = 'under_execution', status_note = $1 WHERE id = $2`,
+        [`Under execution by ${empName}`, task.project_id]
+      );
+    } else if (status === 'completed' && task.project_id) {
+      // Check if ALL tasks for this project are completed
+      const pendingTasks = await db.query(
+        `SELECT COUNT(*) AS cnt FROM tasks WHERE project_id = $1 AND status != 'completed'`,
+        [task.project_id]
+      );
+      if (parseInt(pendingTasks.rows[0].cnt, 10) === 0) {
+        await db.query(
+          `UPDATE projects SET status = 'completed', status_note = 'All tasks completed' WHERE id = $1`,
+          [task.project_id]
+        );
+      }
+    }
+
+    res.json({ success: true, task });
   } catch (err) { next(err); }
 });
 
