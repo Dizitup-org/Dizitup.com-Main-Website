@@ -106,14 +106,14 @@ const AdminWelcome: React.FC<AdminWelcomeProps> = ({ onComplete }) => {
             className="text-center relative z-10"
           >
             <h2 className="text-4xl md:text-6xl font-heading font-light tracking-tight text-white/80 italic">
-              path to{' '}
+              To a, path to{' '}
               <motion.span
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.3, duration: 0.5 }}
                 className="font-bold text-red-500 not-italic"
               >
-                crores 🚀
+                crores
               </motion.span>
             </h2>
             <motion.div

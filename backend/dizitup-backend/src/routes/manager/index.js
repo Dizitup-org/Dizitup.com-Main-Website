@@ -142,9 +142,21 @@ router.get('/tasks', async (req, res, next) => {
 
 // ----------------------------------------------------------
 // GET /api/manager/projects
+// Only return projects assigned to the current manager
 // ----------------------------------------------------------
 router.get('/projects', async (req, res, next) => {
   try {
+    // Get the admin_id of the current user
+    const adminResult = await db.query(`
+      SELECT a.id FROM admins a WHERE a.user_id = $1
+    `, [req.user.id]);
+    
+    if (adminResult.rows.length === 0) {
+      return res.json({ success: true, projects: [] });
+    }
+    
+    const adminId = adminResult.rows[0].id;
+    
     const result = await db.query(`
       SELECT p.id, p.title, p.description, p.notes, p.admin_notes,
              p.status, p.status_note, p.deadline, p.start_date, p.end_date, p.created_at,
@@ -154,8 +166,9 @@ router.get('/projects', async (req, res, next) => {
         (SELECT COUNT(*) FROM tasks t WHERE t.project_id = p.id AND t.status = 'completed') as completed_tasks
       FROM projects p
       LEFT JOIN onboard_clients oc ON oc.id = p.client_id
+      WHERE p.manager_id = $1
       ORDER BY p.created_at DESC
-    `);
+    `, [adminId]);
     res.json({ success: true, projects: result.rows });
   } catch (err) { console.error('[GET /manager/projects]', err.message, err.stack); next(err); }
 });
