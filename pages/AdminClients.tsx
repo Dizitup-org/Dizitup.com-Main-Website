@@ -6,6 +6,7 @@ import { subscribeToTable } from '../utils/realtime';
 import { Loader2, PhoneCall, CheckCircle, Trash2, Users, Inbox, Search, RefreshCw, ChevronLeft, ChevronRight, Calendar, Clock, UserCheck, AlertCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
 import type { BookingRow, QueryClientRow, OnboardClientRow } from '../types';
+import { api } from '../utils/apiClient';
 
 type TabKey = 'bookings' | 'query_clients' | 'onboarded';
 
@@ -51,14 +52,9 @@ const AdminClients: React.FC = () => {
     
     try {
       console.log('📊 Fetching bookings from backend API...');
-      const res = await fetch("http://localhost:4000/api/admin/bookings");
-      const data = await res.json();
+      const data = await api.get<any>('/api/admin/bookings');
       
       console.log('✅ Bookings API Response:', data);
-      
-      if (!res.ok) {
-        throw new Error(data.error || `HTTP ${res.status}: ${res.statusText}`);
-      }
       
       if (data.success && data.bookings) {
         setBookings(data.bookings);
@@ -92,13 +88,7 @@ const AdminClients: React.FC = () => {
     if (!confirm(`Delete client "${clientName}"? This cannot be undone.`)) return;
     setActionLoading(clientId);
     try {
-      const token = localStorage.getItem('dizitup_token');
-      const res = await fetch(`http://localhost:4000/api/admin/clients/${clientId}`, {
-        method: 'DELETE',
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+      await api.delete(`/api/admin/clients/${clientId}`);
       setClients(prev => prev.filter(c => c.id !== clientId));
       toast.success(`Client "${clientName}" deleted`);
     } catch (err: any) {
@@ -195,22 +185,8 @@ const AdminClients: React.FC = () => {
     try {
       console.log(`📄 Accepting booking ${booking.id}...`);
       
-      const res = await fetch(`http://localhost:4000/api/admin/bookings/${booking.id}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          status: 'accepted'
-        })
-      });
-      
-      const data = await res.json();
+      const data = await api.patch<any>(`/api/admin/bookings/${booking.id}`, { status: 'accepted' });
       console.log('✅ Accept booking API response:', data);
-      
-      if (!res.ok) {
-        throw new Error(data.error || `HTTP ${res.status}: ${res.statusText}`);
-      }
       
       // Success: Update booking status in UI
       setBookings((prev) => prev.map((b) => 
@@ -238,22 +214,8 @@ const AdminClients: React.FC = () => {
     try {
       console.log(`📞 Setting booking ${booking.id} for follow-up...`);
       
-      const res = await fetch(`http://localhost:4000/api/admin/bookings/${booking.id}/status`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          status: 'follow_up'
-        })
-      });
-      
-      const data = await res.json();
+      const data = await api.patch<any>(`/api/admin/bookings/${booking.id}/status`, { status: 'follow_up' });
       console.log('✅ Follow-up booking API response:', data);
-      
-      if (!res.ok) {
-        throw new Error(data.error || `HTTP ${res.status}: ${res.statusText}`);
-      }
       
       // Success: Remove from bookings list (moved to query_clients by backend trigger)
       setBookings((prev) => prev.filter((b) => b.id !== booking.id));
@@ -277,27 +239,15 @@ const AdminClients: React.FC = () => {
     try {
       console.log(`🎉 Onboarding booking ${booking.id}...`);
       
-      const res = await fetch('http://localhost:4000/api/admin/clients/onboard', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          booking_id: booking.id,
-          user_id: booking.id, // Using booking.id as user_id for now
-          contact_name: booking.name || 'Unknown',
-          email: booking.email || '',
-          phone: booking.phone || '',
-          company_name: booking.agency || ''
-        })
+      const data = await api.post<any>('/api/admin/clients/onboard', {
+        booking_id: booking.id,
+        user_id: booking.id, // Using booking.id as user_id for now
+        contact_name: booking.name || 'Unknown',
+        email: booking.email || '',
+        phone: booking.phone || '',
+        company_name: booking.agency || ''
       });
-      
-      const data = await res.json();
       console.log('✅ Onboard client API response:', data);
-      
-      if (!res.ok) {
-        throw new Error(data.error || `HTTP ${res.status}: ${res.statusText}`);
-      }
       
       // Success: Remove from bookings list (moved to onboard_clients)
       setBookings((prev) => prev.filter((b) => b.id !== booking.id));
@@ -323,25 +273,13 @@ const AdminClients: React.FC = () => {
       
       // Use booking_id if available, otherwise use client id
       const bookingId = client.booking_id || client.id;
-      const res = await fetch(`http://localhost:4000/api/admin/bookings/${bookingId}/onboard`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          contact_name: client.name || 'Unknown',
-          email: client.email || '',
-          phone: client.phone || '',
-          company_name: client.agency || ''
-        })
+      const data = await api.post<any>(`/api/admin/bookings/${bookingId}/onboard`, {
+        contact_name: client.name || 'Unknown',
+        email: client.email || '',
+        phone: client.phone || '',
+        company_name: client.agency || ''
       });
-      
-      const data = await res.json();
       console.log('✅ Onboard query client API response:', data);
-      
-      if (!res.ok) {
-        throw new Error(data.error || `HTTP ${res.status}: ${res.statusText}`);
-      }
       
       // Success: Remove from query clients list
       setQueryClients((prev) => prev.filter((c) => c.id !== client.id));
@@ -362,13 +300,7 @@ const AdminClients: React.FC = () => {
   const handleMeetingDone = async (booking: BookingRow) => {
     setActionLoading(booking.id);
     try {
-      const res = await fetch(`http://localhost:4000/api/admin/bookings/${booking.id}/status`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: 'meeting_done' }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+      await api.patch(`/api/admin/bookings/${booking.id}/status`, { status: 'meeting_done' });
       setBookings(prev => prev.map(b => b.id === booking.id ? { ...b, status: 'meeting_done' } : b));
       toast.success('Marked as meeting done', { icon: '✅' });
     } catch (err: any) {
@@ -386,19 +318,7 @@ const AdminClients: React.FC = () => {
     try {
       console.log(`🗑 Deleting booking ${booking.id}...`);
       
-      const res = await fetch(`http://localhost:4000/api/admin/bookings/${booking.id}`, {
-        method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-        }
-      });
-      
-      const data = await res.json();
-      console.log('✅ Delete booking API response:', data);
-      
-      if (!res.ok) {
-        throw new Error(data.error || `HTTP ${res.status}: ${res.statusText}`);
-      }
+      await api.delete(`/api/admin/bookings/${booking.id}`);
       
       // Success: Remove from bookings list
       setBookings((prev) => prev.filter((b) => b.id !== booking.id));
@@ -420,22 +340,7 @@ const AdminClients: React.FC = () => {
     try {
       console.log(`🔄 Updating client ${clientId} status to ${newStatus}...`);
       
-      const res = await fetch(`http://localhost:4000/api/admin/clients/${clientId}/status`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          status: newStatus
-        })
-      });
-      
-      const data = await res.json();
-      console.log('✅ Update client status API response:', data);
-      
-      if (!res.ok) {
-        throw new Error(data.error || `HTTP ${res.status}: ${res.statusText}`);
-      }
+      await api.patch(`/api/admin/clients/${clientId}/status`, { status: newStatus });
       
       // Success: Update client status in UI
       setClients((prev) => prev.map((c) => 
