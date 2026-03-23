@@ -1,11 +1,9 @@
 
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Calendar, Clock, Send, CheckCircle, ChevronLeft, ChevronRight, MessageCircle } from 'lucide-react';
+import { X, Calendar, Clock, Send, CheckCircle, ChevronLeft, ChevronRight } from 'lucide-react';
 import type { Country } from './PersonalizationFlow';
 import { api } from '../utils/apiClient';
-import { useAuth } from '../contexts/AuthProvider';
-import { useBooking } from '../contexts/BookingContext';
 
 interface BookingData {
   name: string;
@@ -87,8 +85,6 @@ const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
 const BookingModal: React.FC<Props> = ({ isOpen, onClose, prefilledPackage = '', country }) => {
-  const { user } = useAuth();
-  const { showAdminChat, closeBooking, openAdminChat } = useBooking();
   const [step, setStep] = useState<'details' | 'datetime' | 'confirm' | 'success'>('details');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -109,14 +105,6 @@ const BookingModal: React.FC<Props> = ({ isOpen, onClose, prefilledPackage = '',
   React.useEffect(() => {
     if (prefilledPackage) setSelectedPackage(prefilledPackage);
   }, [prefilledPackage]);
-
-  // Pre-fill name/email from logged-in user
-  React.useEffect(() => {
-    if (isOpen && user) {
-      if (!name) setName(`${user.first_name || ''} ${user.last_name || ''}`.trim() || user.username || '');
-      if (!email) setEmail(user.email || '');
-    }
-  }, [isOpen, user]);
 
   // Reset on open & lock body scroll
   React.useEffect(() => {
@@ -239,13 +227,6 @@ const BookingModal: React.FC<Props> = ({ isOpen, onClose, prefilledPackage = '',
                 <span className="text-[10px] font-mono uppercase tracking-[0.3em] text-white/40">Dizitup Strategy Call</span>
               </div>
               <h3 className="text-2xl font-heading font-bold text-white tracking-tight">Book Your Session</h3>
-              {user && (
-                <div className="mt-3 inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/[0.04] border border-white/10">
-                  <div className="w-2 h-2 rounded-full bg-green-500" />
-                  <span className="text-xs font-mono text-white/60">Booking as</span>
-                  <span className="text-xs font-mono font-bold text-white">@{user.username}</span>
-                </div>
-              )}
             </div>
 
             <div className="p-5 sm:p-8 pt-4 sm:pt-6">
@@ -281,17 +262,6 @@ const BookingModal: React.FC<Props> = ({ isOpen, onClose, prefilledPackage = '',
                     </div>
 
                     {error && <p className="text-red-500 text-xs">{error}</p>}
-
-                    {showAdminChat && (
-                      <button
-                        type="button"
-                        onClick={() => { closeBooking(); openAdminChat(); }}
-                        className="w-full flex items-center justify-center gap-2 py-3.5 rounded-full bg-white/5 border border-white/10 text-white/70 text-sm font-semibold hover:bg-white/10 hover:text-white transition-all"
-                      >
-                        <MessageCircle className="w-4 h-4 text-red-500" />
-                        Chat with Admin Instead
-                      </button>
-                    )}
 
                     <motion.button
                       whileHover={{ scale: 1.02 }}
