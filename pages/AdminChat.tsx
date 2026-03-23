@@ -161,7 +161,7 @@ const AdminChat: React.FC = () => {
 
         {/* Tab 1: Client conversations */}
         {tab === 'clients' && (
-        <div className="flex flex-1 rounded-2xl overflow-hidden border border-white/5">
+          <div className="flex flex-1 rounded-2xl overflow-hidden border border-white/5">
 
         {/* Left: Conversations list */}
         <div className="w-80 flex-shrink-0 border-r border-white/5 flex flex-col bg-white/[0.01]">
@@ -307,8 +307,9 @@ const AdminChat: React.FC = () => {
             </>
           )}
         </div>
+        </div>
+        )}
       </div>
-      )}
     </AdminLayout>
   );
 };
