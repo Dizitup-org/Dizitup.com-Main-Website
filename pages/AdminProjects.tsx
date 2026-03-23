@@ -1,6 +1,6 @@
 ﻿import React, { useState, useEffect, useCallback } from 'react';
 import AdminLayout from '../components/AdminLayout';
-import { Loader2, FolderOpen, RefreshCw, Plus, X, Trash2 } from 'lucide-react';
+import { Loader2, FolderOpen, RefreshCw, Trash2, Users, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 
@@ -10,20 +10,35 @@ interface AdminProject {
   id: string;
   project_name: string;
   client_name?: string;
+  first_name?: string;
+  last_name?: string;
   created_at?: string;
+  assigned_to?: string;
+  manager_id?: string | null;
+}
+
+interface Manager {
+  admin_id: string;
+  user_id: string;
+  first_name: string;
+  last_name: string;
+  email: string;
+  role: string;
 }
 
 const AdminProjects: React.FC = () => {
   const [projects, setProjects] = useState<AdminProject[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
-  // New project form
-  const [showForm, setShowForm] = useState(false);
-  const [formClientName, setFormClientName] = useState('');
-  const [formProjectName, setFormProjectName] = useState('');
-  const [submitting, setSubmitting] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  // Modal state for assigning manager
+  const [showManagerModal, setShowManagerModal] = useState(false);
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
+  const [managers, setManagers] = useState<Manager[]>([]);
+  const [managersLoading, setManagersLoading] = useState(false);
+  const [assigningId, setAssigningId] = useState<string | null>(null);
+  const [selectedManagerId, setSelectedManagerId] = useState<string>("");
 
   const fetchProjects = useCallback(async () => {
     setLoading(true);
@@ -69,38 +84,67 @@ const AdminProjects: React.FC = () => {
     }
   };
 
-  const closeForm = () => {
-    setShowForm(false);
-    setFormClientName('');
-    setFormProjectName('');
-  };
-
-  const handleCreateProject = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const project_name = formProjectName.trim();
-    const brand_name = formClientName.trim();
-    if (!project_name || !brand_name) return;
-
-    setSubmitting(true);
+  const fetchManagers = useCallback(async () => {
+    setManagersLoading(true);
     try {
       const token = localStorage.getItem('dizitup_token');
-      const res = await fetch(`${API_URL}/api/admin/projects`, {
-        method: 'POST',
+      const res = await fetch(`${API_URL}/api/admin/users/staff`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+      
+      // Filter only managers
+      const managersOnly = (data.staff || []).filter((staff: any) => staff.role === 'manager');
+      setManagers(managersOnly);
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to fetch managers');
+      setManagers([]);
+    } finally {
+      setManagersLoading(false);
+    }
+  }, []);
+
+  const handleOpenManagerModal = async (projectId: string) => {
+    setSelectedProjectId(projectId);
+    setShowManagerModal(true);
+    await fetchManagers();
+  };
+
+  const handleAssignManager = async (managerId: string) => {
+    if (!selectedProjectId) return;
+    
+    setAssigningId(selectedProjectId);
+    try {
+      const token = localStorage.getItem('dizitup_token');
+      const res = await fetch(`${API_URL}/api/admin/projects/${selectedProjectId}/assign-manager`, {
+        method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
-        body: JSON.stringify({ client_name: formClientName.trim(), project_name }),
+        body: JSON.stringify({ manager_id: managerId }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
-      toast.success(`Project "${project_name}" created!`);
-      closeForm();
-      fetchProjects();
+      
+      // Update the project in the list
+      const manager = managers.find(m => m.admin_id === managerId);
+      const managerName = manager ? `${manager.first_name} ${manager.last_name}` : 'Manager';
+      
+      setProjects(prev => prev.map(p => 
+        p.id === selectedProjectId 
+          ? { ...p, manager_id: managerId, assigned_to: managerName } 
+          : p
+      ));
+      
+      toast.success(`Project assigned to ${managerName}`);
+      setShowManagerModal(false);
+      setSelectedProjectId(null);
     } catch (err: any) {
-      toast.error(err.message || 'Failed to create project');
+      toast.error(err.message || 'Failed to assign manager');
     } finally {
-      setSubmitting(false);
+      setAssigningId(null);
     }
   };
 
@@ -110,70 +154,15 @@ const AdminProjects: React.FC = () => {
         {/* Header */}
         <div className="flex justify-between items-center">
           <p className="text-white/40 text-sm">All projects linked to onboarded clients</p>
-          <div className="flex gap-3">
-            <button
-              onClick={fetchProjects}
-              disabled={loading}
-              className="px-4 py-2 rounded-xl bg-white/5 text-white/60 font-bold hover:bg-white/10 transition-colors flex items-center gap-2 disabled:opacity-40"
-            >
-              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-              Refresh
-            </button>
-            <button
-              onClick={() => setShowForm(true)}
-              className="px-5 py-2 rounded-xl bg-red-600 text-white font-bold hover:bg-red-700 transition-colors flex items-center gap-2"
-            >
-              <Plus className="w-4 h-4" />
-              New Project
-            </button>
-          </div>
+          <button
+            onClick={fetchProjects}
+            disabled={loading}
+            className="px-4 py-2 rounded-xl bg-white/5 text-white/60 font-bold hover:bg-white/10 transition-colors flex items-center gap-2 disabled:opacity-40"
+          >
+            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+            Refresh
+          </button>
         </div>
-
-        {/* Inline create form */}
-        {showForm && (
-          <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-6">
-            <div className="flex justify-between items-center mb-5">
-              <h3 className="font-bold text-base">Create New Project</h3>
-              <button onClick={closeForm} className="text-white/30 hover:text-white transition-colors">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <form onSubmit={handleCreateProject} className="flex flex-col sm:flex-row gap-4">
-              <div className="flex-1">
-                <label className="block text-[10px] font-bold uppercase tracking-widest text-white/40 mb-2">Client Name *</label>
-                <input
-                  type="text"
-                  value={formClientName}
-                  onChange={(e) => setFormClientName(e.target.value)}
-                  placeholder="e.g. Acme Corp"
-                  required
-                  className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white text-sm placeholder-white/20 focus:outline-none focus:border-red-600 transition-colors"
-                />
-              </div>
-              <div className="flex-1">
-                <label className="block text-[10px] font-bold uppercase tracking-widest text-white/40 mb-2">Project Name *</label>
-                <input
-                  type="text"
-                  value={formProjectName}
-                  onChange={(e) => setFormProjectName(e.target.value)}
-                  placeholder="e.g. Website Redesign"
-                  required
-                  className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white text-sm placeholder-white/20 focus:outline-none focus:border-red-600 transition-colors"
-                />
-              </div>
-              <div className="flex items-end">
-                <button
-                  type="submit"
-                  disabled={submitting || !formProjectName.trim() || !formClientName.trim()}
-                  className="px-6 py-3 rounded-xl bg-red-600 text-white font-bold hover:bg-red-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2"
-                >
-                  {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
-                  {submitting ? 'Creating...' : 'Create'}
-                </button>
-              </div>
-            </form>
-          </div>
-        )}
 
         {/* Loading */}
         {loading && (
@@ -210,7 +199,8 @@ const AdminProjects: React.FC = () => {
                   <thead className="bg-white/[0.03]">
                     <tr className="text-left text-white/40 text-xs uppercase tracking-wider">
                       <th className="px-6 py-4 font-semibold">Project Name</th>
-                      <th className="px-6 py-4 font-semibold">Brand Name</th>
+                      <th className="px-6 py-4 font-semibold">Client Name</th>
+                      <th className="px-6 py-4 font-semibold">Assign to Manager</th>
                       <th className="px-6 py-4 font-semibold">Created Date</th>
                       <th className="px-6 py-4 font-semibold"></th>
                     </tr>
@@ -226,7 +216,26 @@ const AdminProjects: React.FC = () => {
                             <span className="font-medium text-white">{project.project_name || '-'}</span>
                           </div>
                         </td>
-                        <td className="px-6 py-4 text-white/70">{project.client_name || '-'}</td>
+                        <td className="px-6 py-4 text-white/70">
+                          {project.first_name || project.last_name 
+                            ? `${project.first_name || ''} ${project.last_name || ''}`.trim() 
+                            : '-'
+                          }
+                        </td>
+                        <td className="px-6 py-4">
+                          <button
+                            onClick={() => handleOpenManagerModal(project.id)}
+                            disabled={assigningId === project.id}
+                            className="px-3 py-1.5 rounded-lg bg-blue-600 text-white text-xs font-semibold hover:bg-blue-700 transition-colors disabled:opacity-40 flex items-center gap-1"
+                          >
+                            {assigningId === project.id ? (
+                              <Loader2 className="w-3 h-3 animate-spin" />
+                            ) : (
+                              <Users className="w-3 h-3" />
+                            )}
+                            {project.assigned_to ? project.assigned_to : 'Assign'}
+                          </button>
+                        </td>
                         <td className="px-6 py-4 text-white/50 text-xs">
                           {project.created_at
                             ? new Date(project.created_at).toLocaleDateString('en-IN', {
@@ -255,6 +264,84 @@ const AdminProjects: React.FC = () => {
               </div>
             )}
           </>
+        )}
+
+        {/* Manager Assignment Modal */}
+        {showManagerModal && (
+          <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+            <div className="bg-black border border-white/10 rounded-2xl shadow-xl max-w-sm w-full backdrop-blur-xl">
+              <div className="flex justify-between items-center p-6 border-b border-white/10">
+                <h3 className="text-lg font-bold text-white">Assign to Manager</h3>
+                <button
+                  onClick={() => {
+                    setShowManagerModal(false);
+                    setSelectedProjectId(null);
+                    setSelectedManagerId("");
+                  }}
+                  className="text-white/50 hover:text-white transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="p-6">
+                {managersLoading ? (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 className="w-5 h-5 animate-spin text-blue-500" />
+                    <span className="ml-2 text-white/60 text-sm">Loading managers...</span>
+                  </div>
+                ) : managers.length === 0 ? (
+                  <p className="text-white/50 text-sm text-center py-8">No managers available</p>
+                ) : (
+                  <div className="space-y-4">
+                    <p className="text-sm text-white/60">Select a manager below. This project will be assigned to the selected manager and will appear in their projects section.</p>
+                    <select
+                      value={selectedManagerId}
+                      onChange={(e) => setSelectedManagerId(e.target.value)}
+                      disabled={assigningId === selectedProjectId}
+                      className="w-full px-4 py-3 rounded-lg bg-white/10 border border-white/20 text-white text-sm focus:outline-none focus:border-blue-500 transition-colors disabled:opacity-40 disabled:cursor-not-allowed appearance-none"
+                      style={{
+                        backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%23ffffff' opacity='0.6' d='M1 1l5 5 5-5'/%3E%3C/svg%3E")`,
+                        backgroundRepeat: 'no-repeat',
+                        backgroundPosition: 'right 1rem center',
+                        backgroundAttachment: 'fixed',
+                        paddingRight: '2.5rem',
+                        backgroundColor: 'rgba(15, 23, 42, 0.8)',
+                        color: '#ffffff'
+                      }}
+                    >
+                      <option value="" style={{ color: '#ffffff', backgroundColor: '#1e293b' }}>Choose a manager...</option>
+                      {managers.map((manager) => (
+                        <option key={manager.admin_id} value={manager.admin_id} style={{ color: '#ffffff', backgroundColor: '#1e293b' }}>
+                          {manager.first_name} {manager.last_name} - {manager.email}
+                        </option>
+                      ))}
+                    </select>
+
+                    {selectedManagerId && (
+                      <button
+                        onClick={() => {
+                          handleAssignManager(selectedManagerId);
+                          setSelectedManagerId("");
+                        }}
+                        disabled={assigningId === selectedProjectId}
+                        className="w-full px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                      >
+                        {assigningId === selectedProjectId ? (
+                          <span className="flex items-center justify-center gap-2">
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                            Assigning...
+                          </span>
+                        ) : (
+                          "Confirm Assign"
+                        )}
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
         )}
       </div>
     </AdminLayout>
