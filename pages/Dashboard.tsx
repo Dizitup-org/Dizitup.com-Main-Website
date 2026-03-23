@@ -86,6 +86,7 @@ const Dashboard: React.FC = () => {
   const [chatInput, setChatInput] = useState('')
   const [chatSending, setChatSending] = useState(false)
   const chatEndRef = useRef<HTMLDivElement>(null)
+  const chatContainerRef = useRef<HTMLDivElement>(null)
   const chatPollRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   useEffect(() => {
@@ -138,9 +139,13 @@ const Dashboard: React.FC = () => {
     return () => { if (chatPollRef.current) clearInterval(chatPollRef.current) }
   }, [clientStatus, fetchChatMessages])
 
-  // Scroll chat to bottom on new messages
+  // Scroll chat to bottom on new messages (only scroll container, not page)
   useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+    if (chatContainerRef.current) {
+      setTimeout(() => {
+        chatContainerRef.current!.scrollTop = chatContainerRef.current!.scrollHeight
+      }, 0)
+    }
   }, [chatMessages])
 
   const sendChatMessage = async () => {
@@ -722,7 +727,7 @@ const Dashboard: React.FC = () => {
               </div>
 
               {/* Messages */}
-              <div className="flex-1 overflow-y-auto px-5 py-5 space-y-3 scrollbar-thin scrollbar-track-transparent scrollbar-thumb-white/10">
+              <div ref={chatContainerRef} className="flex-1 overflow-y-auto px-5 py-5 space-y-3 scrollbar-thin scrollbar-track-transparent scrollbar-thumb-white/10">
                 {chatMessages.length === 0 && (
                   <div className="flex flex-col items-center justify-center h-full gap-3 py-16 text-center">
                     <div className="w-12 h-12 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center">

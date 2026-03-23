@@ -163,16 +163,18 @@ const AdminOverview: React.FC = () => {
 
   return (
     <AdminLayout title="Command Overview">
-      {loading ? (
-        <div className="flex items-center justify-center py-40">
-          <motion.div
-            animate={{ rotate: 360 }}
-            transition={{ repeat: Infinity, duration: 1, ease: 'linear' }}
-            className="w-10 h-10 border-2 border-white/10 border-t-red-600 rounded-full"
-          />
-        </div>
-      ) : (
-        <div className="space-y-8">
+      <div className="flex flex-col h-full overflow-hidden">
+        {loading ? (
+          <div className="flex items-center justify-center py-40">
+            <motion.div
+              animate={{ rotate: 360 }}
+              transition={{ repeat: Infinity, duration: 1, ease: 'linear' }}
+              className="w-10 h-10 border-2 border-white/10 border-t-red-600 rounded-full"
+            />
+          </div>
+        ) : (
+          <div className="overflow-y-auto flex-1 pr-4">
+            <div className="space-y-8">
 
           {/* ── TOP METRICS ── */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -399,8 +401,10 @@ const AdminOverview: React.FC = () => {
               <AdminScanner />
             </div>
           </div>
-        </div>
-      )}
+            </div>
+          </div>
+        )}
+      </div>
     </AdminLayout>
   );
 };

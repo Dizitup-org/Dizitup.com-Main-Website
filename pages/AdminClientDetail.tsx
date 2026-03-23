@@ -213,7 +213,8 @@ const AdminClientDetail: React.FC = () => {
       )}
 
       {!loading && !error && client && (
-        <div className="space-y-8">
+        <div className="flex flex-col h-full overflow-hidden">
+          <div className="overflow-y-auto space-y-8 pr-4">
           {/* Client Header */}
           <div className="p-8 rounded-3xl bg-white/[0.02] border border-white/10 backdrop-blur-xl">
             <div className="flex flex-col md:flex-row md:items-center gap-6">
@@ -649,6 +650,7 @@ const AdminClientDetail: React.FC = () => {
               </div>
             </div>
           )}
+          </div>
         </div>
       )}
 
