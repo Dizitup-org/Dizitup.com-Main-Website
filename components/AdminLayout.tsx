@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { NavLink, Link, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, BarChart3, Users, LogOut, Search, Layout, ArrowLeft, Home as HomeIcon, Shield, FolderOpen, UserPlus, MessageCircle, CheckSquare } from 'lucide-react';
+import { LayoutDashboard, BarChart3, Users, LogOut, Search, Layout, ArrowLeft, Home as HomeIcon, Shield, FolderOpen, UserPlus, MessageCircle, CheckSquare, Calendar } from 'lucide-react';
 import { useAuth } from '../contexts/AuthProvider';
 import { getToken } from '../utils/apiClient';
 
@@ -16,7 +16,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, title }) => {
   const token = getToken();
   
   return (
-    <div className="min-h-screen bg-[#0a0a0a] text-white flex">
+    <div className="h-screen bg-[#0a0a0a] text-white flex overflow-hidden">
       <aside className="w-64 border-r border-white/5 flex flex-col h-screen sticky top-0 bg-black/20 backdrop-blur-xl">
         <div className="p-8">
           <Link to="/" className="text-xl font-bold font-heading tracking-tight flex items-center gap-2">
@@ -73,6 +73,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, title }) => {
               ]
             : [
                 { to: '/admin', icon: LayoutDashboard, label: 'Overview' },
+                { to: '/admin/bookings', icon: Calendar, label: 'Bookings' },
                 { to: '/admin/clients', icon: Users, label: 'Clients' },
                 { to: '/admin/projects', icon: FolderOpen, label: 'Projects' },
                 { to: '/admin/sales', icon: BarChart3, label: 'Sales' },
@@ -107,8 +108,8 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, title }) => {
         </div>
       </aside>
 
-      <main className="flex-grow">
-        <header className="h-20 border-b border-white/5 flex items-center justify-between px-10 bg-black/10 backdrop-blur-sm">
+      <main className="flex-grow flex flex-col">
+        <header className="h-20 border-b border-white/5 flex items-center justify-between px-10 bg-black/10 backdrop-blur-sm flex-shrink-0">
           <div className="flex items-center gap-4">
             <button
               onClick={() => navigate(-1)}
@@ -144,7 +145,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, title }) => {
             </div>
           </div>
         </header>
-        <div className="p-10">{children}</div>
+        <div className="flex-1 p-10 overflow-hidden">{children}</div>
       </main>
     </div>
   );

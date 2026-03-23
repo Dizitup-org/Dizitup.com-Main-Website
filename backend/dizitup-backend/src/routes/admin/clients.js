@@ -18,6 +18,23 @@ const { validators } = require('../../middleware/validate');
 
 const router = express.Router();
 
+// ----------------------------------------------------------
+// Schema migrations — run at startup
+// ----------------------------------------------------------
+(async () => {
+  try {
+    await db.query(`ALTER TABLE projects ADD COLUMN IF NOT EXISTS admin_notes TEXT`);
+    await db.query(`ALTER TABLE projects ADD COLUMN IF NOT EXISTS notes TEXT`);
+    await db.query(`ALTER TABLE projects ADD COLUMN IF NOT EXISTS status_note VARCHAR(255)`);
+    await db.query(`ALTER TABLE projects ADD COLUMN IF NOT EXISTS status VARCHAR(100) DEFAULT 'sent_to_manager'`);
+    await db.query(`ALTER TABLE projects DROP CONSTRAINT IF EXISTS chk_project_status`);
+    await db.query(`ALTER TABLE projects ADD CONSTRAINT chk_project_status CHECK (status IN ('active', 'paused', 'completed', 'cancelled', 'sent_to_manager', 'assigned_to_staff', 'under_execution'))`);
+    await db.query(`ALTER TABLE tasks ADD COLUMN IF NOT EXISTS manager_notes TEXT`);
+    await db.query(`ALTER TABLE tasks ADD COLUMN IF NOT EXISTS priority VARCHAR(50) DEFAULT 'medium'`);
+    await db.query(`ALTER TABLE tasks ADD COLUMN IF NOT EXISTS seen_at TIMESTAMPTZ`);
+    await db.query(`ALTER TABLE tasks ADD COLUMN IF NOT EXISTS accepted_at TIMESTAMPTZ`);
+  } catch (err) { console.error('[clients.js] Schema migration error:', err.message); }
+})();
 
 // ----------------------------------------------------------
 // GET /api/admin/clients/query
@@ -248,20 +265,21 @@ COALESCE(SUM(s.paid_amount), 0)                     AS total_paid,
 // ----------------------------------------------------------
 router.post('/:id/projects', async (req, res, next) => {
   try {
-    const { title, description, start_date, end_date, deadline, total_amount, expenses, status } = req.body;
+    const { title, description, admin_notes, start_date, end_date, deadline, total_amount, expenses } = req.body;
     validators.required(title, 'Project title');
     validators.required(total_amount, 'Project amount');
     validators.positiveNumber(total_amount, 'Project amount');
 
     const result = await db.query(
       `INSERT INTO projects
-         (client_id, title, description, start_date, end_date, deadline, total_amount, expenses, status)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+         (client_id, title, description, admin_notes, start_date, end_date, deadline, total_amount, expenses, status)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
        RETURNING *`,
       [
         req.params.id, title, description || null,
+        admin_notes || null,
         start_date || null, end_date || null, deadline || null,
-        total_amount, expenses || 0, status || 'active',
+        total_amount, expenses || 0, 'sent_to_manager',
       ]
     );
 

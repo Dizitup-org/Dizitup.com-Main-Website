@@ -1,5 +1,6 @@
 
 import React, { useMemo, useState, useCallback, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import Hero from '../components/Hero';
 import ScrollStory from '../components/ScrollStory';
@@ -49,6 +50,7 @@ const WordReveal = ({ text, className = '' }: { text: string; className?: string
 };
 
 const Home: React.FC = () => {
+  const navigate = useNavigate();
   const { isOpen: bookingOpen, packageName: bookingPackage, openBooking, closeBooking, setCountry: setBookingCountry,
     authPromptOpen, closeAuthPrompt, onBookingLoginSuccess,
     contactAdminOpen, closeContactAdmin,
@@ -242,7 +244,7 @@ const Home: React.FC = () => {
                   </h2>
                   <div className="flex flex-col md:flex-row items-center justify-center gap-6">
                     <button
-                      onClick={() => openBooking('AI Strategy Call')}
+                      onClick={() => navigate('/login')}
                       className="w-full sm:w-auto px-8 sm:px-12 py-4 sm:py-6 bg-black text-white rounded-full font-bold hover:bg-white hover:text-black transition-all duration-500 uppercase tracking-widest text-xs"
                     >
                       Book a Free AI Strategy Call

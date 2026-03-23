@@ -97,14 +97,15 @@ router.get('/my-project', protect, async (req, res, next) => {
 
     const clientId = clientResult.rows[0].id;
 
-    // Fetch projects with their updates
+    // Fetch projects with their updates (no pricing/admin_notes for client)
     const projectsResult = await db.query(
       `SELECT
          p.id,
          p.title,
          p.description,
+         p.notes,
          p.status,
-         p.total_amount,
+         p.status_note,
          p.start_date,
          p.end_date,
          p.deadline,

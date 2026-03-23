@@ -38,6 +38,7 @@ const ManagerTeam: React.FC = () => {
   const [submitting, setSubmitting] = useState(false);
   const [credentials, setCredentials] = useState<{ email: string; password: string } | null>(null);
   const [copied, setCopied] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
 
   const fetchStaff = useCallback(async () => {
     try {
@@ -63,11 +64,12 @@ const ManagerTeam: React.FC = () => {
       });
       const data = await res.json();
       if (data.success) {
+        setErrorMsg('');
         setCredentials({ email: data.employee.email, password: data.temp_password });
         setForm(defaultForm);
         fetchStaff();
       } else {
-        toast.error(data.message || 'Failed to create staff');
+        setErrorMsg(data.error || data.message || 'Failed to create staff');
       }
     } catch { toast.error('Network error'); } finally { setSubmitting(false); }
   };
@@ -121,7 +123,7 @@ const ManagerTeam: React.FC = () => {
               <RefreshCw size={14} /> Refresh
             </button>
             <button
-              onClick={() => setShowModal(true)}
+              onClick={() => { setShowModal(true); setErrorMsg(''); }}
               className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-red-600 hover:bg-red-500 text-sm font-bold transition-all shadow-[0_0_16px_rgba(220,38,38,0.25)]"
             >
               <UserPlus size={15} /> Add Staff
@@ -224,7 +226,7 @@ const ManagerTeam: React.FC = () => {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
-            onClick={e => { if (e.target === e.currentTarget) { setShowModal(false); setCredentials(null); } }}
+            onClick={e => { if (e.target === e.currentTarget) { setShowModal(false); setCredentials(null); setErrorMsg(''); } }}
           >
             <motion.div
               initial={{ scale: 0.95, opacity: 0 }}
@@ -234,7 +236,7 @@ const ManagerTeam: React.FC = () => {
             >
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-lg font-heading font-bold">{credentials ? 'Staff Created ✓' : 'Add Staff Member'}</h2>
-                <button onClick={() => { setShowModal(false); setCredentials(null); }} className="p-2 rounded-xl bg-white/5 hover:bg-white/10 transition-all">
+                <button onClick={() => { setShowModal(false); setCredentials(null); setErrorMsg(''); }} className="p-2 rounded-xl bg-white/5 hover:bg-white/10 transition-all">
                   <X size={16} className="text-white/40" />
                 </button>
               </div>
@@ -261,7 +263,7 @@ const ManagerTeam: React.FC = () => {
                     </button>
                   </div>
                   <button
-                    onClick={() => { setCredentials(null); setShowModal(false); }}
+                    onClick={() => { setCredentials(null); setShowModal(false); setErrorMsg(''); }}
                     className="w-full py-3 rounded-xl bg-red-600 hover:bg-red-500 font-bold text-sm transition-all"
                   >
                     Done
@@ -288,6 +290,9 @@ const ManagerTeam: React.FC = () => {
                   <option value="employee">Employee</option>
                   <option value="manager">Manager</option>
                 </select>
+                {errorMsg && (
+                  <p className="text-red-400 text-[13px] px-1">{errorMsg}</p>
+                )}
                 <button type="submit" disabled={submitting}
                   className="w-full py-3.5 rounded-xl bg-red-600 hover:bg-red-500 disabled:opacity-40 font-bold text-sm transition-all flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(220,38,38,0.3)]">
                   {submitting ? <Loader2 size={16} className="animate-spin" /> : <UserPlus size={16} />}
