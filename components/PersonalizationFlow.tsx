@@ -163,53 +163,12 @@ const PersonalizationFlow: React.FC<Props> = ({ onComplete }) => {
   const [error, setError] = useState('');
   const [existingProfile, setExistingProfile] = useState<UserProfile | null>(null);
   const [checkingProfile, setCheckingProfile] = useState(true);
-  const [welcomeBack, setWelcomeBack] = useState<{ name: string; visible: boolean } | null>(null);
 
   // Check for existing visitor profile on mount
   useEffect(() => {
     let isCancelled = false;
 
     const checkExistingProfile = async () => {
-      // Priority 1: Logged-in user via JWT token
-      const token = localStorage.getItem('dizitup_token');
-      if (token) {
-        try {
-          const me = await api.get<{ success: boolean; user: any }>('/api/user/me');
-          if (!isCancelled && me.success && me.user) {
-            const displayName = me.user.first_name || me.user.username || 'there';
-            setCheckingProfile(false);
-            setWelcomeBack({ name: displayName, visible: true });
-            setTimeout(() => {
-              if (isCancelled) return;
-              setWelcomeBack(prev => prev ? { ...prev, visible: false } : null);
-              setTimeout(() => {
-                if (!isCancelled) onComplete({ name: displayName, agencySize: '1\u20135', country: 'Other' });
-              }, 500);
-            }, 1500);
-            return;
-          }
-        } catch {
-          // Token invalid or expired — continue to next check
-        }
-      }
-
-      // Priority 2: Returning visitor localStorage flag
-      if (localStorage.getItem('dizitup_personalization_done')) {
-        const cached = localStorage.getItem('dizitup_visitor_profile');
-        if (cached) {
-          try {
-            const profile = JSON.parse(cached) as UserProfile;
-            if (!isCancelled) {
-              setExistingProfile(profile);
-              onComplete(profile);
-              setCheckingProfile(false);
-            }
-            return;
-          } catch { /* corrupt data, fall through */ }
-        }
-      }
-
-      // Priority 3: Backend device_id check (existing behaviour)
       try {
         const deviceId = getDeviceId();
 
@@ -284,17 +243,9 @@ const PersonalizationFlow: React.FC<Props> = ({ onComplete }) => {
     setError('');
     setPhase('loading');
 
+    // Save profile to Supabase
     const profile: UserProfile = { name: name.trim(), agencySize: agencySize as AgencySize, country: country as Country };
     saveVisitorProfile(profile);
-    localStorage.setItem('dizitup_personalization_done', '1');
-    localStorage.setItem('dizitup_visitor_profile', JSON.stringify(profile));
-
-    // Fire-and-forget: capture visitor lead for admin Users tab
-    api.post('/api/visitor-leads', {
-      name: profile.name,
-      agency_size: profile.agencySize,
-      country: profile.country,
-    }).catch(() => {/* silent */});
 
     // Animated progress bar over ~2.5s
     let p = 0;
@@ -312,30 +263,6 @@ const PersonalizationFlow: React.FC<Props> = ({ onComplete }) => {
   const handleContinue = useCallback(() => {
     onComplete({ name: name.trim(), agencySize: agencySize as AgencySize, country: country as Country });
   }, [name, agencySize, country, onComplete]);
-
-  // Welcome-back overlay for logged-in users
-  if (welcomeBack !== null) {
-    return (
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: welcomeBack.visible ? 1 : 0 }}
-        transition={{ duration: 0.5 }}
-        className="fixed inset-0 z-[9998] flex items-center justify-center bg-[#050505]"
-      >
-        <div className="text-center">
-          <motion.div
-            initial={{ width: 0 }}
-            animate={{ width: 60 }}
-            transition={{ duration: 0.6 }}
-            className="h-px bg-red-600 mx-auto mb-6"
-          />
-          <h2 className="text-3xl sm:text-4xl font-heading font-bold text-white">
-            Welcome back, <span className="text-red-500">{welcomeBack.name}</span>.
-          </h2>
-        </div>
-      </motion.div>
-    );
-  }
 
   // Don't render anything while checking for existing profile (prevents flash)
   if (checkingProfile) {

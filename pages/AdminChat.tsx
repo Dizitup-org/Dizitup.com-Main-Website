@@ -127,40 +127,41 @@ const AdminChat: React.FC = () => {
 
   return (
     <AdminLayout title="Chat">
-      {/* Tab bar */}
-      <div className="flex gap-2 mb-6">
-        <button
-          onClick={() => setTab('clients')}
-          className={`px-5 py-2 rounded-xl text-sm font-bold transition-all ${
-            tab === 'clients' ? 'bg-red-600 text-white' : 'bg-white/5 text-white/40 hover:text-white hover:bg-white/10'
-          }`}
-        >
-          Client Chats
-        </button>
-        <button
-          onClick={() => setTab('team')}
-          className={`px-5 py-2 rounded-xl text-sm font-bold transition-all ${
-            tab === 'team' ? 'bg-red-600 text-white' : 'bg-white/5 text-white/40 hover:text-white hover:bg-white/10'
-          }`}
-        >
-          Manager Channel
-        </button>
-      </div>
-
-      {/* Tab 2: Manager channel chat */}
-      {tab === 'team' && (
-        <div className="max-w-2xl">
-          <ChatBox
-            channel="admin_manager"
-            senderName={senderName}
-            label="Admin ↔ Manager"
-          />
+      <div className="flex flex-col h-full gap-4">
+        {/* Tab bar */}
+        <div className="flex gap-2">
+          <button
+            onClick={() => setTab('clients')}
+            className={`px-5 py-2 rounded-xl text-sm font-bold transition-all ${
+              tab === 'clients' ? 'bg-red-600 text-white' : 'bg-white/5 text-white/40 hover:text-white hover:bg-white/10'
+            }`}
+          >
+            Client Chats
+          </button>
+          <button
+            onClick={() => setTab('team')}
+            className={`px-5 py-2 rounded-xl text-sm font-bold transition-all ${
+              tab === 'team' ? 'bg-red-600 text-white' : 'bg-white/5 text-white/40 hover:text-white hover:bg-white/10'
+            }`}
+          >
+            Manager Channel
+          </button>
         </div>
-      )}
 
-      {/* Tab 1: Client conversations */}
-      {tab === 'clients' && (
-      <div className="flex h-[calc(100vh-10rem)] rounded-2xl overflow-hidden border border-white/5">
+        {/* Tab 2: Manager channel chat */}
+        {tab === 'team' && (
+          <div className="flex-1 overflow-hidden">
+            <ChatBox
+              channel="admin_manager"
+              senderName={senderName}
+              label="Admin ↔ Manager"
+            />
+          </div>
+        )}
+
+        {/* Tab 1: Client conversations */}
+        {tab === 'clients' && (
+          <div className="flex flex-1 rounded-2xl overflow-hidden border border-white/5">
 
         {/* Left: Conversations list */}
         <div className="w-80 flex-shrink-0 border-r border-white/5 flex flex-col bg-white/[0.01]">
@@ -306,8 +307,9 @@ const AdminChat: React.FC = () => {
             </>
           )}
         </div>
+        </div>
+        )}
       </div>
-      )}
     </AdminLayout>
   );
 };

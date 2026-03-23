@@ -3,11 +3,12 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import AdminLayout from '../components/AdminLayout';
 import { getQueryClients, getOnboardClients } from '../utils/clientsApi';
 import { subscribeToTable } from '../utils/realtime';
-import { Loader2, PhoneCall, CheckCircle, Trash2, Users, Inbox, Search, RefreshCw, ChevronLeft, ChevronRight, Calendar, Clock, UserCheck, AlertCircle } from 'lucide-react';
+import { Loader2, PhoneCall, CheckCircle, Trash2, Users, Search, RefreshCw, ChevronLeft, ChevronRight, Calendar, Clock, UserCheck, AlertCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
-import type { BookingRow, QueryClientRow, OnboardClientRow } from '../types';
+import type { QueryClientRow, OnboardClientRow } from '../types';
+import { api } from '../utils/apiClient';
 
-type TabKey = 'bookings' | 'query_clients' | 'onboarded';
+type TabKey = 'query_clients' | 'onboarded';
 
 const ITEMS_PER_PAGE = 10;
 
@@ -16,14 +17,8 @@ const AdminClients: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const tabParam = searchParams.get('tab') as TabKey | null;
   const [tab, setTab] = useState<TabKey>(
-    tabParam === 'query_clients' ? 'query_clients' : 
-    tabParam === 'onboarded' ? 'onboarded' : 'bookings'
+    tabParam === 'onboarded' ? 'onboarded' : 'query_clients'
   );
-
-  // Bookings state (Queries/Upcoming Meetings)
-  const [bookings, setBookings] = useState<BookingRow[]>([]);
-  const [bookingsLoading, setBookingsLoading] = useState(true);
-  const [bookingsError, setBookingsError] = useState<string | null>(null);
 
   // Query Clients state (Follow-ups)
   const [queryClients, setQueryClients] = useState<QueryClientRow[]>([]);
@@ -45,36 +40,6 @@ const AdminClients: React.FC = () => {
 
   // ============ FETCH FUNCTIONS ============
 
-  const fetchBookings = useCallback(async () => {
-    setBookingsLoading(true);
-    setBookingsError(null);
-    
-    try {
-      console.log('📊 Fetching bookings from backend API...');
-      const res = await fetch("http://localhost:4000/api/admin/bookings");
-      const data = await res.json();
-      
-      console.log('✅ Bookings API Response:', data);
-      
-      if (!res.ok) {
-        throw new Error(data.error || `HTTP ${res.status}: ${res.statusText}`);
-      }
-      
-      if (data.success && data.bookings) {
-        setBookings(data.bookings);
-        console.log(`📋 Loaded ${data.bookings.length} bookings successfully`);
-      } else {
-        throw new Error('Invalid API response format - missing bookings data');
-      }
-    } catch (error: any) {
-      console.error('❌ Error fetching bookings:', error);
-      setBookingsError(error.message || 'Failed to fetch bookings');
-      setBookings([]);
-    } finally {
-      setBookingsLoading(false);
-    }
-  }, []);
-
   const fetchQueryClients = useCallback(async () => {
     setQueryClientsLoading(true);
     setQueryClientsError(null);
@@ -92,13 +57,7 @@ const AdminClients: React.FC = () => {
     if (!confirm(`Delete client "${clientName}"? This cannot be undone.`)) return;
     setActionLoading(clientId);
     try {
-      const token = localStorage.getItem('dizitup_token');
-      const res = await fetch(`http://localhost:4000/api/admin/clients/${clientId}`, {
-        method: 'DELETE',
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+      await api.delete(`/api/admin/clients/${clientId}`);
       setClients(prev => prev.filter(c => c.id !== clientId));
       toast.success(`Client "${clientName}" deleted`);
     } catch (err: any) {
@@ -124,30 +83,16 @@ const AdminClients: React.FC = () => {
   const refreshAll = useCallback(async () => {
     setIsRefreshingAll(true);
     await Promise.all([
-      fetchBookings(),
       fetchQueryClients(), 
       fetchOnboardClients()
     ]);
     setIsRefreshingAll(false);
-  }, [fetchBookings, fetchQueryClients, fetchOnboardClients]);
+  }, [fetchQueryClients, fetchOnboardClients]);
 
   useEffect(() => {
     refreshAll();
     
-    // Realtime subscriptions for auto-syncing new bookings
-    const unsubBookings = subscribeToTable<BookingRow>(
-      'bookings',
-      (newBooking) => {
-        setBookings((prev) => [newBooking, ...prev]);
-        toast.success('New booking received!', { icon: '📥' });
-      },
-      (updatedBooking) => {
-        setBookings((prev) =>
-          prev.map((b) => (b.id === updatedBooking.id ? updatedBooking : b))
-        );
-      }
-    );
-
+    // Realtime subscriptions for auto-syncing
     const unsubQueryClients = subscribeToTable<QueryClientRow>(
       'query_clients',
       (newClient) => {
@@ -175,7 +120,6 @@ const AdminClients: React.FC = () => {
     );
 
     return () => {
-      unsubBookings();
       unsubQueryClients();
       unsubOnboardClients();
     };
@@ -187,134 +131,6 @@ const AdminClients: React.FC = () => {
     setCurrentPage(1);
   }, [tab, setSearchParams]);
 
-  // ============ BOOKING ACTIONS ============
-
-  const handleAcceptBooking = async (booking: BookingRow) => {
-    setActionLoading(booking.id);
-    
-    try {
-      console.log(`📄 Accepting booking ${booking.id}...`);
-      
-      const res = await fetch(`http://localhost:4000/api/admin/bookings/${booking.id}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          status: 'accepted'
-        })
-      });
-      
-      const data = await res.json();
-      console.log('✅ Accept booking API response:', data);
-      
-      if (!res.ok) {
-        throw new Error(data.error || `HTTP ${res.status}: ${res.statusText}`);
-      }
-      
-      // Success: Update booking status in UI
-      setBookings((prev) => prev.map((b) => 
-        b.id === booking.id ? { ...b, status: 'accepted' } : b
-      ));
-      
-      toast.success('Booking accepted successfully!', { icon: '✅' });
-      
-      // Refresh bookings list
-      setTimeout(async () => {
-        await fetchBookings();
-      }, 500);
-      
-    } catch (error: any) {
-      console.error('❌ Accept booking error:', error);
-      toast.error(`Failed to accept booking: ${error.message}`);
-    } finally {
-      setActionLoading(null);
-    }
-  };
-
-  const handleFollowUpBooking = async (booking: BookingRow) => {
-    setActionLoading(booking.id);
-    
-    try {
-      console.log(`📞 Setting booking ${booking.id} for follow-up...`);
-      
-      const res = await fetch(`http://localhost:4000/api/admin/bookings/${booking.id}/status`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          status: 'follow_up'
-        })
-      });
-      
-      const data = await res.json();
-      console.log('✅ Follow-up booking API response:', data);
-      
-      if (!res.ok) {
-        throw new Error(data.error || `HTTP ${res.status}: ${res.statusText}`);
-      }
-      
-      // Success: Remove from bookings list (moved to query_clients by backend trigger)
-      setBookings((prev) => prev.filter((b) => b.id !== booking.id));
-      
-      toast.success('Moved to Query Clients for follow-up', { icon: '📞' });
-      
-      // Immediately refetch Query Clients list
-      await fetchQueryClients();
-      
-    } catch (error: any) {
-      console.error('❌ Follow-up booking error:', error);
-      toast.error(`Failed to mark for follow-up: ${error.message}`);
-    } finally {
-      setActionLoading(null);
-    }
-  };
-
-  const handleOnboardBooking = async (booking: BookingRow) => {
-    setActionLoading(booking.id);
-    
-    try {
-      console.log(`🎉 Onboarding booking ${booking.id}...`);
-      
-      const res = await fetch('http://localhost:4000/api/admin/clients/onboard', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          booking_id: booking.id,
-          user_id: booking.id, // Using booking.id as user_id for now
-          contact_name: booking.name || 'Unknown',
-          email: booking.email || '',
-          phone: booking.phone || '',
-          company_name: booking.agency || ''
-        })
-      });
-      
-      const data = await res.json();
-      console.log('✅ Onboard client API response:', data);
-      
-      if (!res.ok) {
-        throw new Error(data.error || `HTTP ${res.status}: ${res.statusText}`);
-      }
-      
-      // Success: Remove from bookings list (moved to onboard_clients)
-      setBookings((prev) => prev.filter((b) => b.id !== booking.id));
-      
-      toast.success('Client onboarded successfully!', { icon: '🎉' });
-      
-      // Immediately refresh onboarded clients to show the new client
-      await fetchOnboardClients();
-      
-    } catch (error: any) {
-      console.error('❌ Onboard booking error:', error);
-      toast.error(`Failed to onboard client: ${error.message}`);
-    } finally {
-      setActionLoading(null);
-    }
-  };
-
   const handleOnboardQueryClient = async (client: QueryClientRow) => {
     setActionLoading(client.id);
     
@@ -323,25 +139,13 @@ const AdminClients: React.FC = () => {
       
       // Use booking_id if available, otherwise use client id
       const bookingId = client.booking_id || client.id;
-      const res = await fetch(`http://localhost:4000/api/admin/bookings/${bookingId}/onboard`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          contact_name: client.name || 'Unknown',
-          email: client.email || '',
-          phone: client.phone || '',
-          company_name: client.agency || ''
-        })
+      const data = await api.post<any>(`/api/admin/bookings/${bookingId}/onboard`, {
+        contact_name: client.name || 'Unknown',
+        email: client.email || '',
+        phone: client.phone || '',
+        company_name: client.agency || ''
       });
-      
-      const data = await res.json();
       console.log('✅ Onboard query client API response:', data);
-      
-      if (!res.ok) {
-        throw new Error(data.error || `HTTP ${res.status}: ${res.statusText}`);
-      }
       
       // Success: Remove from query clients list
       setQueryClients((prev) => prev.filter((c) => c.id !== client.id));
@@ -359,60 +163,6 @@ const AdminClients: React.FC = () => {
     }
   };
 
-  const handleMeetingDone = async (booking: BookingRow) => {
-    setActionLoading(booking.id);
-    try {
-      const res = await fetch(`http://localhost:4000/api/admin/bookings/${booking.id}/status`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: 'meeting_done' }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
-      setBookings(prev => prev.map(b => b.id === booking.id ? { ...b, status: 'meeting_done' } : b));
-      toast.success('Marked as meeting done', { icon: '✅' });
-    } catch (err: any) {
-      toast.error(err.message || 'Failed to update booking');
-    } finally {
-      setActionLoading(null);
-    }
-  };
-
-  const handleDeleteBooking = async (booking: BookingRow) => {
-    if (!confirm(`Are you sure you want to delete the booking for ${booking.name || 'this client'}?`)) return;
-    
-    setActionLoading(booking.id);
-    
-    try {
-      console.log(`🗑 Deleting booking ${booking.id}...`);
-      
-      const res = await fetch(`http://localhost:4000/api/admin/bookings/${booking.id}`, {
-        method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-        }
-      });
-      
-      const data = await res.json();
-      console.log('✅ Delete booking API response:', data);
-      
-      if (!res.ok) {
-        throw new Error(data.error || `HTTP ${res.status}: ${res.statusText}`);
-      }
-      
-      // Success: Remove from bookings list
-      setBookings((prev) => prev.filter((b) => b.id !== booking.id));
-      
-      toast.success('Booking deleted successfully', { icon: '🗑' });
-      
-    } catch (error: any) {
-      console.error('❌ Delete booking error:', error);
-      toast.error(`Failed to delete booking: ${error.message}`);
-    } finally {
-      setActionLoading(null);
-    }
-  };
-
   // Update client status
   const handleUpdateClientStatus = async (clientId: string, newStatus: string) => {
     setActionLoading(clientId);
@@ -420,22 +170,7 @@ const AdminClients: React.FC = () => {
     try {
       console.log(`🔄 Updating client ${clientId} status to ${newStatus}...`);
       
-      const res = await fetch(`http://localhost:4000/api/admin/clients/${clientId}/status`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          status: newStatus
-        })
-      });
-      
-      const data = await res.json();
-      console.log('✅ Update client status API response:', data);
-      
-      if (!res.ok) {
-        throw new Error(data.error || `HTTP ${res.status}: ${res.statusText}`);
-      }
+      await api.patch(`/api/admin/clients/${clientId}/status`, { status: newStatus });
       
       // Success: Update client status in UI
       setClients((prev) => prev.map((c) => 
@@ -460,17 +195,6 @@ const AdminClients: React.FC = () => {
 
   // ============ FILTERING & PAGINATION ============
 
-  const filteredBookings = useMemo(() => {
-    const term = searchQuery.trim().toLowerCase();
-    if (!term) return bookings;
-    return bookings.filter(
-      (b) =>
-        (b.name || '').toLowerCase().includes(term) ||
-        (b.email || '').toLowerCase().includes(term) ||
-        (b.project_type || '').toLowerCase().includes(term)
-    );
-  }, [bookings, searchQuery]);
-
   const filteredQueryClients = useMemo(() => {
     const term = searchQuery.trim().toLowerCase();
     if (!term) return queryClients;
@@ -493,7 +217,6 @@ const AdminClients: React.FC = () => {
   }, [clients, searchQuery]);
 
   const getCurrentData = () => {
-    if (tab === 'bookings') return filteredBookings;
     if (tab === 'query_clients') return filteredQueryClients;
     return filteredClients;
   };
@@ -502,7 +225,7 @@ const AdminClients: React.FC = () => {
     const data = getCurrentData();
     const start = (currentPage - 1) * ITEMS_PER_PAGE;
     return data.slice(start, start + ITEMS_PER_PAGE);
-  }, [filteredBookings, filteredQueryClients, filteredClients, currentPage, tab]);
+  }, [filteredQueryClients, filteredClients, currentPage, tab]);
 
   const totalPages = Math.ceil(getCurrentData().length / ITEMS_PER_PAGE);
 
@@ -586,18 +309,6 @@ const AdminClients: React.FC = () => {
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div className="flex gap-1 p-1 rounded-2xl bg-white/[0.02] border border-white/10 backdrop-blur-xl overflow-x-auto">
             <button
-              onClick={() => setTab('bookings')}
-              className={`flex items-center gap-2 px-4 py-3 rounded-xl text-sm font-semibold transition-all whitespace-nowrap ${
-                tab === 'bookings'
-                  ? 'bg-red-600 text-white shadow-lg shadow-red-600/20'
-                  : 'text-white/60 hover:text-white hover:bg-white/5'
-              }`}
-            >
-              <Calendar className="w-4 h-4" />
-              Bookings
-              <span className="ml-1 px-2 py-0.5 rounded-full text-[10px] bg-white/10">{bookings.length}</span>
-            </button>
-            <button
               onClick={() => setTab('query_clients')}
               className={`flex items-center gap-2 px-4 py-3 rounded-xl text-sm font-semibold transition-all whitespace-nowrap ${
                 tab === 'query_clients'
@@ -646,144 +357,6 @@ const AdminClients: React.FC = () => {
             </button>
           </div>
         </div>
-
-        {/* ============ BOOKINGS TAB (Queries/Upcoming Meetings) ============ */}
-        {tab === 'bookings' && (
-          <div className="space-y-4">
-            {bookingsLoading && (
-              <div className="flex items-center justify-center py-20">
-                <Loader2 className="w-6 h-6 animate-spin text-red-500" />
-                <span className="ml-3 text-white/60">Loading bookings...</span>
-              </div>
-            )}
-
-            {bookingsError && <ErrorState message={bookingsError} onRetry={fetchBookings} />}
-
-            {!bookingsLoading && !bookingsError && (
-              <>
-                {(paginatedData as BookingRow[]).length === 0 ? (
-                  <div className="py-20 text-center">
-                    <Inbox className="w-12 h-12 text-white/10 mx-auto mb-4" />
-                    <p className="text-white/40 text-sm">No bookings found</p>
-                  </div>
-                ) : (
-                  <div className="grid gap-4">
-                    {(paginatedData as BookingRow[]).map((booking) => (
-                      <div
-                        key={booking.id}
-                        className={`p-6 rounded-2xl bg-white/[0.02] border border-white/10 backdrop-blur-xl hover:bg-white/[0.04] transition-all group ${actionLoading === booking.id ? 'opacity-60 pointer-events-none' : ''}`}
-                      >
-                        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-                          <div className="flex items-start gap-4">
-                            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-red-600 to-red-800 flex items-center justify-center font-bold text-sm shadow-lg shadow-red-600/20">
-                              {(booking.name || 'U')[0].toUpperCase()}
-                            </div>
-                            <div className="space-y-1">
-                              <h3 className="font-semibold text-white">{booking.name || 'Unknown'}</h3>
-                              {booking.username && (
-                                <p className="text-[10px] font-mono text-red-400/80">@{booking.username}</p>
-                              )}
-                              <p className="text-sm text-white/50">{booking.email || 'No email'}</p>
-                              {booking.agency && (
-                                <p className="text-xs text-white/40">Agency: {booking.agency}</p>
-                              )}
-                              <div className="flex flex-wrap gap-2 mt-2">
-                                {getStatusBadge(booking.status)}
-                                {booking.project_type && (
-                                  <span className="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-white/5 border border-white/10 text-white/60">
-                                    {booking.project_type}
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-
-                          <div className="flex flex-col lg:flex-row lg:items-center gap-3">
-                            <div className="text-right text-sm text-white/40 lg:mr-4">
-                              <p className="flex items-center gap-1 justify-end">
-                                <Calendar className="w-3 h-3" />
-                                {booking.meeting_date ? new Date(booking.meeting_date).toLocaleDateString() : 'No date'}
-                              </p>
-                              <p className="flex items-center gap-1 justify-end">
-                                <Clock className="w-3 h-3" />
-                                {booking.meeting_time || 'No time'}
-                              </p>
-                              <p>{booking.phone || 'No phone'}</p>
-                            </div>
-
-                            <div className="flex gap-2">
-                              <button
-                                onClick={() => handleAcceptBooking(booking)}
-                                disabled={actionLoading === booking.id}
-                                className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-green-500/10 border border-green-500/20 text-green-400 text-xs font-semibold hover:bg-green-500/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                              >
-                                {actionLoading === booking.id ? (
-                                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                                ) : (
-                                  <CheckCircle className="w-3.5 h-3.5" />
-                                )}
-                                {actionLoading === booking.id ? 'Accepting...' : 'Accept'}
-                              </button>
-                              <button
-                                onClick={() => handleFollowUpBooking(booking)}
-                                disabled={actionLoading === booking.id}
-                                className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-yellow-500/10 border border-yellow-500/20 text-yellow-400 text-xs font-semibold hover:bg-yellow-500/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                              >
-                                {actionLoading === booking.id ? (
-                                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                                ) : (
-                                  <PhoneCall className="w-3.5 h-3.5" />
-                                )}
-                                {actionLoading === booking.id ? 'Moving...' : 'Follow-up'}
-                              </button>
-                              <button
-                                onClick={() => handleOnboardBooking(booking)}
-                                disabled={actionLoading === booking.id}
-                                className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-400 text-xs font-semibold hover:bg-blue-500/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                              >
-                                {actionLoading === booking.id ? (
-                                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                                ) : (
-                                  <Users className="w-3.5 h-3.5" />
-                                )}
-                                {actionLoading === booking.id ? 'Onboarding...' : 'Onboard'}
-                              </button>
-                              <button
-                                onClick={() => handleMeetingDone(booking)}
-                                disabled={actionLoading === booking.id}
-                                className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 text-xs font-semibold hover:bg-cyan-500/20 transition-all disabled:opacity-50"
-                              >
-                                {actionLoading === booking.id ? (
-                                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                                ) : (
-                                  <CheckCircle className="w-3.5 h-3.5" />
-                                )}
-                                Meeting Done
-                              </button>
-                              <button
-                                onClick={() => handleDeleteBooking(booking)}
-                                disabled={actionLoading === booking.id}
-                                className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-white/60 text-xs font-semibold hover:bg-red-500/10 hover:border-red-500/20 hover:text-red-400 transition-all disabled:opacity-50"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-
-                        {booking.notes && (
-                          <p className="mt-4 pt-4 border-t border-white/5 text-sm text-white/50 italic">
-                            "{booking.notes}"
-                          </p>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </>
-            )}
-          </div>
-        )}
 
         {/* ============ QUERY CLIENTS TAB (Follow-ups) ============ */}
         {tab === 'query_clients' && (
