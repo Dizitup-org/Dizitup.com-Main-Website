@@ -7,6 +7,7 @@ import AdminOverview from './pages/AdminOverview';
 import AdminSales from './pages/AdminSales';
 import AdminPortfolio from './pages/AdminPortfolio';
 import AdminClients from './pages/AdminClients';
+import AdminBookings from './pages/AdminBookings';
 import AdminClientDetail from './pages/AdminClientDetail';
 import AdminProjects from './pages/AdminProjects';
 import AdminUsers from './pages/AdminUsers';
@@ -77,6 +78,14 @@ const App: React.FC = () => {
               element={(
                 <RequireAdmin>
                   <AdminClients />
+                </RequireAdmin>
+              )}
+            />
+            <Route
+              path="/admin/bookings"
+              element={(
+                <RequireAdmin>
+                  <AdminBookings />
                 </RequireAdmin>
               )}
             />

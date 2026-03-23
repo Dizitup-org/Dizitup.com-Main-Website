@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { NavLink, Link, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, BarChart3, Users, LogOut, Search, Layout, ArrowLeft, Home as HomeIcon, Shield, FolderOpen, UserPlus, MessageCircle, CheckSquare } from 'lucide-react';
+import { LayoutDashboard, BarChart3, Users, LogOut, Search, Layout, ArrowLeft, Home as HomeIcon, Shield, FolderOpen, UserPlus, MessageCircle, CheckSquare, Calendar } from 'lucide-react';
 import { useAuth } from '../contexts/AuthProvider';
 import { getToken } from '../utils/apiClient';
 
@@ -73,6 +73,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, title }) => {
               ]
             : [
                 { to: '/admin', icon: LayoutDashboard, label: 'Overview' },
+                { to: '/admin/bookings', icon: Calendar, label: 'Bookings' },
                 { to: '/admin/clients', icon: Users, label: 'Clients' },
                 { to: '/admin/projects', icon: FolderOpen, label: 'Projects' },
                 { to: '/admin/sales', icon: BarChart3, label: 'Sales' },
