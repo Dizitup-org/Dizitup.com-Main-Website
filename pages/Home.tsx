@@ -19,6 +19,7 @@ import AnimatedCounter from '../components/AnimatedCounter';
 import AuthModal from '../components/AuthModal';
 import ContactAdminModal from '../components/ContactAdminModal';
 import ChatWidget from '../components/ChatWidget';
+import DiziAIChat from '../components/DiziAIChat';
 import { useBooking } from '../contexts/BookingContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import { BrainCircuit, Zap, Target } from 'lucide-react';
@@ -289,6 +290,9 @@ const Home: React.FC = () => {
 
           {/* Floating in-app chat widget (follow_up + onboarded users only) */}
           <ChatWidget />
+
+          {/* Dizi AI Chat Widget - Coming Soon */}
+          <DiziAIChat />
         </motion.div>
       )}
     </div>

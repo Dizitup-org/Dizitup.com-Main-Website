@@ -64,6 +64,28 @@ const AdminProjects: React.FC = () => {
     fetchProjects();
   }, [fetchProjects]);
 
+  // Refetch projects when page becomes visible (user comes back from another page)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        fetchProjects();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    // Also refetch on focus
+    const handleFocus = () => {
+      fetchProjects();
+    };
+    window.addEventListener('focus', handleFocus);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleFocus);
+    };
+  }, [fetchProjects]);
+
   const handleDeleteProject = async (id: string, name: string) => {
     if (!confirm(`Delete project "${name}"? This cannot be undone.`)) return;
     setDeletingId(id);
@@ -141,6 +163,9 @@ const AdminProjects: React.FC = () => {
       toast.success(`Project assigned to ${managerName}`);
       setShowManagerModal(false);
       setSelectedProjectId(null);
+      
+      // Refetch projects to ensure database is in sync
+      setTimeout(() => fetchProjects(), 500);
     } catch (err: any) {
       toast.error(err.message || 'Failed to assign manager');
     } finally {
@@ -201,6 +226,7 @@ const AdminProjects: React.FC = () => {
                       <th className="px-6 py-4 font-semibold">Project Name</th>
                       <th className="px-6 py-4 font-semibold">Client Name</th>
                       <th className="px-6 py-4 font-semibold">Assign to Manager</th>
+                      <th className="px-6 py-4 font-semibold">Assigned To</th>
                       <th className="px-6 py-4 font-semibold">Created Date</th>
                       <th className="px-6 py-4 font-semibold"></th>
                     </tr>
@@ -225,16 +251,29 @@ const AdminProjects: React.FC = () => {
                         <td className="px-6 py-4">
                           <button
                             onClick={() => handleOpenManagerModal(project.id)}
-                            disabled={assigningId === project.id}
-                            className="px-3 py-1.5 rounded-lg bg-blue-600 text-white text-xs font-semibold hover:bg-blue-700 transition-colors disabled:opacity-40 flex items-center gap-1"
+                            disabled={assigningId === project.id || !!project.assigned_to}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1 transition-colors ${
+                              project.assigned_to 
+                                ? 'bg-white/10 text-white/40 cursor-default hover:bg-white/10' 
+                                : 'bg-blue-600 text-white hover:bg-blue-700'
+                            } disabled:opacity-50`}
                           >
                             {assigningId === project.id ? (
                               <Loader2 className="w-3 h-3 animate-spin" />
                             ) : (
                               <Users className="w-3 h-3" />
                             )}
-                            {project.assigned_to ? project.assigned_to : 'Assign'}
+                            Assign
                           </button>
+                        </td>
+                        <td className="px-6 py-4 text-white/70 text-sm font-medium">
+                          {project.assigned_to ? (
+                            <span className="px-3 py-1.5 rounded-lg bg-green-600/10 text-green-400 text-xs font-semibold border border-green-600/20">
+                              {project.assigned_to}
+                            </span>
+                          ) : (
+                            <span className="text-white/30">—</span>
+                          )}
                         </td>
                         <td className="px-6 py-4 text-white/50 text-xs">
                           {project.created_at

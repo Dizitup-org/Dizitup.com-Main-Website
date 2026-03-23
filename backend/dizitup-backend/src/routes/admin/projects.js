@@ -19,7 +19,8 @@ router.use(protect, isAdmin);
 // ----------------------------------------------------------
 // GET /api/admin/projects
 // ----------------------------------------------------------
-// p.title aliased as project_name; client_name aliased as brand_name.
+// Returns all projects with manager assignment info
+// p.title aliased as project_name; includes manager details
 // ----------------------------------------------------------
 router.get('/', async (req, res) => {
   try {
@@ -27,9 +28,17 @@ router.get('/', async (req, res) => {
       SELECT
         p.id,
         p.title         AS project_name,
-        p.client_name   AS brand_name,
-        p.created_at
+        p.client_name,
+        p.manager_id,
+        p.created_at,
+        CASE 
+          WHEN p.manager_id IS NOT NULL AND u.first_name IS NOT NULL 
+          THEN CONCAT(u.first_name, ' ', COALESCE(u.last_name, ''))
+          ELSE NULL
+        END AS assigned_to
       FROM projects p
+      LEFT JOIN admins a ON p.manager_id = a.id
+      LEFT JOIN users u ON a.user_id = u.id
       ORDER BY p.created_at DESC
     `);
 
