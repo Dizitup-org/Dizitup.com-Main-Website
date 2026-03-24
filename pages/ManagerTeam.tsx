@@ -185,8 +185,8 @@ const ManagerTeam: React.FC = () => {
                                 onChange={e => setEditRole(e.target.value)}
                                 className="flex-1 bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-xs text-white focus:outline-none"
                               >
-                                <option value="manager">Manager</option>
-                                <option value="employee">Employee</option>
+                                <option value="manager" style={{ color: '#000000', backgroundColor: '#ffffff' }}>Manager</option>
+                                <option value="employee" style={{ color: '#000000', backgroundColor: '#ffffff' }}>Employee</option>
                               </select>
                               <button onClick={() => changeRole(s.admin_id, editRole)} className="px-2.5 py-1.5 rounded-lg bg-red-600 hover:bg-red-500 text-xs font-bold transition-all">Save</button>
                               <button onClick={() => setEditingId(null)} className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 transition-all"><X size={12} className="text-white/40" /></button>
@@ -287,8 +287,8 @@ const ManagerTeam: React.FC = () => {
                   className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder-white/20 focus:outline-none focus:border-red-600/50" />
                 <select value={form.role} onChange={e => setForm(f => ({ ...f, role: e.target.value }))}
                   className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-red-600/50">
-                  <option value="employee">Employee</option>
-                  <option value="manager">Manager</option>
+                  <option value="employee" style={{ color: '#000000', backgroundColor: '#ffffff' }}>Employee</option>
+                  <option value="manager" style={{ color: '#000000', backgroundColor: '#ffffff' }}>Manager</option>
                 </select>
                 {errorMsg && (
                   <p className="text-red-400 text-[13px] px-1">{errorMsg}</p>

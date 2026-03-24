@@ -91,6 +91,7 @@ model portfolio {
 model projects {
   id              String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   client_id       String?          @db.Uuid
+  manager_id      String?          @db.Uuid
   title           String           @db.VarChar(200)
   description     String?
   start_date      DateTime?        @db.Date
