@@ -65,6 +65,8 @@ const ManagerProjects: React.FC = () => {
   const [submitting, setSubmitting] = useState(false);
   const [expandedTaskId, setExpandedTaskId] = useState<string | null>(null);
   const [taskNotes, setTaskNotes] = useState<Record<string, TaskNote[]>>({});
+  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
+  const [showModal, setShowModal] = useState(false);
 
   const fetchProjects = useCallback(async () => {
     try {
@@ -111,6 +113,12 @@ const ManagerProjects: React.FC = () => {
     if (expandedId === id) { setExpandedId(null); return; }
     setExpandedId(id);
     await loadProjectDetails(id);
+  };
+
+  const openProjectModal = async (project: Project) => {
+    setSelectedProject(project);
+    setShowModal(true);
+    await loadProjectDetails(project.id);
   };
 
   const assignEmployee = async (projectId: string) => {
@@ -195,7 +203,7 @@ const ManagerProjects: React.FC = () => {
             {projects.map(p => (
               <div key={p.id} className="rounded-2xl bg-white/[0.03] border border-white/[0.08] hover:border-white/20 transition-all overflow-hidden">
                 {/* Project header row */}
-                <div role="button" tabIndex={0} onClick={() => toggleExpand(p.id)} onKeyDown={e => e.key === 'Enter' && toggleExpand(p.id)} className="w-full flex items-center justify-between px-6 py-4 gap-4 cursor-pointer select-none">
+                <div role="button" tabIndex={0} onClick={() => openProjectModal(p)} onKeyDown={e => e.key === 'Enter' && openProjectModal(p)} className="w-full flex items-center justify-between px-6 py-4 gap-4 cursor-pointer select-none">
                   <div className="flex items-center gap-4 min-w-0">
                     <div className="w-9 h-9 rounded-xl bg-red-600/10 border border-red-500/20 flex items-center justify-center flex-shrink-0">
                       <FolderOpen size={15} className="text-red-400" />
@@ -468,6 +476,122 @@ const ManagerProjects: React.FC = () => {
           </div>
         )}
       </motion.div>
+
+      {/* Project Details Modal */}
+      <AnimatePresence>
+        {showModal && selectedProject && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+            onClick={() => { setShowModal(false); setSelectedProject(null); }}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              onClick={e => e.stopPropagation()}
+              className="w-full max-w-2xl max-h-[85vh] overflow-y-auto rounded-[2rem] bg-[#0f0f0f] border border-white/10 shadow-2xl"
+            >
+              {/* Modal Header */}
+              <div className="sticky top-0 bg-[#0f0f0f] border-b border-white/10 px-8 py-6 flex items-center justify-between">
+                <div>
+                  <h2 className="text-2xl font-heading font-bold">{selectedProject.title}</h2>
+                  {selectedProject.company_name && (
+                    <p className="text-sm text-white/50 mt-1">{selectedProject.company_name}</p>
+                  )}
+                </div>
+                <button
+                  onClick={() => { setShowModal(false); setSelectedProject(null); }}
+                  className="p-2 rounded-xl bg-white/5 hover:bg-white/10 transition-all"
+                >
+                  <X size={20} className="text-white/40" />
+                </button>
+              </div>
+
+              {/* Modal Content */}
+              <div className="px-8 py-6 space-y-6">
+                {/* Status and Basic Info */}
+                <div className="grid md:grid-cols-2 gap-6">
+                  <div>
+                    <p className="text-[10px] font-mono font-bold uppercase tracking-widest text-white/40 mb-2">Status</p>
+                    <StatusBadge status={selectedProject.status} />
+                    {selectedProject.status_note && (
+                      <p className="text-xs text-white/60 mt-2 italic">{selectedProject.status_note}</p>
+                    )}
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-mono font-bold uppercase tracking-widest text-white/40 mb-2">Deadline</p>
+                    {selectedProject.deadline ? (
+                      <p className="text-sm text-white flex items-center gap-2">
+                        <Clock size={14} />
+                        {new Date(selectedProject.deadline).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}
+                      </p>
+                    ) : (
+                      <p className="text-sm text-white/40">No deadline set</p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Description */}
+                {selectedProject.description && (
+                  <div>
+                    <p className="text-[10px] font-mono font-bold uppercase tracking-widest text-white/40 mb-2">Description</p>
+                    <p className="text-sm text-white/70 leading-relaxed">{selectedProject.description}</p>
+                  </div>
+                )}
+
+                {/* Contact Info */}
+                {selectedProject.contact_name && (
+                  <div>
+                    <p className="text-[10px] font-mono font-bold uppercase tracking-widest text-white/40 mb-2">Contact</p>
+                    <p className="text-sm text-white">{selectedProject.contact_name}</p>
+                  </div>
+                )}
+
+                {/* Notes */}
+                {selectedProject.notes && (
+                  <div>
+                    <p className="text-[10px] font-mono font-bold uppercase tracking-widest text-white/40 mb-2">Notes</p>
+                    <p className="text-sm text-white/70 leading-relaxed">{selectedProject.notes}</p>
+                  </div>
+                )}
+
+                {/* Admin Notes */}
+                {selectedProject.admin_notes && (
+                  <div>
+                    <p className="text-[10px] font-mono font-bold uppercase tracking-widest text-yellow-400/60 mb-2">Admin Notes</p>
+                    <div className="p-4 rounded-xl bg-yellow-500/10 border border-yellow-500/20">
+                      <p className="text-sm text-yellow-100/80 leading-relaxed">{selectedProject.admin_notes}</p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Team & Tasks Summary */}
+                <div className="grid md:grid-cols-2 gap-4 pt-4 border-t border-white/10">
+                  <div className="p-4 rounded-xl bg-white/5">
+                    <p className="text-[10px] font-mono font-bold uppercase tracking-widest text-white/40 mb-2">Team Members</p>
+                    <p className="text-2xl font-bold text-white">{selectedProject.employee_count}</p>
+                  </div>
+                  <div className="p-4 rounded-xl bg-white/5">
+                    <p className="text-[10px] font-mono font-bold uppercase tracking-widest text-white/40 mb-2">Tasks Progress</p>
+                    <p className="text-2xl font-bold text-white">{selectedProject.completed_tasks}/{selectedProject.task_count}</p>
+                    {selectedProject.task_count > 0 && (
+                      <div className="mt-2 h-1.5 bg-white/10 rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-red-600 rounded-full transition-all"
+                          style={{ width: `${Math.round((selectedProject.completed_tasks / selectedProject.task_count) * 100)}%` }}
+                        />
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </AdminLayout>
   );
 };

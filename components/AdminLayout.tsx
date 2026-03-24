@@ -62,6 +62,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, title }) => {
           {(user?.adminRole === 'manager'
             ? [
                 { to: '/admin/manager/projects', icon: FolderOpen, label: 'Projects' },
+                { to: '/admin/manager/tasks', icon: CheckSquare, label: 'Tasks' },
                 { to: '/admin/manager/team', icon: Users, label: 'Team' },
                 { to: '/admin/manager/chat', icon: MessageCircle, label: 'Chat' },
               ]

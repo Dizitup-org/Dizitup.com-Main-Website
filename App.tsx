@@ -18,6 +18,7 @@ import AdminChat from './pages/AdminChat';
 import ManagerProjects from './pages/ManagerProjects';
 import ManagerTeam from './pages/ManagerTeam';
 import ManagerChat from './pages/ManagerChat';
+import ManagerTasks from './pages/ManagerTasks';
 import EmployeeTasks from './pages/EmployeeTasks';
 import EmployeeProjects from './pages/EmployeeProjects';
 import { AuthProvider } from './contexts/AuthProvider';
@@ -136,6 +137,14 @@ const App: React.FC = () => {
               element={(
                 <RequireRole roles={['admin', 'manager']}>
                   <ManagerTeam />
+                </RequireRole>
+              )}
+            />
+            <Route
+              path="/admin/manager/tasks"
+              element={(
+                <RequireRole roles={['admin', 'manager']}>
+                  <ManagerTasks />
                 </RequireRole>
               )}
             />
