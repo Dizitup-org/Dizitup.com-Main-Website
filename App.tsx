@@ -10,7 +10,6 @@ import AdminClients from './pages/AdminClients';
 import AdminBookings from './pages/AdminBookings';
 import AdminClientDetail from './pages/AdminClientDetail';
 import AdminProjects from './pages/AdminProjects';
-import AdminUsers from './pages/AdminUsers';
 import AdminLogin from './pages/AdminLogin';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
@@ -18,6 +17,7 @@ import AdminChat from './pages/AdminChat';
 import ManagerProjects from './pages/ManagerProjects';
 import ManagerTeam from './pages/ManagerTeam';
 import ManagerChat from './pages/ManagerChat';
+import ManagerTasks from './pages/ManagerTasks';
 import EmployeeTasks from './pages/EmployeeTasks';
 import EmployeeProjects from './pages/EmployeeProjects';
 import { AuthProvider } from './contexts/AuthProvider';
@@ -106,14 +106,6 @@ const App: React.FC = () => {
               )}
             />
             <Route
-              path="/admin/users"
-              element={(
-                <RequireAdmin>
-                  <AdminUsers />
-                </RequireAdmin>
-              )}
-            />
-            <Route
               path="/admin/chat"
               element={(
                 <RequireAdmin>
@@ -136,6 +128,14 @@ const App: React.FC = () => {
               element={(
                 <RequireRole roles={['admin', 'manager']}>
                   <ManagerTeam />
+                </RequireRole>
+              )}
+            />
+            <Route
+              path="/admin/manager/tasks"
+              element={(
+                <RequireRole roles={['admin', 'manager']}>
+                  <ManagerTasks />
                 </RequireRole>
               )}
             />

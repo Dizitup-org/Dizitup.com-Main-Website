@@ -19,7 +19,8 @@ router.use(protect, isAdmin);
 // ----------------------------------------------------------
 // GET /api/admin/projects
 // ----------------------------------------------------------
-// p.title aliased as project_name; client_name aliased as brand_name.
+// Returns all projects with manager assignment info
+// p.title aliased as project_name; includes manager details
 // ----------------------------------------------------------
 router.get('/', async (req, res) => {
   try {
@@ -27,9 +28,17 @@ router.get('/', async (req, res) => {
       SELECT
         p.id,
         p.title         AS project_name,
-        p.client_name   AS brand_name,
-        p.created_at
+        p.client_name,
+        p.manager_id,
+        p.created_at,
+        CASE 
+          WHEN p.manager_id IS NOT NULL AND u.first_name IS NOT NULL 
+          THEN CONCAT(u.first_name, ' ', COALESCE(u.last_name, ''))
+          ELSE NULL
+        END AS assigned_to
       FROM projects p
+      LEFT JOIN admins a ON p.manager_id = a.id
+      LEFT JOIN users u ON a.user_id = u.id
       ORDER BY p.created_at DESC
     `);
 
@@ -128,6 +137,35 @@ router.get('/:id/updates', async (req, res) => {
     res.json({ success: true, updates: result.rows });
   } catch (err) {
     console.error('[GET /projects/:id/updates]', err.message);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// ----------------------------------------------------------
+// PATCH /api/admin/projects/:id/assign-manager
+// ----------------------------------------------------------
+// Assign a manager to a project
+// Body: { manager_id }
+// ----------------------------------------------------------
+router.patch('/:id/assign-manager', async (req, res) => {
+  try {
+    const { manager_id } = req.body;
+    if (!manager_id) {
+      return res.status(400).json({ success: false, error: 'manager_id is required' });
+    }
+
+    // Update project with manager assignment
+    const result = await db.query(
+      `UPDATE projects SET manager_id = $1 WHERE id = $2 RETURNING id, manager_id`,
+      [manager_id, req.params.id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Project not found' });
+    }
+
+    res.json({ success: true, project: result.rows[0] });
+  } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
 });

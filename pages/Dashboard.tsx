@@ -37,6 +37,7 @@ const statusConfig: Record<string, { bg: string; border: string; text: string; d
   pending:           { bg: 'bg-yellow-500/10', border: 'border-yellow-500/30', text: 'text-yellow-400', dot: 'bg-yellow-400' },
   accepted:          { bg: 'bg-green-500/10',  border: 'border-green-500/30',  text: 'text-green-400',  dot: 'bg-green-400' },
   follow_up:         { bg: 'bg-orange-500/10', border: 'border-orange-500/30', text: 'text-orange-400', dot: 'bg-orange-400' },
+  declined:          { bg: 'bg-red-500/10',    border: 'border-red-500/30',    text: 'text-red-400',    dot: 'bg-red-400' },
   // project workflow statuses
   sent_to_manager:   { bg: 'bg-yellow-500/10', border: 'border-yellow-500/30', text: 'text-yellow-400', dot: 'bg-yellow-400' },
   assigned_to_staff: { bg: 'bg-blue-500/10',   border: 'border-blue-500/30',   text: 'text-blue-400',   dot: 'bg-blue-400' },
@@ -314,21 +315,24 @@ const Dashboard: React.FC = () => {
               </div>
               <h2 className="text-sm font-heading font-bold uppercase tracking-wider text-white/80">Profile</h2>
             </div>
-            <form onSubmit={handleProfileSave} className="space-y-2.5">
+            <form onSubmit={handleProfileSave} className="space-y-3">
               {([
-                { name: 'first_name', placeholder: 'First name', defaultValue: profile?.first_name || '' },
-                { name: 'last_name', placeholder: 'Last name', defaultValue: profile?.last_name || '' },
-                { name: 'username', placeholder: 'Username', defaultValue: profile?.username || '' },
-                { name: 'business_name', placeholder: 'Business name', defaultValue: profile?.business_name || '' },
-                { name: 'phone', placeholder: 'Phone', defaultValue: profile?.phone || '' },
+                { name: 'first_name', label: 'First Name', placeholder: 'First name', defaultValue: profile?.first_name || '' },
+                { name: 'last_name', label: 'Last Name', placeholder: 'Last name', defaultValue: profile?.last_name || '' },
+                { name: 'username', label: 'Username', placeholder: 'Username', defaultValue: profile?.username || '' },
+                { name: 'business_name', label: 'Business Name', placeholder: 'Business name', defaultValue: profile?.business_name || '' },
+                { name: 'phone', label: 'Phone', placeholder: 'Phone', defaultValue: profile?.phone || '' },
               ] as const).map((f) => (
-                <input
-                  key={f.name}
-                  name={f.name}
-                  defaultValue={f.defaultValue}
-                  placeholder={f.placeholder}
-                  className="w-full glass-input px-3 py-2.5 text-sm"
-                />
+                <div key={f.name} className="space-y-1">
+                  <label htmlFor={f.name} className="block text-xs font-semibold text-white/70 uppercase tracking-wide">{f.label}</label>
+                  <input
+                    id={f.name}
+                    name={f.name}
+                    defaultValue={f.defaultValue}
+                    placeholder={f.placeholder}
+                    className="w-full glass-input px-3 py-2.5 text-sm"
+                  />
+                </div>
               ))}
               <motion.button
                 type="submit"

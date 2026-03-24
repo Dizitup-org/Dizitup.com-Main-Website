@@ -82,7 +82,9 @@ router.get('/onboarded', async (req, res, next) => {
         booking_id,
         contact_name,
         email,
+        phone,
         company_name,
+        status,
         onboarded_at
       FROM onboard_clients
       ORDER BY onboarded_at DESC
