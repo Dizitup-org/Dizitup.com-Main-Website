@@ -1,8 +1,9 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { ArrowLeft, User, Shield, Camera, Clock, Mail, Coins, ChevronDown, ChevronUp, LogOut, KeyRound, AtSign, FolderOpen, CalendarDays, Phone, MessageCircle, Send, Loader2 } from 'lucide-react'
+import { ArrowLeft, User, Shield, Camera, Clock, Mail, Coins, ChevronDown, ChevronUp, LogOut, KeyRound, AtSign, FolderOpen, CalendarDays, Phone, MessageCircle, Send, Loader2, RotateCcw } from 'lucide-react'
 import { useAuth } from '../contexts/AuthProvider'
+import { useBooking } from '../contexts/BookingContext'
 import toast, { Toaster } from 'react-hot-toast'
 import { api, getToken } from '../utils/apiClient'
 import type { ProjectRow, ProjectUpdate, BookingRow } from '../types'
@@ -68,6 +69,7 @@ const fadeUp = {
 
 const Dashboard: React.FC = () => {
   const { user, profile, upsertProfile, uploadAvatar, signOut, changePassword, updateEmail } = useAuth()
+  const { openBooking } = useBooking()
   const navigate = useNavigate()
   const [newPassword, setNewPassword] = useState('')
   const [newEmail, setNewEmail] = useState('')
@@ -686,6 +688,21 @@ const Dashboard: React.FC = () => {
 
                     {b.notes && (
                       <p className="text-xs text-white/35 border-t border-white/[0.06] pt-3 leading-relaxed">{b.notes}</p>
+                    )}
+
+                    {b.status === 'declined' && (
+                      <div className="border-t border-white/[0.06] pt-3">
+                        <button
+                          onClick={() => {
+                            openBooking(b.project_type || '');
+                            navigate('/');
+                          }}
+                          className="flex items-center gap-2 px-4 py-2 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-xs font-semibold hover:bg-red-500/20 transition-all"
+                        >
+                          <RotateCcw size={14} />
+                          Re-book
+                        </button>
+                      </div>
                     )}
                   </div>
                 )
