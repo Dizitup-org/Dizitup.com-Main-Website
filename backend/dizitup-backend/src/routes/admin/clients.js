@@ -47,7 +47,7 @@ router.get('/query', async (req, res, next) => {
       b.id as booking_id,
       b.name,
       b.email,
-      b.phone,
+      qc.phone,
       b.agency,
       b.project_type,
       b.notes,
