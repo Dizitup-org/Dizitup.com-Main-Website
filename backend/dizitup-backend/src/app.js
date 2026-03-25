@@ -28,6 +28,7 @@ const publicBookingRoutes   = require('./routes/bookings');
 const overviewRoutes        = require('./routes/admin/overview');
 const bookingRoutes         = require('./routes/admin/bookings');
 const clientRoutes          = require('./routes/admin/clients');
+const adminUserRoutes       = require('./routes/admin/users');
 const salesRoutes           = require('./routes/admin/sales');
 const portfolioRoutes       = require('./routes/admin/portfolio');
 const projectsRoutes        = require('./routes/admin/projects');
@@ -99,6 +100,7 @@ app.use('/api/user', userRoutes);
 // ============================================================
 app.use('/api/admin/overview',  protect, isAdmin, requireRole('admin'), overviewRoutes);
 app.use('/api/admin/bookings',  protect, isAdmin, requireRole('admin'), bookingRoutes);
+app.use('/api/admin/users',     protect, isAdmin, requireRole('admin'), adminUserRoutes);
 app.use('/api/admin/clients',   protect, isAdmin, requireRole('admin'), clientRoutes);
 app.use('/api/admin/sales',     protect, isAdmin, requireRole('admin'), salesRoutes);
 app.use('/api/admin/portfolio', protect, isAdmin, requireRole('admin'), portfolioRoutes); // admin management
