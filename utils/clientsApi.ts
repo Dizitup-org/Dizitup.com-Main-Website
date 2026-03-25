@@ -46,9 +46,11 @@ export async function onboardFromBooking(bookingId: string, data: { company_name
 }
 
 // ============ QUERY CLIENTS ============
-export async function getQueryClients() {
-  const cached = getCache('query_clients_all');
-  if (cached) return { data: cached, error: null };
+export async function getQueryClients(skipCache = false) {
+  if (!skipCache) {
+    const cached = getCache('query_clients_all');
+    if (cached) return { data: cached, error: null };
+  }
   try {
     const res = await api.get('/api/admin/clients/query') as any;
     setCache('query_clients_all', res.query_clients || res.clients || res.data || []);

@@ -43,7 +43,7 @@ const AdminClients: React.FC = () => {
   const fetchQueryClients = useCallback(async () => {
     setQueryClientsLoading(true);
     setQueryClientsError(null);
-    const { data, error } = await getQueryClients();
+    const { data, error } = await getQueryClients(true); // skipCache = true for fresh data
     if (error) {
       setQueryClientsError(error);
       setQueryClients([]);

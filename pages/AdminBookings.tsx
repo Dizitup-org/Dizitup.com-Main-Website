@@ -454,18 +454,20 @@ const AdminBookings: React.FC = () => {
                         </>
                       ) : (
                         <>
-                          <button
-                            onClick={() => handleAcceptBooking(booking)}
-                            disabled={actionLoading === booking.id}
-                            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-green-500/10 border border-green-500/20 text-green-400 text-xs font-semibold hover:bg-green-500/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                          >
-                            {actionLoading === booking.id ? (
-                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            ) : (
-                              <CheckCircle className="w-3.5 h-3.5" />
-                            )}
-                            {actionLoading === booking.id ? 'Accepting...' : 'Accept'}
-                          </button>
+                          {booking.status !== 'accepted' && (
+                            <button
+                              onClick={() => handleAcceptBooking(booking)}
+                              disabled={actionLoading === booking.id}
+                              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-green-500/10 border border-green-500/20 text-green-400 text-xs font-semibold hover:bg-green-500/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              {actionLoading === booking.id ? (
+                                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                              ) : (
+                                <CheckCircle className="w-3.5 h-3.5" />
+                              )}
+                              {actionLoading === booking.id ? 'Accepting...' : 'Accept'}
+                            </button>
+                          )}
                           <button
                             onClick={() => handleFollowUpBooking(booking)}
                             disabled={actionLoading === booking.id}
@@ -478,18 +480,20 @@ const AdminBookings: React.FC = () => {
                             )}
                             {actionLoading === booking.id ? 'Moving...' : 'Follow-up'}
                           </button>
-                          <button
-                            onClick={() => handleOnboardBooking(booking)}
-                            disabled={actionLoading === booking.id}
-                            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-400 text-xs font-semibold hover:bg-blue-500/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                          >
-                            {actionLoading === booking.id ? (
-                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            ) : (
-                              <Users className="w-3.5 h-3.5" />
-                            )}
-                            {actionLoading === booking.id ? 'Onboarding...' : 'Onboard'}
-                          </button>
+                          {booking.status !== 'accepted' && (
+                            <button
+                              onClick={() => handleOnboardBooking(booking)}
+                              disabled={actionLoading === booking.id}
+                              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-400 text-xs font-semibold hover:bg-blue-500/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              {actionLoading === booking.id ? (
+                                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                              ) : (
+                                <Users className="w-3.5 h-3.5" />
+                              )}
+                              {actionLoading === booking.id ? 'Onboarding...' : 'Onboard'}
+                            </button>
+                          )}
                           <button
                             onClick={() => handleMeetingDone(booking)}
                             disabled={actionLoading === booking.id}
