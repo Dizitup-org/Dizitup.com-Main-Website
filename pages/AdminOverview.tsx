@@ -2,7 +2,6 @@
 import React, { useState, useEffect } from 'react';
 import AdminLayout from '../components/AdminLayout';
 import { motion, AnimatePresence } from 'framer-motion';
-import AdminScanner from '../components/AdminScanner';
 import {
   TrendingUp, Users, FolderOpen, DollarSign,
   ArrowRight, Calendar, ShoppingBag, UserCheck,
@@ -398,7 +397,6 @@ const AdminOverview: React.FC = () => {
                 </div>
               </motion.div>
 
-              <AdminScanner />
             </div>
           </div>
             </div>

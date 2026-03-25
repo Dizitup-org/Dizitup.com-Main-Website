@@ -59,7 +59,8 @@ app.use(cors({
 
 // Parse incoming JSON request bodies
 // Without this, req.body is undefined
-app.use(express.json());
+// limit increased to 50mb to handle base64-encoded images
+app.use(express.json({ limit: '50mb' }));
 
 // Log every request in development (helpful for debugging)
 if (process.env.NODE_ENV === 'development') {

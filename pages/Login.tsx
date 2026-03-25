@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ArrowLeft, Mail, Lock, User, Phone, Building2, Eye, EyeOff } from 'lucide-react'
 import { useAuth } from '../contexts/AuthProvider'
+import AdminWelcome from '../components/AdminWelcome'
 import toast, { Toaster } from 'react-hot-toast'
 
 const PARTICLES = [
@@ -69,6 +70,7 @@ const Login: React.FC = () => {
   const [phone, setPhone] = useState('')
   const [mode, setMode] = useState<'login' | 'signup'>('login')
   const [submitting, setSubmitting] = useState(false)
+  const [showWelcome, setShowWelcome] = useState(false)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -77,6 +79,7 @@ const Login: React.FC = () => {
       if (mode === 'login') {
         await signIn(email, password)
         toast.success('Welcome back!')
+        // If admin, show welcome screen; otherwise redirect immediately
       } else {
         if (!email || !password || !confirm || !firstName || !username) {
           throw new Error('Fill all required fields')
@@ -110,14 +113,31 @@ const Login: React.FC = () => {
   }
 
   useEffect(() => {
-    if (!loading && user) {
-      if (isAdmin) navigate('/admin', { replace: true })
-      else navigate('/dashboard', { replace: true })
+    if (!loading && user && !showWelcome) {
+      // Show welcome screen for admins after login
+      if (isAdmin && mode === 'login') {
+        setShowWelcome(true)
+      } else if (!isAdmin) {
+        // Redirect non-admins to dashboard
+        navigate('/dashboard', { replace: true })
+      }
     }
-  }, [user, isAdmin, loading, navigate])
+  }, [user, isAdmin, loading, navigate, showWelcome, mode])
+
+  const handleWelcomeComplete = () => {
+    const role = user?.adminRole
+    if (role === 'manager') navigate('/admin/manager/projects')
+    else if (role === 'employee') navigate('/admin/employee/tasks')
+    else navigate('/admin')
+  }
 
   return (
-    <div className="relative min-h-screen bg-[#050505] flex items-center justify-center p-4 overflow-hidden">
+    <>
+      <AnimatePresence>
+        {showWelcome && <AdminWelcome onComplete={handleWelcomeComplete} />}
+      </AnimatePresence>
+
+      <div className="relative min-h-screen bg-[#050505] flex items-center justify-center p-4 overflow-hidden">
       <Toaster position="top-right" toastOptions={{ style: { background: '#111', color: '#fff', border: '1px solid rgba(255,255,255,0.1)' } }} />
 
       {/* Floating Particles */}
@@ -256,7 +276,8 @@ const Login: React.FC = () => {
         {/* Bottom glow line */}
         <div className="h-[1px] bg-gradient-to-r from-transparent via-white/5 to-transparent mt-0 rounded-b-2xl" />
       </motion.div>
-    </div>
+      </div>
+    </>
   )
 }
 
