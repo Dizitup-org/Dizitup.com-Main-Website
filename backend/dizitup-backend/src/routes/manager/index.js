@@ -50,15 +50,22 @@ router.get('/employees', async (req, res, next) => {
 });
 
 // ----------------------------------------------------------
-// POST /api/manager/employees — create a new employee account
-// Body: { username, email, password, first_name, last_name, phone? }
+// POST /api/manager/employees — create a new employee or manager account
+// Body: { username, email, password, first_name, last_name, phone?, role? }
+// role defaults to 'employee' if not specified
 // ----------------------------------------------------------
 router.post('/employees', async (req, res, next) => {
   const bcrypt = require('bcryptjs');
   const crypto = require('crypto');
   const client = await db.connect();
   try {
-    const { username, email, first_name, last_name, phone } = req.body;
+    const { username, email, first_name, last_name, phone, role = 'employee' } = req.body;
+    
+    // Validate role
+    if (!['manager', 'employee'].includes(role)) {
+      return res.status(400).json({ success: false, message: 'Role must be "manager" or "employee"' });
+    }
+    
     const plainPassword = req.body.password || crypto.randomBytes(4).toString('hex');
     if (!username || !email || !first_name || !last_name) {
       return res.status(400).json({ success: false, message: 'username, email, first_name, and last_name are required' });
@@ -83,8 +90,8 @@ router.post('/employees', async (req, res, next) => {
     );
     const newUser = userResult.rows[0];
     const adminResult = await client.query(
-      `INSERT INTO admins (user_id, role) VALUES ($1, 'employee') RETURNING *`,
-      [newUser.id]
+      `INSERT INTO admins (user_id, role) VALUES ($1, $2) RETURNING *`,
+      [newUser.id, role]
     );
     await client.query('COMMIT');
     res.status(201).json({
