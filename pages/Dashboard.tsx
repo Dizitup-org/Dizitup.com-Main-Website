@@ -5,6 +5,7 @@ import { Camera, Loader2, RotateCcw, CalendarDays, Phone, Send, Mail, Eye, EyeOf
 import { useAuth } from '../contexts/AuthProvider'
 import { useBooking } from '../contexts/BookingContext'
 import ClientLayout from '../components/ClientLayout'
+import BookingModal from '../components/BookingModal'
 import toast, { Toaster } from 'react-hot-toast'
 import { api } from '../utils/apiClient'
 import type { ProjectRow, ProjectUpdate, BookingRow } from '../types'
@@ -29,11 +30,16 @@ const statusConfig: Record<string, { bg: string; border: string; text: string; d
   accepted:          { bg: 'bg-green-500/10',  border: 'border-green-500/30',  text: 'text-green-400',  dot: 'bg-green-400' },
   follow_up:         { bg: 'bg-orange-500/10', border: 'border-orange-500/30', text: 'text-orange-400', dot: 'bg-orange-400' },
   declined:          { bg: 'bg-red-500/10',    border: 'border-red-500/30',    text: 'text-red-400',    dot: 'bg-red-400' },
+  onboarded:         { bg: 'bg-blue-500/10',   border: 'border-blue-500/30',   text: 'text-blue-400',   dot: 'bg-blue-400' },
 }
 
 const STATUS_LABELS: Record<string, string> = {
+  pending: 'Pending',
   follow_up: 'Follow-up',
   under_execution: 'Under Execution',
+  accepted: 'Accepted',
+  declined: 'Declined',
+  onboarded: 'Onboarded',
 }
 
 function StatusBadge({ status }: { status: string | null }) {
@@ -49,7 +55,7 @@ function StatusBadge({ status }: { status: string | null }) {
 
 const Dashboard: React.FC = () => {
   const { user, upsertProfile, uploadAvatar, changePassword, updateEmail } = useAuth()
-  const { openBooking } = useBooking()
+  const { openBooking, closeBooking, isOpen, packageName, country, setCountry, authPromptOpen, closeAuthPrompt } = useBooking()
   const [searchParams] = useSearchParams()
   const activeSection = (searchParams.get('section') || 'profile') as SectionType
 
@@ -294,6 +300,7 @@ const Dashboard: React.FC = () => {
       >
         {renderSection()}
       </motion.div>
+      <BookingModal isOpen={isOpen} onClose={closeBooking} prefilledPackage={packageName} country={country} />
     </ClientLayout>
   )
 }
@@ -390,7 +397,26 @@ const BookingsSection: React.FC<{
 }> = ({ bookings, bookingsLoading, openBooking }) => (
   <div className="space-y-6">
     <div>
-      <h2 className="text-2xl font-bold font-heading text-white mb-4">My Bookings</h2>
+      <div className="flex items-center justify-between gap-4 mb-4">
+        <h2 className="text-2xl font-bold font-heading text-white">My Bookings</h2>
+        {bookings.length === 0 ? (
+          <button
+            onClick={() => openBooking('')}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-sm font-semibold hover:bg-emerald-500/20 transition-all"
+          >
+            <CalendarDays size={16} />
+            Book a Meeting
+          </button>
+        ) : (
+          <button
+            onClick={() => openBooking('')}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-sm font-semibold hover:bg-red-500/20 transition-all"
+          >
+            <RotateCcw size={16} />
+            Re-book
+          </button>
+        )}
+      </div>
       {bookingsLoading && (
         <div className="p-8 glass-panel flex items-center gap-3 text-white/40">
           <span className="w-4 h-4 border-2 border-white/10 border-t-white/50 rounded-full animate-spin" />
@@ -435,18 +461,6 @@ const BookingsSection: React.FC<{
 
               {b.notes && (
                 <p className="text-xs text-white/35 border-t border-white/[0.06] pt-3 leading-relaxed">{b.notes}</p>
-              )}
-
-              {b.status === 'declined' && (
-                <div className="border-t border-white/[0.06] pt-3">
-                  <button
-                    onClick={() => openBooking(b.project_type || '')}
-                    className="flex items-center gap-2 px-4 py-2 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-xs font-semibold hover:bg-red-500/20 transition-all"
-                  >
-                    <RotateCcw size={14} />
-                    Re-book
-                  </button>
-                </div>
               )}
             </div>
           ))}

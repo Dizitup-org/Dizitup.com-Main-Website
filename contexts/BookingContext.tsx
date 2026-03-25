@@ -114,8 +114,11 @@ export const BookingProvider: React.FC<{ children: React.ReactNode }> = ({ child
       setAuthPromptOpen(true);
       return;
     }
-    doStatusCheckAndOpen(pkg ?? '');
-  }, [user, doStatusCheckAndOpen]);
+    // For existing clients calling from dashboard, skip status check and open booking modal directly
+    setShowAdminChat(false);
+    setPackageName(pkg ?? '');
+    setIsOpen(true);
+  }, [user]);
 
   const closeBooking = useCallback(() => {
     setIsOpen(false);
