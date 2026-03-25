@@ -1,8 +1,9 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { ArrowLeft, User, Shield, Camera, Clock, Mail, Coins, ChevronDown, ChevronUp, LogOut, KeyRound, AtSign, FolderOpen, CalendarDays, Phone, MessageCircle, Send, Loader2 } from 'lucide-react'
+import { ArrowLeft, User, Settings, FolderOpen, BarChart3, MessageCircle, LogOut, Lock, Mail, Phone, Building2, Calendar, Clock, Eye, EyeOff, Send, Loader2, RotateCcw, CalendarDays, KeyRound, AtSign, Coins, ChevronDown, ChevronUp, Shield, Camera } from 'lucide-react'
 import { useAuth } from '../contexts/AuthProvider'
+import { useBooking } from '../contexts/BookingContext'
 import toast, { Toaster } from 'react-hot-toast'
 import { api, getToken } from '../utils/apiClient'
 import type { ProjectRow, ProjectUpdate, BookingRow } from '../types'
@@ -19,6 +20,8 @@ interface ChatMessage {
 
 type ProjectWithUpdates = ProjectRow & { updates?: ProjectUpdate[] }
 
+type TabType = 'overview' | 'profile' | 'settings' | 'projects' | 'chat'
+
 const PARTICLES = [
   { size: 3, x: '5%',  y: '15%', color: 'rgba(220,38,38,0.3)',  duration: '14s', delay: '0s' },
   { size: 2, x: '85%', y: '10%', color: 'rgba(255,255,255,0.1)', duration: '18s', delay: '2s' },
@@ -33,12 +36,10 @@ const statusConfig: Record<string, { bg: string; border: string; text: string; d
   completed:         { bg: 'bg-purple-500/10', border: 'border-purple-500/30', text: 'text-purple-400', dot: 'bg-purple-400' },
   paused:            { bg: 'bg-yellow-500/10', border: 'border-yellow-500/30', text: 'text-yellow-400', dot: 'bg-yellow-400' },
   cancelled:         { bg: 'bg-red-500/10',    border: 'border-red-500/30',    text: 'text-red-400',    dot: 'bg-red-400' },
-  // booking-specific
   pending:           { bg: 'bg-yellow-500/10', border: 'border-yellow-500/30', text: 'text-yellow-400', dot: 'bg-yellow-400' },
   accepted:          { bg: 'bg-green-500/10',  border: 'border-green-500/30',  text: 'text-green-400',  dot: 'bg-green-400' },
   follow_up:         { bg: 'bg-orange-500/10', border: 'border-orange-500/30', text: 'text-orange-400', dot: 'bg-orange-400' },
   declined:          { bg: 'bg-red-500/10',    border: 'border-red-500/30',    text: 'text-red-400',    dot: 'bg-red-400' },
-  // project workflow statuses
   sent_to_manager:   { bg: 'bg-yellow-500/10', border: 'border-yellow-500/30', text: 'text-yellow-400', dot: 'bg-yellow-400' },
   assigned_to_staff: { bg: 'bg-blue-500/10',   border: 'border-blue-500/30',   text: 'text-blue-400',   dot: 'bg-blue-400' },
   under_execution:   { bg: 'bg-orange-500/10', border: 'border-orange-500/30', text: 'text-orange-400', dot: 'bg-orange-400' },
@@ -61,28 +62,30 @@ function StatusBadge({ status }: { status: string | null }) {
   )
 }
 
-const fadeUp = {
-  hidden: { opacity: 0, y: 20 },
-  show: (i: number) => ({ opacity: 1, y: 0, transition: { delay: i * 0.08, duration: 0.45, ease: [0.25, 0.1, 0.25, 1] } }),
-}
-
 const Dashboard: React.FC = () => {
   const { user, profile, upsertProfile, uploadAvatar, signOut, changePassword, updateEmail } = useAuth()
+  const { openBooking } = useBooking()
   const navigate = useNavigate()
+  
+  // Main tab state
+  const [activeTab, setActiveTab] = useState<TabType>('overview')
+  
+  // Form states
   const [newPassword, setNewPassword] = useState('')
   const [newEmail, setNewEmail] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
+  const [updating, setUpdating] = useState(false)
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null)
+  
+  // Data states
   const [projects, setProjects] = useState<ProjectWithUpdates[]>([])
   const [projectsLoading, setProjectsLoading] = useState(true)
   const [showAllProjects, setShowAllProjects] = useState(false)
-  const [updating, setUpdating] = useState(false)
-  const [avatarPreview, setAvatarPreview] = useState<string | null>(null)
   const [bookings, setBookings] = useState<BookingRow[]>([])
   const [bookingsLoading, setBookingsLoading] = useState(true)
-
-  // Client status for chat visibility (mirrors ChatWidget restriction)
   const [clientStatus, setClientStatus] = useState<'none' | 'follow_up' | 'onboarded' | null>(null)
-
-  // Admin chat state
+  
+  // Chat states
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([])
   const [chatInput, setChatInput] = useState('')
   const [chatSending, setChatSending] = useState(false)
@@ -90,19 +93,29 @@ const Dashboard: React.FC = () => {
   const chatContainerRef = useRef<HTMLDivElement>(null)
   const chatPollRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
+  // Fetch data
   useEffect(() => {
     let isMounted = true
-    const fetchBookings = async () => {
+    const fetchData = async () => {
       try {
-        const data = await api.get<{ success: boolean; bookings: BookingRow[] }>('/api/user/my-bookings')
-        if (isMounted) setBookings(data.bookings || [])
-      } catch {
-        // non-fatal
+        const [bookingsRes, projectsRes] = await Promise.all([
+          api.get<{ success: boolean; bookings: BookingRow[] }>('/api/user/my-bookings'),
+          api.get<{ success: boolean; projects: ProjectWithUpdates[] }>('/api/user/my-project')
+        ])
+        if (isMounted) {
+          setBookings(bookingsRes.bookings || [])
+          setProjects(projectsRes.projects || [])
+        }
+      } catch (err) {
+        console.error('Data fetch error:', err)
       } finally {
-        if (isMounted) setBookingsLoading(false)
+        if (isMounted) {
+          setBookingsLoading(false)
+          setProjectsLoading(false)
+        }
       }
     }
-    fetchBookings()
+    fetchData()
     return () => { isMounted = false }
   }, [user])
 
@@ -118,7 +131,7 @@ const Dashboard: React.FC = () => {
       .catch(() => setClientStatus('none'))
   }, [user])
 
-  // Chat fetch + polling
+  // Chat polling
   const fetchChatMessages = useCallback(async () => {
     const token = getToken()
     try {
@@ -140,7 +153,7 @@ const Dashboard: React.FC = () => {
     return () => { if (chatPollRef.current) clearInterval(chatPollRef.current) }
   }, [clientStatus, fetchChatMessages])
 
-  // Scroll chat to bottom on new messages (only scroll container, not page)
+  // Scroll chat to bottom
   useEffect(() => {
     if (chatContainerRef.current) {
       setTimeout(() => {
@@ -172,23 +185,7 @@ const Dashboard: React.FC = () => {
     }
   }
 
-  useEffect(() => {
-    let isMounted = true
-    const fetchProject = async () => {
-      setProjectsLoading(true)
-      try {
-        const data = await api.get<{ success: boolean; projects: ProjectWithUpdates[] }>('/api/user/my-project')
-        if (isMounted) setProjects(data.projects || [])
-      } catch {
-        // non-fatal
-      } finally {
-        if (isMounted) setProjectsLoading(false)
-      }
-    }
-    fetchProject()
-    return () => { isMounted = false }
-  }, [user])
-
+  // Handlers
   const handleProfileSave = async (e: React.FormEvent) => {
     e.preventDefault()
     const form = e.target as HTMLFormElement
@@ -222,11 +219,28 @@ const Dashboard: React.FC = () => {
     }
   }
 
+  const tabs: Array<{ id: TabType; label: string; icon: React.ReactNode }> = [
+    { id: 'overview', label: 'Overview', icon: <BarChart3 size={16} /> },
+    { id: 'profile', label: 'Profile', icon: <User size={16} /> },
+    { id: 'projects', label: 'Projects', icon: <FolderOpen size={16} /> },
+    { id: 'chat', label: 'Chat', icon: <MessageCircle size={16} /> },
+    { id: 'settings', label: 'Settings', icon: <Settings size={16} /> },
+  ]
+
   const displayName = profile?.first_name
     ? `${profile.first_name}${profile.last_name ? ' ' + profile.last_name : ''}`
     : (profile?.username || user?.email?.split('@')[0] || 'Client')
 
   const avatarSrc = avatarPreview || profile?.avatar_url
+
+  const fadeUp = {
+    hidden: { opacity: 0, y: 10 },
+    show: (i = 0) => ({
+      opacity: 1,
+      y: 0,
+      transition: { delay: 0.05 * i, duration: 0.4 },
+    }),
+  }
 
   return (
     <div className="relative min-h-screen bg-[#050505] text-white overflow-x-hidden">
@@ -418,6 +432,7 @@ const Dashboard: React.FC = () => {
               {[
                 { icon: <Clock size={12} />, label: 'Joined', value: profile?.joined_at ? new Date(profile.joined_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '—' },
                 { icon: <Mail size={12} />, label: 'Email', value: profile?.email ?? user?.email ?? '—' },
+                { icon: <Phone size={12} />, label: 'Phone', value: profile?.phone ?? '—' },
                 { icon: <Coins size={12} />, label: 'Credits', value: profile?.credits != null ? String(profile.credits) : '—' },
               ].map(({ icon, label, value }) => (
                 <div key={label} className="flex items-center gap-2 px-3 py-2 rounded-lg bg-white/[0.03] border border-white/[0.06]">
@@ -686,6 +701,21 @@ const Dashboard: React.FC = () => {
 
                     {b.notes && (
                       <p className="text-xs text-white/35 border-t border-white/[0.06] pt-3 leading-relaxed">{b.notes}</p>
+                    )}
+
+                    {b.status === 'declined' && (
+                      <div className="border-t border-white/[0.06] pt-3">
+                        <button
+                          onClick={() => {
+                            openBooking(b.project_type || '');
+                            navigate('/');
+                          }}
+                          className="flex items-center gap-2 px-4 py-2 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-xs font-semibold hover:bg-red-500/20 transition-all"
+                        >
+                          <RotateCcw size={14} />
+                          Re-book
+                        </button>
+                      </div>
                     )}
                   </div>
                 )

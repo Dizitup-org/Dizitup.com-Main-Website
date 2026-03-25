@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import AdminLayout from '../components/AdminLayout';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, ExternalLink, Trash2, Layout, CheckCircle2 } from 'lucide-react';
+import { Plus, ExternalLink, Trash2, Layout, CheckCircle2, Upload, X } from 'lucide-react';
 import { deletePortfolioProject } from '../utils/portfolioStore';
 import { api } from '../utils/apiClient';
 
@@ -11,12 +11,14 @@ interface PortfolioItem {
   title: string;
   category: string | null;
   project_url: string | null;
+  image_url?: string | null;
   created_at: string;
 }
 
 const AdminPortfolio: React.FC = () => {
   const [projects, setProjects] = useState<PortfolioItem[]>([]);
-  const [form, setForm] = useState({ brand_name: '', target_url: '', brand_type: 'AI Architecture' });
+  const [form, setForm] = useState({ brand_name: '', target_url: '', brand_type: 'AI Architecture', image_url: '' });
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [showSuccess, setShowSuccess] = useState(false);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -32,6 +34,42 @@ const AdminPortfolio: React.FC = () => {
     setLoading(false);
   };
 
+  const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64 = reader.result as string;
+        setForm({ ...form, image_url: base64 });
+        setImagePreview(base64);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const formatURL = (url: string): string => {
+    if (!url) return '';
+    url = url.trim();
+    
+    // IMPORTANT: Only allow absolute URLs with protocols
+    // Remove any localhost prefixes that might have been added
+    url = url.replace(/^https?:\/\/localhost:\d+\/?/, '');
+    
+    // If URL starts with http:// or https://, return as-is (absolute URL)
+    if (url.startsWith('http://') || url.startsWith('https://')) {
+      return url;
+    }
+    
+    // If URL starts with //, assume https
+    if (url.startsWith('//')) {
+      return `https:${url}`;
+    }
+    
+    // For anything else (domain or domain with path), prepend https://
+    // This handles: example.com, www.example.com, example.com/path, etc.
+    return `https://${url}`;
+  };
+
   useEffect(() => {
     loadProjects();
   }, []);
@@ -42,12 +80,14 @@ const AdminPortfolio: React.FC = () => {
     try {
       const res = await api.post('/api/admin/portfolio', {
         brand_name: form.brand_name,
-        target_url: form.target_url,
+        target_url: formatURL(form.target_url),
         brand_type: form.brand_type,
+        image_url: form.image_url || null,
       }) as any;
       if (res.success && res.item) {
         setProjects((prev) => [res.item, ...prev]);
-        setForm({ brand_name: '', target_url: '', brand_type: 'AI Architecture' });
+        setForm({ brand_name: '', target_url: '', brand_type: 'AI Architecture', image_url: '' });
+        setImagePreview(null);
         setShowSuccess(true);
         setTimeout(() => setShowSuccess(false), 3000);
       }
@@ -98,6 +138,41 @@ const AdminPortfolio: React.FC = () => {
                   className="w-full glass-input px-5 py-4 text-sm focus:outline-none font-mono"
                   onChange={(e) => setForm({ ...form, target_url: e.target.value })}
                 />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-[9px] font-black uppercase tracking-widest text-white/40 ml-1">Screenshot</label>
+                {imagePreview ? (
+                  <div className="relative w-full">
+                    <img 
+                      src={imagePreview} 
+                      alt="Preview" 
+                      className="w-full h-32 object-cover rounded border border-white/10"
+                    />
+                    <button
+                      onClick={() => {
+                        setImagePreview(null);
+                        setForm({ ...form, image_url: '' });
+                      }}
+                      className="absolute top-1 right-1 p-1 bg-red-600/80 hover:bg-red-600 rounded transition-colors"
+                    >
+                      <X className="w-4 h-4 text-white" />
+                    </button>
+                  </div>
+                ) : (
+                  <label className="w-full block">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleImageChange}
+                      className="hidden"
+                    />
+                    <div className="w-full glass-input px-5 py-6 text-sm focus:outline-none font-mono border-2 border-dashed border-white/20 hover:border-white/40 transition-colors cursor-pointer flex flex-col items-center justify-center gap-2 rounded">
+                      <Upload className="w-5 h-5 text-white/40" />
+                      <span className="text-[10px] text-white/30">Drop image or click to upload</span>
+                    </div>
+                  </label>
+                )}
               </div>
 
               <div className="space-y-2">
@@ -171,9 +246,17 @@ const AdminPortfolio: React.FC = () => {
                     className="p-8 premium-card flex items-center justify-between group transition-all duration-500"
                   >
                     <div className="flex items-center gap-8">
-                      <div className="w-16 h-16 rounded-[1.5rem] bg-red-600/10 flex items-center justify-center border border-red-600/20 group-hover:bg-red-600/20 transition-colors">
-                        <Layout className="w-7 h-7 text-red-600" />
-                      </div>
+                      {project.image_url ? (
+                        <img
+                          src={project.image_url}
+                          alt={project.title}
+                          className="w-20 h-16 rounded-[1.5rem] object-cover border border-red-600/20 group-hover:border-red-600/40 transition-colors"
+                        />
+                      ) : (
+                        <div className="w-16 h-16 rounded-[1.5rem] bg-red-600/10 flex items-center justify-center border border-red-600/20 group-hover:bg-red-600/20 transition-colors">
+                          <Layout className="w-7 h-7 text-red-600" />
+                        </div>
+                      )}
                       <div>
                         <h4 className="font-bold text-xl mb-1 tracking-tight group-hover:text-red-500 transition-colors">{project.title}</h4>
                         <div className="flex items-center gap-4">

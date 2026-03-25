@@ -47,10 +47,12 @@ router.get('/query', async (req, res, next) => {
       b.id as booking_id,
       b.name,
       b.email,
+      b.phone,
       b.agency,
       b.project_type,
       b.notes,
-      qc.created_at
+      qc.created_at,
+      qc.follow_up_date
       FROM query_clients qc
       JOIN bookings b
       ON qc.booking_id=b.id
@@ -93,6 +95,38 @@ router.get('/onboarded', async (req, res, next) => {
     res.json({ success: true, clients: result.rows });
 
   } catch (err) {
+    next(err);
+  }
+});
+
+
+// ----------------------------------------------------------
+// PATCH /api/admin/clients/query/:id/followup
+// ----------------------------------------------------------
+// Update follow_up_date for a query client
+// Body: { followup_date: ISO date string or null }
+// ----------------------------------------------------------
+router.patch('/query/:id/followup', async (req, res, next) => {
+  try {
+    const { followup_date } = req.body;
+    const { id } = req.params;
+
+    if (!id) throw new AppError('Client ID is required.', 400);
+
+    // Update follow_up_date (can be null to clear)
+    const result = await db.query(
+      `UPDATE query_clients SET follow_up_date = $1 WHERE id = $2 RETURNING *`,
+      [followup_date || null, id]
+    );
+
+    if (result.rows.length === 0) {
+      throw new AppError('Query client not found.', 404);
+    }
+
+    res.json({ success: true, client: result.rows[0] });
+
+  } catch (err) {
+    console.error('[PATCH /clients/query/:id/followup] Error:', err.message);
     next(err);
   }
 });
