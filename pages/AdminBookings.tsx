@@ -18,6 +18,7 @@ const AdminBookings: React.FC = () => {
   const [bookings, setBookings] = useState<BookingRow[]>([]);
   const [bookingsLoading, setBookingsLoading] = useState(true);
   const [bookingsError, setBookingsError] = useState<string | null>(null);
+  const [meetingDoneChecked, setMeetingDoneChecked] = useState<Set<string>>(new Set());
 
   // Tab state
   const [tab, setTab] = useState<TabKey>('pending');
@@ -132,6 +133,8 @@ const AdminBookings: React.FC = () => {
     try {
       await api.patch(`/api/admin/bookings/${booking.id}/status`, { status: 'meeting_done' });
       setBookings(prev => prev.map(b => b.id === booking.id ? { ...b, status: 'meeting_done' } : b));
+      // Add booking ID to meetingDoneChecked set
+      setMeetingDoneChecked(prev => new Set(prev).add(booking.id));
       toast.success('Marked as meeting done', { icon: '✅' });
     } catch (err: any) {
       toast.error(err.message || 'Failed to update booking');
@@ -199,11 +202,14 @@ const AdminBookings: React.FC = () => {
   const filteredBookings = useMemo(() => {
     let result = bookings;
 
+    // Exclude onboarded clients
+    result = result.filter(b => !b.is_onboarded);
+
     // Filter by tab status
     if (tab === 'pending') {
       result = result.filter(b => b.status === 'pending');
     } else if (tab === 'accepted') {
-      result = result.filter(b => b.status === 'accepted');
+      result = result.filter(b => b.status === 'accepted' || b.status === 'meeting_done');
     }
 
     // Filter by search query
@@ -343,7 +349,7 @@ const AdminBookings: React.FC = () => {
                 : 'text-white/60 border-b-transparent hover:text-white/80'
             }`}
           >
-            Accepted ({bookings.filter(b => b.status === 'accepted').length})
+            Accepted ({bookings.filter(b => b.status === 'accepted' || b.status === 'meeting_done').length})
           </button>
         </div>
 
@@ -378,7 +384,7 @@ const AdminBookings: React.FC = () => {
             </p>
           </div>
         ) : (
-          <div className="space-y-4">
+          <div className="max-h-[calc(100vh-350px)] overflow-y-auto space-y-4 pr-2">
             {paginatedBookings.map((booking) => (
               <div
                 key={booking.id}
@@ -401,7 +407,7 @@ const AdminBookings: React.FC = () => {
                         <p className="text-xs text-white/40">Agency: {booking.agency}</p>
                       )}
                       <div className="flex flex-wrap gap-2 mt-2">
-                        {getStatusBadge(booking.status)}
+                        {tab === 'accepted' ? getStatusBadge('accepted') : getStatusBadge(booking.status)}
                         {booking.project_type && (
                           <span className="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-white/5 border border-white/10 text-white/60">
                             {booking.project_type}
@@ -454,7 +460,7 @@ const AdminBookings: React.FC = () => {
                         </>
                       ) : (
                         <>
-                          {booking.status !== 'accepted' && (
+                          {tab === 'pending' && booking.status !== 'accepted' && (
                             <button
                               onClick={() => handleAcceptBooking(booking)}
                               disabled={actionLoading === booking.id}
@@ -480,7 +486,7 @@ const AdminBookings: React.FC = () => {
                             )}
                             {actionLoading === booking.id ? 'Moving...' : 'Follow-up'}
                           </button>
-                          {booking.status !== 'accepted' && (
+                          {tab === 'pending' && booking.status !== 'accepted' && (
                             <button
                               onClick={() => handleOnboardBooking(booking)}
                               disabled={actionLoading === booking.id}
@@ -494,25 +500,41 @@ const AdminBookings: React.FC = () => {
                               {actionLoading === booking.id ? 'Onboarding...' : 'Onboard'}
                             </button>
                           )}
-                          <button
-                            onClick={() => handleMeetingDone(booking)}
-                            disabled={actionLoading === booking.id}
-                            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 text-xs font-semibold hover:bg-cyan-500/20 transition-all disabled:opacity-50"
-                          >
-                            {actionLoading === booking.id ? (
-                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          <div className="flex items-center gap-3">
+                            {!meetingDoneChecked.has(booking.id) ? (
+                              <button
+                                onClick={() => handleMeetingDone(booking)}
+                                disabled={actionLoading === booking.id}
+                                className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 text-xs font-semibold hover:bg-cyan-500/20 transition-all disabled:opacity-50"
+                              >
+                                {actionLoading === booking.id ? (
+                                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                ) : (
+                                  <CheckCircle className="w-3.5 h-3.5" />
+                                )}
+                                Meeting Done
+                              </button>
                             ) : (
-                              <CheckCircle className="w-3.5 h-3.5" />
+                              <label className="flex items-center gap-2 px-3 py-2 text-xs font-semibold text-cyan-400">
+                                <input
+                                  type="checkbox"
+                                  checked={true}
+                                  readOnly
+                                  className="w-4 h-4 rounded border-cyan-500/20 bg-cyan-500/10 accent-cyan-400 cursor-default"
+                                />
+                                Meeting Done
+                              </label>
                             )}
-                            Meeting Done
-                          </button>
-                          <button
-                            onClick={() => handleDeleteBooking(booking)}
-                            disabled={actionLoading === booking.id}
-                            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-white/60 text-xs font-semibold hover:bg-red-500/10 hover:border-red-500/20 hover:text-red-400 transition-all disabled:opacity-50"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
+                          </div>
+                          {tab === 'pending' && (
+                            <button
+                              onClick={() => handleDeleteBooking(booking)}
+                              disabled={actionLoading === booking.id}
+                              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-white/60 text-xs font-semibold hover:bg-red-500/10 hover:border-red-500/20 hover:text-red-400 transition-all disabled:opacity-50"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          )}
                         </>
                       )}
                     </div>
