@@ -10,7 +10,6 @@ import AdminClients from './pages/AdminClients';
 import AdminBookings from './pages/AdminBookings';
 import AdminClientDetail from './pages/AdminClientDetail';
 import AdminProjects from './pages/AdminProjects';
-import AdminLogin from './pages/AdminLogin';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import AdminChat from './pages/AdminChat';
@@ -36,7 +35,6 @@ const App: React.FC = () => {
             <Route path="/" element={<Home />} />
             <Route path="/book" element={<Book />} />
             <Route path="/login" element={<Login />} />
-            <Route path="/admin-login" element={<AdminLogin />} />
 
             {/* User Dashboard (auth only) */}
             <Route

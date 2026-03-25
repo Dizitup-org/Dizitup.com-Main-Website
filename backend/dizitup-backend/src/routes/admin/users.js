@@ -12,45 +12,17 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const db = require('../../db');
-const requireRole = require('../../middleware/requireRole');
 
 const router = express.Router();
 
-// ----------------------------------------------------------
-// GET /api/admin/users
-// ----------------------------------------------------------
-router.get('/', async (req, res) => {
-  try {
-    const result = await db.query(`
-      SELECT
-        id,
-        name,
-        agency_size,
-        country,
-        created_at
-      FROM visitor_leads
-      ORDER BY created_at DESC
-    `);
-
-    res.json({
-      success: true,
-      users: result.rows || [],
-      total: result.rowCount,
-    });
-
-  } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
-  }
-});
-
 // ==============================================================
-// STAFF MANAGEMENT — admin only
+// STAFF MANAGEMENT — admin only (MUST come before generic GET /)
 // ==============================================================
 
 // ----------------------------------------------------------
 // GET /api/admin/users/staff
 // ----------------------------------------------------------
-router.get('/staff', requireRole('admin'), async (req, res, next) => {
+router.get('/staff', async (req, res, next) => {
   try {
     const result = await db.query(`
       SELECT a.id as admin_id, a.role, a.user_id,
@@ -68,7 +40,7 @@ router.get('/staff', requireRole('admin'), async (req, res, next) => {
 // ----------------------------------------------------------
 // Uses pool.connect() + BEGIN/COMMIT/ROLLBACK transaction pattern
 // ----------------------------------------------------------
-router.post('/staff', requireRole('admin'), async (req, res, next) => {
+router.post('/staff', async (req, res, next) => {
   const client = await db.connect();
   try {
     const { username, email, password, first_name, last_name, phone, role } = req.body;
@@ -114,7 +86,7 @@ router.post('/staff', requireRole('admin'), async (req, res, next) => {
 // ----------------------------------------------------------
 // PATCH /api/admin/users/staff/:adminId
 // ----------------------------------------------------------
-router.patch('/staff/:adminId', requireRole('admin'), async (req, res, next) => {
+router.patch('/staff/:adminId', async (req, res, next) => {
   try {
     const { role } = req.body;
     if (!['manager', 'employee'].includes(role)) {
@@ -137,7 +109,7 @@ router.patch('/staff/:adminId', requireRole('admin'), async (req, res, next) => 
 // ----------------------------------------------------------
 // DELETE /api/admin/users/staff/:adminId
 // ----------------------------------------------------------
-router.delete('/staff/:adminId', requireRole('admin'), async (req, res, next) => {
+router.delete('/staff/:adminId', async (req, res, next) => {
   try {
     const result = await db.query(
       `DELETE FROM admins WHERE id = $1 AND role != 'admin' RETURNING id`,
@@ -150,6 +122,37 @@ router.delete('/staff/:adminId', requireRole('admin'), async (req, res, next) =>
 
     res.json({ success: true });
   } catch (err) { next(err); }
+});
+
+// ==============================================================
+// GENERIC USERS ROUTE (must come AFTER /staff routes)
+// ==============================================================
+
+// ----------------------------------------------------------
+// GET /api/admin/users
+// ----------------------------------------------------------
+router.get('/', async (req, res) => {
+  try {
+    const result = await db.query(`
+      SELECT
+        id,
+        name,
+        agency_size,
+        country,
+        created_at
+      FROM visitor_leads
+      ORDER BY created_at DESC
+    `);
+
+    res.json({
+      success: true,
+      users: result.rows || [],
+      total: result.rowCount,
+    });
+
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
 });
 
 module.exports = router;
