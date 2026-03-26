@@ -1,31 +1,45 @@
 const { Pool } = require('pg');
 require('dotenv').config();
 
-console.log("DATABASE_URL:", process.env.DATABASE_URL);
+// 🔒 Safe log (don’t expose credentials)
+console.log("📦 DATABASE_URL loaded:", !!process.env.DATABASE_URL);
 
-// Use DATABASE_URL (Neon) if available, otherwise use local database config
+const isProduction = !!process.env.DATABASE_URL;
+
+// ✅ Create pool
 const pool = new Pool(
-  process.env.DATABASE_URL
-    ? { connectionString: process.env.DATABASE_URL, max: 10, idleTimeoutMillis: 30000, connectionTimeoutMillis: 2000 }
-    : {
-        host:     process.env.DB_HOST,
-        port:     parseInt(process.env.DB_PORT),
-        database: process.env.DB_NAME,
-        user:     process.env.DB_USER,
-        password: process.env.DB_PASSWORD,
+  isProduction
+    ? {
+        connectionString: process.env.DATABASE_URL,
+
+        // 🔥 REQUIRED for Railway / Neon / cloud DBs
+        ssl: {
+          rejectUnauthorized: false,
+        },
+
         max: 10,
         idleTimeoutMillis: 30000,
-        connectionTimeoutMillis: 2000,
+        connectionTimeoutMillis: 5000,
       }
+      : {}
 );
 
-pool.connect((err, client, release) => {
-  if (err) {
+// ✅ Test connection properly (async safe)
+async function testDBConnection() {
+  try {
+    const client = await pool.connect();
+    console.log('✅ PostgreSQL connected successfully');
+
+    const res = await client.query('SELECT NOW()');
+    console.log('🕒 DB Time:', res.rows[0].now);
+
+    client.release();
+  } catch (err) {
     console.error('❌ Database connection failed:', err.message);
-  } else {
-    console.log('✅ PostgreSQL connected successfully (NEON)');
-    release();
   }
-});
+}
+
+// Run test
+testDBConnection();
 
 module.exports = pool;
