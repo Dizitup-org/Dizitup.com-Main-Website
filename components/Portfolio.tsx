@@ -85,7 +85,7 @@ const Portfolio: React.FC = () => {
           setProjects(data.portfolio);
         }
       } catch (error) {
-        console.error('Failed to fetch portfolio:', error);
+        console.warn('Portfolio backend unavailable. Using empty fallback state.', error instanceof Error ? error.message : '');
       } finally {
         setLoading(false);
       }
@@ -95,15 +95,15 @@ const Portfolio: React.FC = () => {
   }, []);
 
   return (
-    <section id="works" className="py-60 px-6 lg:px-20 bg-[#050505] relative overflow-hidden">
+    <section id="works" className="py-20 sm:py-32 lg:py-40 px-6 lg:px-20 bg-[#050505] relative overflow-hidden">
       {/* Background Decorative Element */}
       <div className="absolute top-0 right-0 w-[1000px] h-[1000px] bg-red-600/[0.02] blur-[150px] rounded-full -translate-y-1/2 translate-x-1/3" />
 
       <div className="container mx-auto relative z-10">
-        <div className="flex flex-col lg:flex-row justify-between items-start lg:items-end gap-10 mb-32">
+        <div className="flex flex-col lg:flex-row justify-between items-start lg:items-end gap-10 mb-12 sm:mb-20 lg:mb-28">
           <div className="max-w-2xl">
             <span className="text-red-600 font-mono text-[10px] uppercase tracking-[0.5em] mb-6 block">The Proof of Concept</span>
-            <h2 className="text-6xl lg:text-[10rem] font-heading font-bold tracking-tighter leading-[0.75]">
+            <h2 className="text-4xl sm:text-6xl lg:text-8xl font-heading font-bold tracking-tighter leading-[0.75] sm:leading-[0.8] lg:leading-[0.85] py-2">
               RECENT <br /> <span className="text-white/20 italic font-light">SYSTEMS.</span>
             </h2>
           </div>

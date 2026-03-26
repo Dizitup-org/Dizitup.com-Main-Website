@@ -32,7 +32,7 @@ const Hero: React.FC = () => {
   const y = useTransform(scrollYProgress, [0, 0.3], [0, 100]);
 
   return (
-    <section ref={targetRef} className="relative min-h-screen lg:min-h-[110vh] flex flex-col justify-center px-4 sm:px-6 lg:px-20 pt-20 sm:pt-24">
+    <section ref={targetRef} className="relative min-h-screen flex flex-col justify-center px-4 sm:px-6 lg:px-8 py-16 sm:py-20 md:py-24 lg:py-32">
       {/* Floating Particles */}
       {PARTICLES.map((p, i) => (
         <div
@@ -54,7 +54,7 @@ const Hero: React.FC = () => {
       <div className="container mx-auto">
         <motion.div
           style={{ opacity: textOpacity, y }}
-          className="max-w-[1200px]"
+          className="max-w-[1200px] mx-auto"
         >
           {/* Status Badge */}
           <motion.div
@@ -72,17 +72,17 @@ const Hero: React.FC = () => {
             </div>
           </motion.div>
 
-          <h1 className="text-[11vw] sm:text-[12vw] lg:text-[10rem] font-heading font-bold leading-[0.85] sm:leading-[0.8] tracking-[-0.04em] mb-8 sm:mb-12 hero-title">
+          <h1 className="text-[clamp(3rem,8vw,8rem)] xl:text-[clamp(4rem,9vw,10rem)] font-heading font-bold leading-[1.1] sm:leading-[1.1] tracking-[-0.04em] mb-8 sm:mb-12 hero-title">
             <TextShimmer>POSITION</TextShimmer> <br />
             <span className="text-white/20 italic">WITH</span> LOGIC.
           </h1>
 
           <div className="grid lg:grid-cols-2 gap-8 sm:gap-12 items-end">
-            <div className="space-y-6">
-              <p className="text-lg sm:text-xl lg:text-3xl text-white leading-tight font-medium tracking-tight">
+            <div className="space-y-4 md:space-y-6 max-w-[90%] md:max-w-[600px]">
+              <p className="text-lg sm:text-xl md:text-2xl lg:text-3xl text-white leading-relaxed font-medium tracking-tight">
                 Stop wondering where AI fits.
               </p>
-              <p className="text-base sm:text-lg lg:text-xl text-white/40 leading-snug font-light max-w-xl">
+              <p className="text-base sm:text-lg md:text-xl text-white/40 leading-relaxed font-light">
                 Dizitup architects autonomous systems that automate your friction—reducing overhead so you can focus on building your empire.
               </p>
             </div>
@@ -107,7 +107,7 @@ const Hero: React.FC = () => {
         </motion.div>
       </div>
 
-      <div className="absolute bottom-10 left-10 hidden lg:flex flex-col gap-4 text-[10px] font-mono text-white/20">
+      <div className="absolute bottom-10 left-10 hidden xl:flex flex-col gap-4 text-[10px] font-mono text-white/20">
         <span>[ 01 ] AUTOMATE FRICTION</span>
         <span>[ 02 ] REDUCE OVERHEAD</span>
         <span>[ 03 ] SCALE REVENUE</span>

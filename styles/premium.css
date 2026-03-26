@@ -239,6 +239,13 @@ html, body {
   -webkit-text-size-adjust: 100%;
 }
 
+/* Global responsive images & media */
+img, video, svg {
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
+
 /* Smooth touch scrolling for modals */
 .modal-scroll {
   -webkit-overflow-scrolling: touch;
@@ -270,6 +277,36 @@ html, body {
   .rounded-mobile {
     border-radius: 1.5rem !important;
   }
+
+  /* Prevent large fixed-radius cards from clipping content */
+  [class*="rounded-[3rem]"],
+  [class*="rounded-[4rem]"] {
+    border-radius: 1.5rem !important;
+  }
+
+  /* Ensure containers never exceed screen width */
+  .container {
+    width: 100% !important;
+    max-width: 100% !important;
+    padding-left: 1rem !important;
+    padding-right: 1rem !important;
+  }
+}
+
+/* ── Tablet (≤ 1024px) ── */
+@media (max-width: 1024px) {
+  /* Reduce extreme vertical paddings */
+  .py-60 {
+    padding-top: 8rem !important;
+    padding-bottom: 8rem !important;
+  }
+
+  /* Fluid hero title for mid-range screens */
+  .hero-title {
+    line-height: 0.85 !important;
+  }
+
+  /* Let Tailwind handle grids naturally */
 }
 
 /* ── Landscape Orientation (short viewport) ── */
