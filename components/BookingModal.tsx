@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, Calendar, Clock, Send, CheckCircle, ChevronLeft, ChevronRight } from 'lucide-react';
 import type { Country } from './PersonalizationFlow';
 import { api } from '../utils/apiClient';
+import { useAuth } from '../contexts/AuthProvider';
 
 interface BookingData {
   name: string;
@@ -85,6 +86,7 @@ const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
 const BookingModal: React.FC<Props> = ({ isOpen, onClose, prefilledPackage = '', country }) => {
+  const { user } = useAuth();
   const [step, setStep] = useState<'details' | 'datetime' | 'confirm' | 'success'>('details');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -105,6 +107,16 @@ const BookingModal: React.FC<Props> = ({ isOpen, onClose, prefilledPackage = '',
   React.useEffect(() => {
     if (prefilledPackage) setSelectedPackage(prefilledPackage);
   }, [prefilledPackage]);
+
+  // Prefill form from authenticated user data
+  React.useEffect(() => {
+    if (isOpen && user) {
+      const fullName = `${user.first_name} ${user.last_name}`.trim();
+      if (fullName) setName(fullName);
+      if (user.email) setEmail(user.email);
+      if (user.business_name) setAgency(user.business_name);
+    }
+  }, [isOpen, user]);
 
   // Reset on open & lock body scroll
   React.useEffect(() => {
@@ -249,7 +261,7 @@ const BookingModal: React.FC<Props> = ({ isOpen, onClose, prefilledPackage = '',
                       <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="you@agency.com" className={inputClass} />
                     </div>
                     <div>
-                      <label className={labelClass}>Agency Name</label>
+                      <label className={labelClass}>Business Name</label>
                       <input type="text" value={agency} onChange={e => setAgency(e.target.value)} placeholder="Your agency (optional)" className={inputClass} />
                     </div>
                     <div>
@@ -377,7 +389,7 @@ const BookingModal: React.FC<Props> = ({ isOpen, onClose, prefilledPackage = '',
                       {[
                         ['Name', name],
                         ['Email', email],
-                        ['Agency', agency || '—'],
+                        ['Busniess', agency || '—'],
                         ['Package', selectedPackage || '—'],
                         ['Date', selectedDate],
                         ['Time', selectedTime],

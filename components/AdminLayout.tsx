@@ -58,10 +58,11 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, title }) => {
           </div>
         </div>
 
-        <nav className="flex-grow px-4 space-y-2">
+        <nav className="flex-1 min-h-0 px-4 space-y-2 overflow-y-auto" style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(220,38,38,0.3) transparent' }}>
           {(user?.adminRole === 'manager'
             ? [
                 { to: '/admin/manager/projects', icon: FolderOpen, label: 'Projects' },
+                { to: '/admin/manager/tasks', icon: CheckSquare, label: 'Tasks' },
                 { to: '/admin/manager/team', icon: Users, label: 'Team' },
                 { to: '/admin/manager/chat', icon: MessageCircle, label: 'Chat' },
               ]
@@ -78,7 +79,6 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, title }) => {
                 { to: '/admin/projects', icon: FolderOpen, label: 'Projects' },
                 { to: '/admin/sales', icon: BarChart3, label: 'Sales' },
                 { to: '/admin/portfolio', icon: Layout, label: 'Portfolio' },
-                { to: '/admin/users', icon: UserPlus, label: 'Users' },
                 { to: '/admin/chat', icon: MessageCircle, label: 'Chat' },
                 { to: '/admin/manager/team', icon: UserPlus, label: 'Team' },
               ]

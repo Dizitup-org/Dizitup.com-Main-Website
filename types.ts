@@ -38,6 +38,7 @@ export interface BookingRow {
   status: 'pending' | 'accepted' | 'follow_up' | 'cancelled' | string | null;
   created_at?: string | null;
   username?: string | null;
+  is_onboarded?: boolean;
 }
 
 // Query Clients table (Follow-ups) - includes booking data

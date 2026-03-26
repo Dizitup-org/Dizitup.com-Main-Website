@@ -16,6 +16,41 @@ const { validators } = require('../../middleware/validate');
 const router = express.Router();
 
 // ----------------------------------------------------------
+// Schema migration + auto-cleanup for declined bookings
+// ----------------------------------------------------------
+(async () => {
+  try {
+    // Add declined_at column if it doesn't exist
+    await db.query(`ALTER TABLE bookings ADD COLUMN IF NOT EXISTS declined_at TIMESTAMPTZ`);
+    
+    // Run cleanup job on startup and every hour
+    const cleanupDeclinedBookings = async () => {
+      try {
+        const result = await db.query(`
+          DELETE FROM bookings 
+          WHERE status = 'declined' 
+          AND declined_at IS NOT NULL 
+          AND declined_at < NOW() - INTERVAL '24 hours'
+        `);
+        if (result.rowCount > 0) {
+          console.log(`[Bookings cleanup] Deleted ${result.rowCount} declined bookings older than 24 hours`);
+        }
+      } catch (err) {
+        console.error('[Bookings cleanup error]', err.message);
+      }
+    };
+    
+    // Run cleanup immediately
+    await cleanupDeclinedBookings();
+    
+    // Run cleanup every hour
+    setInterval(cleanupDeclinedBookings, 60 * 60 * 1000);
+  } catch (err) {
+    console.error('[Bookings schema migration error]', err.message);
+  }
+})();
+
+// ----------------------------------------------------------
 // GET /api/admin/bookings
 // ----------------------------------------------------------
 // Full booking list with user details joined in.
@@ -33,6 +68,7 @@ router.get('/', async (req, res, next) => {
         b.id,
         b.name,
         b.email,
+        u.phone,
         b.agency,
         b.project_type,
         b.notes,
@@ -108,8 +144,12 @@ router.patch('/:id', async (req, res, next) => {
 
     if (!status) throw new AppError('Status is required.', 400);
 
+    const updateQuery = status === 'declined'
+      ? `UPDATE bookings SET status = $1, declined_at = NOW() WHERE id = $2 RETURNING *`
+      : `UPDATE bookings SET status = $1 WHERE id = $2 RETURNING *`;
+
     const result = await db.query(
-      `UPDATE bookings SET status = $1 WHERE id = $2 RETURNING *`,
+      updateQuery,
       [status, req.params.id]
     );
 
@@ -160,11 +200,12 @@ router.patch('/:id/status', async (req, res, next) => {
 
     console.log(`Updating booking ${req.params.id} to status: ${status}`);
 
+    const updateQuery = status === 'declined'
+      ? `UPDATE bookings SET status = $1, declined_at = NOW() WHERE id = $2 RETURNING *`
+      : `UPDATE bookings SET status = $1 WHERE id = $2 RETURNING *`;
+
     const result = await db.query(
-      `UPDATE bookings
-       SET status = $1
-       WHERE id = $2
-       RETURNING *`,
+      updateQuery,
       [status, req.params.id]
     );
 

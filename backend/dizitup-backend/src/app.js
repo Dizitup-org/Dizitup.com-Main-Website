@@ -28,10 +28,10 @@ const publicBookingRoutes   = require('./routes/bookings');
 const overviewRoutes        = require('./routes/admin/overview');
 const bookingRoutes         = require('./routes/admin/bookings');
 const clientRoutes          = require('./routes/admin/clients');
+const adminUserRoutes       = require('./routes/admin/users');
 const salesRoutes           = require('./routes/admin/sales');
 const portfolioRoutes       = require('./routes/admin/portfolio');
 const projectsRoutes        = require('./routes/admin/projects');
-const adminUserRoutes       = require('./routes/admin/users');
 const chatRoutes            = require('./routes/chat');
 const adminChatRoutes       = require('./routes/admin/chat');
 const managerRoutes         = require('./routes/manager/index');
@@ -60,7 +60,8 @@ app.use(cors({
 
 // Parse incoming JSON request bodies
 // Without this, req.body is undefined
-app.use(express.json());
+// limit increased to 50mb to handle base64-encoded images
+app.use(express.json({ limit: '50mb' }));
 
 // Log every request in development (helpful for debugging)
 if (process.env.NODE_ENV === 'development') {
@@ -99,11 +100,11 @@ app.use('/api/user', userRoutes);
 // ============================================================
 app.use('/api/admin/overview',  protect, isAdmin, requireRole('admin'), overviewRoutes);
 app.use('/api/admin/bookings',  protect, isAdmin, requireRole('admin'), bookingRoutes);
+app.use('/api/admin/users',     protect, isAdmin, requireRole('admin'), adminUserRoutes);
 app.use('/api/admin/clients',   protect, isAdmin, requireRole('admin'), clientRoutes);
 app.use('/api/admin/sales',     protect, isAdmin, requireRole('admin'), salesRoutes);
 app.use('/api/admin/portfolio', protect, isAdmin, requireRole('admin'), portfolioRoutes); // admin management
 app.use('/api/admin/projects',  protect, isAdmin, requireRole('admin'), projectsRoutes);
-app.use('/api/admin/users',     protect, isAdmin, adminUserRoutes); // staff routes have per-route requireRole('admin')
 app.use('/api/admin/chat',      protect, isAdmin, requireRole('admin'), adminChatRoutes);
 
 // ============================================================

@@ -1,10 +1,13 @@
-import React, { useEffect, useState, useRef, useCallback } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
-import { motion, AnimatePresence } from 'framer-motion'
-import { ArrowLeft, User, Shield, Camera, Clock, Mail, Coins, ChevronDown, ChevronUp, LogOut, KeyRound, AtSign, FolderOpen, CalendarDays, Phone, MessageCircle, Send, Loader2 } from 'lucide-react'
+﻿import React, { useEffect, useState, useRef, useCallback } from 'react'
+import { useSearchParams } from 'react-router-dom'
+import { motion } from 'framer-motion'
+import { Camera, Loader2, RotateCcw, CalendarDays, Phone, Send, Mail, Eye, EyeOff, MessageCircle, KeyRound } from 'lucide-react'
 import { useAuth } from '../contexts/AuthProvider'
+import { useBooking } from '../contexts/BookingContext'
+import ClientLayout from '../components/ClientLayout'
+import BookingModal from '../components/BookingModal'
 import toast, { Toaster } from 'react-hot-toast'
-import { api, getToken } from '../utils/apiClient'
+import { api } from '../utils/apiClient'
 import type { ProjectRow, ProjectUpdate, BookingRow } from '../types'
 
 const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000'
@@ -18,35 +21,25 @@ interface ChatMessage {
 }
 
 type ProjectWithUpdates = ProjectRow & { updates?: ProjectUpdate[] }
-
-const PARTICLES = [
-  { size: 3, x: '5%',  y: '15%', color: 'rgba(220,38,38,0.3)',  duration: '14s', delay: '0s' },
-  { size: 2, x: '85%', y: '10%', color: 'rgba(255,255,255,0.1)', duration: '18s', delay: '2s' },
-  { size: 4, x: '20%', y: '75%', color: 'rgba(220,38,38,0.2)',  duration: '16s', delay: '4s' },
-  { size: 2, x: '72%', y: '60%', color: 'rgba(255,255,255,0.08)', duration: '20s', delay: '1s' },
-  { size: 3, x: '92%', y: '45%', color: 'rgba(220,38,38,0.25)', duration: '15s', delay: '3s' },
-  { size: 2, x: '40%', y: '88%', color: 'rgba(255,255,255,0.07)', duration: '17s', delay: '5s' },
-]
+type SectionType = 'profile' | 'bookings' | 'projects' | 'accounts'
 
 const statusConfig: Record<string, { bg: string; border: string; text: string; dot: string }> = {
   active:            { bg: 'bg-green-500/10',  border: 'border-green-500/30',  text: 'text-green-400',  dot: 'bg-green-400' },
   completed:         { bg: 'bg-purple-500/10', border: 'border-purple-500/30', text: 'text-purple-400', dot: 'bg-purple-400' },
-  paused:            { bg: 'bg-yellow-500/10', border: 'border-yellow-500/30', text: 'text-yellow-400', dot: 'bg-yellow-400' },
-  cancelled:         { bg: 'bg-red-500/10',    border: 'border-red-500/30',    text: 'text-red-400',    dot: 'bg-red-400' },
-  // booking-specific
   pending:           { bg: 'bg-yellow-500/10', border: 'border-yellow-500/30', text: 'text-yellow-400', dot: 'bg-yellow-400' },
   accepted:          { bg: 'bg-green-500/10',  border: 'border-green-500/30',  text: 'text-green-400',  dot: 'bg-green-400' },
   follow_up:         { bg: 'bg-orange-500/10', border: 'border-orange-500/30', text: 'text-orange-400', dot: 'bg-orange-400' },
-  // project workflow statuses
-  sent_to_manager:   { bg: 'bg-yellow-500/10', border: 'border-yellow-500/30', text: 'text-yellow-400', dot: 'bg-yellow-400' },
-  assigned_to_staff: { bg: 'bg-blue-500/10',   border: 'border-blue-500/30',   text: 'text-blue-400',   dot: 'bg-blue-400' },
-  under_execution:   { bg: 'bg-orange-500/10', border: 'border-orange-500/30', text: 'text-orange-400', dot: 'bg-orange-400' },
+  declined:          { bg: 'bg-red-500/10',    border: 'border-red-500/30',    text: 'text-red-400',    dot: 'bg-red-400' },
+  onboarded:         { bg: 'bg-blue-500/10',   border: 'border-blue-500/30',   text: 'text-blue-400',   dot: 'bg-blue-400' },
 }
 
 const STATUS_LABELS: Record<string, string> = {
-  sent_to_manager:   'Sent to Manager',
-  assigned_to_staff: 'Assigned to Staff',
-  under_execution:   'Under Execution',
+  pending: 'Pending',
+  follow_up: 'Follow-up',
+  under_execution: 'Under Execution',
+  accepted: 'Accepted',
+  declined: 'Declined',
+  onboarded: 'Onboarded',
 }
 
 function StatusBadge({ status }: { status: string | null }) {
@@ -60,35 +53,34 @@ function StatusBadge({ status }: { status: string | null }) {
   )
 }
 
-const fadeUp = {
-  hidden: { opacity: 0, y: 20 },
-  show: (i: number) => ({ opacity: 1, y: 0, transition: { delay: i * 0.08, duration: 0.45, ease: [0.25, 0.1, 0.25, 1] } }),
-}
-
 const Dashboard: React.FC = () => {
-  const { user, profile, upsertProfile, uploadAvatar, signOut, changePassword, updateEmail } = useAuth()
-  const navigate = useNavigate()
+  const { user, upsertProfile, uploadAvatar, changePassword, updateEmail } = useAuth()
+  const { openBooking, closeBooking, isOpen, packageName, country, setCountry, authPromptOpen, closeAuthPrompt } = useBooking()
+  const [searchParams] = useSearchParams()
+  const activeSection = (searchParams.get('section') || 'profile') as SectionType
+
+  // Form states
   const [newPassword, setNewPassword] = useState('')
   const [newEmail, setNewEmail] = useState('')
-  const [projects, setProjects] = useState<ProjectWithUpdates[]>([])
-  const [projectsLoading, setProjectsLoading] = useState(true)
-  const [showAllProjects, setShowAllProjects] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
   const [updating, setUpdating] = useState(false)
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null)
+
+  // Data states
+  const [projects, setProjects] = useState<ProjectWithUpdates[]>([])
+  const [projectsLoading, setProjectsLoading] = useState(true)
   const [bookings, setBookings] = useState<BookingRow[]>([])
   const [bookingsLoading, setBookingsLoading] = useState(true)
-
-  // Client status for chat visibility (mirrors ChatWidget restriction)
   const [clientStatus, setClientStatus] = useState<'none' | 'follow_up' | 'onboarded' | null>(null)
 
-  // Admin chat state
+  // Chat states
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([])
   const [chatInput, setChatInput] = useState('')
   const [chatSending, setChatSending] = useState(false)
   const chatEndRef = useRef<HTMLDivElement>(null)
-  const chatContainerRef = useRef<HTMLDivElement>(null)
   const chatPollRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
+  // Fetch bookings
   useEffect(() => {
     let isMounted = true
     const fetchBookings = async () => {
@@ -103,720 +95,544 @@ const Dashboard: React.FC = () => {
     }
     fetchBookings()
     return () => { isMounted = false }
-  }, [user])
-
-  // Fetch client status
-  useEffect(() => {
-    if (!user) { setClientStatus('none'); return }
-    const token = getToken()
-    fetch(`${BASE_URL}/api/user/client-status`, {
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
-    })
-      .then(r => r.json())
-      .then(d => setClientStatus(d.clientStatus ?? 'none'))
-      .catch(() => setClientStatus('none'))
-  }, [user])
-
-  // Chat fetch + polling
-  const fetchChatMessages = useCallback(async () => {
-    const token = getToken()
-    try {
-      const res = await fetch(`${BASE_URL}/api/chat/messages`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      })
-      const data = await res.json()
-      if (data.success) {
-        setChatMessages(data.messages ?? [])
-      }
-    } catch { /* silent */ }
   }, [])
 
-  useEffect(() => {
-    if (clientStatus === 'follow_up' || clientStatus === 'onboarded') {
-      fetchChatMessages()
-      chatPollRef.current = setInterval(fetchChatMessages, 4000)
-    }
-    return () => { if (chatPollRef.current) clearInterval(chatPollRef.current) }
-  }, [clientStatus, fetchChatMessages])
-
-  // Scroll chat to bottom on new messages (only scroll container, not page)
-  useEffect(() => {
-    if (chatContainerRef.current) {
-      setTimeout(() => {
-        chatContainerRef.current!.scrollTop = chatContainerRef.current!.scrollHeight
-      }, 0)
-    }
-  }, [chatMessages])
-
-  const sendChatMessage = async () => {
-    if (!chatInput.trim() || chatSending) return
-    setChatSending(true)
-    const token = getToken()
-    try {
-      const res = await fetch(`${BASE_URL}/api/chat/message`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify({ message: chatInput.trim() }),
-      })
-      const data = await res.json()
-      if (data.success) {
-        setChatInput('')
-        await fetchChatMessages()
-      }
-    } catch { /* silent */ } finally {
-      setChatSending(false)
-    }
-  }
-
+  // Fetch projects
   useEffect(() => {
     let isMounted = true
-    const fetchProject = async () => {
-      setProjectsLoading(true)
+    const fetchProjects = async () => {
       try {
-        const data = await api.get<{ success: boolean; projects: ProjectWithUpdates[] }>('/api/user/my-project')
-        if (isMounted) setProjects(data.projects || [])
+        const data = await api.get<{ success: boolean; project: ProjectWithUpdates[] }>('/api/user/my-project')
+        if (isMounted) setProjects(data.project || [])
       } catch {
         // non-fatal
       } finally {
         if (isMounted) setProjectsLoading(false)
       }
     }
-    fetchProject()
+    fetchProjects()
     return () => { isMounted = false }
-  }, [user])
+  }, [])
 
-  const handleProfileSave = async (e: React.FormEvent) => {
-    e.preventDefault()
-    const form = e.target as HTMLFormElement
-    const formData = new FormData(form)
-    const first_name = String(formData.get('first_name') || '')
-    const last_name = String(formData.get('last_name') || '')
-    const username = String(formData.get('username') || '')
-    const business_name = String(formData.get('business_name') || '')
-    const phone = String(formData.get('phone') || '')
+  // Fetch client status
+  useEffect(() => {
+    let isMounted = true
+    const fetchStatus = async () => {
+      try {
+        const data = await api.get<{ success: boolean; clientStatus: 'none' | 'follow_up' | 'onboarded' }>('/api/user/client-status')
+        if (isMounted && data.clientStatus) setClientStatus(data.clientStatus)
+      } catch {
+        // non-fatal
+      }
+    }
+    fetchStatus()
+    return () => { isMounted = false }
+  }, [])
+
+  // Fetch chat messages
+  useEffect(() => {
+    if (clientStatus !== 'follow_up' && clientStatus !== 'onboarded') return
+
+    let isMounted = true
+    const fetchMessages = async () => {
+      try {
+        const data = await api.get<{ success: boolean; messages: ChatMessage[] }>('/api/chat/messages')
+        if (isMounted) setChatMessages(data.messages || [])
+      } catch {
+        // non-fatal
+      }
+    }
+
+    fetchMessages()
+    chatPollRef.current = setInterval(fetchMessages, 4000)
+    return () => {
+      isMounted = false
+      if (chatPollRef.current) clearInterval(chatPollRef.current)
+    }
+  }, [clientStatus])
+
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [chatMessages])
+
+  // Handle profile update
+  const handleSaveProfile = async () => {
+    if (!user) return
     setUpdating(true)
     try {
-      await upsertProfile({ first_name, last_name, username, business_name, phone })
-      toast.success('Profile updated')
+      await upsertProfile({
+        first_name: user.first_name,
+        last_name: user.last_name,
+        username: user.username,
+        business_name: user.business_name,
+        phone: user.phone,
+      })
+      toast.success('Profile updated successfully!')
     } catch (err: any) {
-      toast.error(err?.message || 'Update failed')
+      toast.error(err.message || 'Failed to update profile')
     } finally {
       setUpdating(false)
     }
   }
 
-  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Handle avatar upload
+  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
-    setAvatarPreview(URL.createObjectURL(file))
+
+    const reader = new FileReader()
+    reader.onload = (evt) => {
+      setAvatarPreview(evt.target?.result as string)
+    }
+    reader.readAsDataURL(file)
+
+    setUpdating(true)
     try {
       await uploadAvatar(file)
-      toast.success('Avatar uploaded')
+      toast.success('Avatar updated successfully!')
     } catch (err: any) {
-      toast.error(err?.message || 'Upload failed')
-      setAvatarPreview(null)
+      toast.error(err.message || 'Failed to upload avatar')
+    } finally {
+      setUpdating(false)
     }
   }
 
-  const displayName = profile?.first_name
-    ? `${profile.first_name}${profile.last_name ? ' ' + profile.last_name : ''}`
-    : (profile?.username || user?.email?.split('@')[0] || 'Client')
+  // Handle password change
+  const handleChangePassword = async () => {
+    if (!newPassword) {
+      toast.error('Please enter a new password')
+      return
+    }
+    setUpdating(true)
+    try {
+      await changePassword(newPassword)
+      setNewPassword('')
+      toast.success('Password changed successfully!')
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to change password')
+    } finally {
+      setUpdating(false)
+    }
+  }
 
-  const avatarSrc = avatarPreview || profile?.avatar_url
+  // Handle email change
+  const handleChangeEmail = async () => {
+    if (!newEmail) {
+      toast.error('Please enter a new email')
+      return
+    }
+    setUpdating(true)
+    try {
+      await updateEmail(newEmail)
+      setNewEmail('')
+      toast.success('Email changed successfully!')
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to change email')
+    } finally {
+      setUpdating(false)
+    }
+  }
+
+  // Handle send chat message
+  const handleSendMessage = async () => {
+    if (!chatInput.trim()) return
+    setChatSending(true)
+    try {
+      await api.post('/api/chat/message', { message: chatInput })
+      setChatInput('')
+      // Refetch messages
+      const data = await api.get<{ success: boolean; messages: ChatMessage[] }>('/api/chat/messages')
+      setChatMessages(data.messages || [])
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to send message')
+    } finally {
+      setChatSending(false)
+    }
+  }
+
+  const renderSection = () => {
+    switch (activeSection) {
+      case 'profile':
+        return <ProfileSection user={user} updating={updating} avatarPreview={avatarPreview} onAvatarChange={handleAvatarChange} onSaveProfile={handleSaveProfile} />
+
+      case 'bookings':
+        return <BookingsSection bookings={bookings} bookingsLoading={bookingsLoading} openBooking={openBooking} />
+
+      case 'projects':
+        return <ProjectsSection projects={projects} projectsLoading={projectsLoading} />
+
+      case 'accounts':
+        return (
+          <AccountsSection
+            user={user}
+            updating={updating}
+            newPassword={newPassword}
+            setNewPassword={setNewPassword}
+            showPassword={showPassword}
+            setShowPassword={setShowPassword}
+            onChangePassword={handleChangePassword}
+            newEmail={newEmail}
+            setNewEmail={setNewEmail}
+            onChangeEmail={handleChangeEmail}
+            clientStatus={clientStatus}
+            chatMessages={chatMessages}
+            chatInput={chatInput}
+            setChatInput={setChatInput}
+            chatSending={chatSending}
+            onSendMessage={handleSendMessage}
+            chatEndRef={chatEndRef}
+          />
+        )
+
+      default:
+        return null
+    }
+  }
 
   return (
-    <div className="relative min-h-screen bg-[#050505] text-white overflow-x-hidden">
-      <Toaster position="top-right" toastOptions={{ style: { background: '#111', color: '#fff', border: '1px solid rgba(255,255,255,0.1)' } }} />
-
-      {/* Particles */}
-      {PARTICLES.map((p, i) => (
-        <div
-          key={i}
-          className="floating-particle"
-          style={{
-            width: p.size, height: p.size,
-            left: p.x, top: p.y,
-            background: p.color,
-            boxShadow: `0 0 ${p.size * 4}px ${p.color}`,
-            '--duration': p.duration, '--delay': p.delay,
-          } as React.CSSProperties}
-        />
-      ))}
-
-      {/* Background glows */}
-      <div className="absolute inset-0 pointer-events-none overflow-hidden">
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-red-600/4 rounded-full blur-[140px]" />
-        <div className="absolute bottom-0 right-0 w-[500px] h-[500px] bg-red-800/3 rounded-full blur-[120px]" />
-      </div>
-
-      {/* Top header */}
-      <header className="sticky top-0 z-40 border-b border-white/[0.06] bg-[#050505]/80 backdrop-blur-xl">
-        <div className="container mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
-          {/* Back button */}
-          <button
-            onClick={() => navigate('/')}
-            className="flex items-center gap-2 text-xs font-mono font-bold uppercase tracking-widest text-white/40 hover:text-white transition-colors group"
-          >
-            <span className="w-7 h-7 rounded-full bg-white/5 border border-white/10 flex items-center justify-center group-hover:border-red-500/50 group-hover:bg-red-500/10 group-hover:shadow-[0_0_10px_rgba(220,38,38,0.3)] transition-all">
-              <ArrowLeft size={13} />
-            </span>
-            <span className="hidden sm:inline">Back to Home</span>
-          </button>
-
-          {/* Logo */}
-          <Link to="/" className="flex items-center gap-2 group absolute left-1/2 -translate-x-1/2">
-            <div className="w-2 h-2 bg-red-600 rounded-full group-hover:scale-150 transition-transform shadow-[0_0_10px_#ff0000]" />
-            <span className="text-sm font-heading font-bold tracking-tight">DIZITUP</span>
-          </Link>
-
-          {/* Sign out */}
-          <button
-            onClick={() => signOut()}
-            className="flex items-center gap-1.5 text-xs font-mono uppercase tracking-wider text-white/35 hover:text-red-400 transition-colors group"
-          >
-            <LogOut size={13} className="group-hover:translate-x-0.5 transition-transform" />
-            <span className="hidden sm:inline">Sign out</span>
-          </button>
-        </div>
-        {/* Progress line */}
-        <div className="h-[1px] bg-gradient-to-r from-transparent via-red-500/40 to-transparent" />
-      </header>
-
-      <main className="container mx-auto px-4 sm:px-6 pt-10 pb-24">
-
-        {/* Page heading */}
-        <motion.div
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-          className="mb-10"
-        >
-          <div className="flex items-center gap-2 mb-1">
-            <div className="w-1.5 h-1.5 bg-red-500 rounded-full shadow-[0_0_6px_#ff0000]" />
-            <span className="text-[10px] font-mono font-bold uppercase tracking-[0.2em] text-red-500/80">Client Portal</span>
-          </div>
-          <h1 className="text-3xl sm:text-4xl font-heading font-bold">Dashboard</h1>
-          <p className="text-sm text-white/35 mt-1">Welcome back, <span className="text-white/60">{displayName}</span></p>
-        </motion.div>
-
-        {/* Top cards grid */}
-        <div className="grid md:grid-cols-3 gap-6 mb-10">
-
-          {/* Profile card */}
-          <motion.div custom={0} variants={fadeUp} initial="hidden" animate="show" className="glass-panel p-6 relative overflow-hidden">
-            <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-white/10 to-transparent" />
-            <div className="flex items-center gap-2 mb-5">
-              <div className="w-7 h-7 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center">
-                <User size={14} className="text-white/50" />
-              </div>
-              <h2 className="text-sm font-heading font-bold uppercase tracking-wider text-white/80">Profile</h2>
-            </div>
-            <form onSubmit={handleProfileSave} className="space-y-3">
-              {([
-                { name: 'first_name', label: 'First Name', placeholder: 'First name', defaultValue: profile?.first_name || '' },
-                { name: 'last_name', label: 'Last Name', placeholder: 'Last name', defaultValue: profile?.last_name || '' },
-                { name: 'username', label: 'Username', placeholder: 'Username', defaultValue: profile?.username || '' },
-                { name: 'business_name', label: 'Business Name', placeholder: 'Business name', defaultValue: profile?.business_name || '' },
-                { name: 'phone', label: 'Phone', placeholder: 'Phone', defaultValue: profile?.phone || '' },
-              ] as const).map((f) => (
-                <div key={f.name} className="space-y-1">
-                  <label htmlFor={f.name} className="block text-xs font-semibold text-white/70 uppercase tracking-wide">{f.label}</label>
-                  <input
-                    id={f.name}
-                    name={f.name}
-                    defaultValue={f.defaultValue}
-                    placeholder={f.placeholder}
-                    className="w-full glass-input px-3 py-2.5 text-sm"
-                  />
-                </div>
-              ))}
-              <motion.button
-                type="submit"
-                disabled={updating}
-                whileHover={{ scale: updating ? 1 : 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                className="w-full mt-1 py-2.5 rounded-xl text-sm font-heading font-bold
-                  bg-gradient-to-r from-red-600 to-red-700 hover:from-red-500 hover:to-red-600
-                  disabled:opacity-50 shadow-[0_0_16px_rgba(220,38,38,0.25)]
-                  hover:shadow-[0_0_22px_rgba(220,38,38,0.45)] transition-all duration-300"
-              >
-                {updating ? (
-                  <span className="flex items-center justify-center gap-2">
-                    <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    Saving…
-                  </span>
-                ) : 'Save Profile'}
-              </motion.button>
-            </form>
-          </motion.div>
-
-          {/* Avatar card */}
-          <motion.div custom={1} variants={fadeUp} initial="hidden" animate="show" className="glass-panel p-6 relative overflow-hidden">
-            <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-white/10 to-transparent" />
-            <div className="flex items-center gap-2 mb-5">
-              <div className="w-7 h-7 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center">
-                <Camera size={14} className="text-white/50" />
-              </div>
-              <h2 className="text-sm font-heading font-bold uppercase tracking-wider text-white/80">Avatar</h2>
-            </div>
-
-            {/* Avatar display */}
-            <div className="flex flex-col items-center gap-4">
-              <div className="relative group">
-                <div className="w-24 h-24 rounded-2xl overflow-hidden border border-white/10 bg-white/5 flex items-center justify-center shadow-lg">
-                  {avatarSrc ? (
-                    <img src={avatarSrc} alt="avatar" className="w-full h-full object-cover" />
-                  ) : (
-                    <User size={36} className="text-white/20" />
-                  )}
-                </div>
-                <label
-                  htmlFor="avatar-upload"
-                  className="absolute inset-0 rounded-2xl bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center cursor-pointer"
-                >
-                  <Camera size={18} className="text-white" />
-                </label>
-              </div>
-
-              <input
-                id="avatar-upload"
-                type="file"
-                accept="image/*"
-                onChange={handleAvatarUpload}
-                className="hidden"
-              />
-
-              <label
-                htmlFor="avatar-upload"
-                className="w-full text-center py-2.5 rounded-xl text-xs font-mono font-bold uppercase tracking-wider
-                  premium-btn cursor-pointer hover:border-red-500/40 transition-all"
-              >
-                Upload Photo
-              </label>
-              <p className="text-[11px] text-white/25 text-center leading-relaxed">
-                Stored securely in avatars/ bucket.
-              </p>
-            </div>
-          </motion.div>
-
-          {/* Account card */}
-          <motion.div custom={2} variants={fadeUp} initial="hidden" animate="show" className="glass-panel p-6 relative overflow-hidden">
-            <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-white/10 to-transparent" />
-            <div className="flex items-center gap-2 mb-5">
-              <div className="w-7 h-7 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center">
-                <Shield size={14} className="text-white/50" />
-              </div>
-              <h2 className="text-sm font-heading font-bold uppercase tracking-wider text-white/80">Account</h2>
-            </div>
-
-            {/* Account info pills */}
-            <div className="space-y-2 mb-4">
-              {[
-                { icon: <Clock size={12} />, label: 'Joined', value: profile?.joined_at ? new Date(profile.joined_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '—' },
-                { icon: <Mail size={12} />, label: 'Email', value: profile?.email ?? user?.email ?? '—' },
-                { icon: <Coins size={12} />, label: 'Credits', value: profile?.credits != null ? String(profile.credits) : '—' },
-              ].map(({ icon, label, value }) => (
-                <div key={label} className="flex items-center gap-2 px-3 py-2 rounded-lg bg-white/[0.03] border border-white/[0.06]">
-                  <span className="text-white/30">{icon}</span>
-                  <span className="text-xs text-white/40">{label}:</span>
-                  <span className="text-xs text-white/70 ml-auto truncate max-w-[140px]">{value}</span>
-                </div>
-              ))}
-            </div>
-
-            {/* Security actions */}
-            <div className="space-y-2 pt-2 border-t border-white/[0.07]">
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-white/25 pointer-events-none"><KeyRound size={12} /></span>
-                <input
-                  type="password"
-                  placeholder="New password"
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  className="w-full glass-input px-3 py-2.5 pl-8 text-xs"
-                />
-              </div>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-white/25 pointer-events-none"><AtSign size={12} /></span>
-                <input
-                  type="email"
-                  placeholder="New email"
-                  value={newEmail}
-                  onChange={(e) => setNewEmail(e.target.value)}
-                  className="w-full glass-input px-3 py-2.5 pl-8 text-xs"
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  onClick={async () => {
-                    try { await changePassword(newPassword); toast.success('Password updated'); setNewPassword('') }
-                    catch (e: any) { toast.error(e?.message || 'Failed') }
-                  }}
-                  className="premium-btn text-xs py-2 font-bold"
-                >
-                  Change Password
-                </button>
-                <button
-                  onClick={async () => {
-                    try { await updateEmail(newEmail); toast.success('Email updated'); setNewEmail('') }
-                    catch (e: any) { toast.error(e?.message || 'Failed') }
-                  }}
-                  className="premium-btn text-xs py-2 font-bold"
-                >
-                  Change Email
-                </button>
-              </div>
-              <button
-                onClick={() => signOut()}
-                className="w-full premium-btn text-xs py-2.5 font-bold text-red-400/80 hover:text-red-400 border-red-500/20 hover:border-red-500/40 hover:bg-red-500/10 flex items-center justify-center gap-2"
-              >
-                <LogOut size={12} /> Sign Out
-              </button>
-            </div>
-          </motion.div>
-        </div>
-
-        {/* Projects section */}
-        <motion.section
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3, duration: 0.5 }}
-          className="space-y-5"
-        >
-          {/* Section header */}
-          <div className="flex items-center gap-3">
-            <div className="w-7 h-7 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center">
-              <FolderOpen size={14} className="text-white/50" />
-            </div>
-            <div>
-              <h2 className="text-sm font-heading font-bold uppercase tracking-wider text-white/80">My Project</h2>
-            </div>
-            <div className="flex-1 h-[1px] bg-gradient-to-r from-white/10 to-transparent" />
-          </div>
-
-          {/* Loading */}
-          {projectsLoading && (
-            <div className="p-8 glass-panel flex items-center gap-3 text-white/40">
-              <span className="w-4 h-4 border-2 border-white/10 border-t-white/50 rounded-full animate-spin" />
-              <span className="text-sm">Loading your project…</span>
-            </div>
-          )}
-
-          {/* Empty */}
-          {!projectsLoading && projects.length === 0 && (
-            <div className="p-10 glass-panel text-center">
-              <div className="w-12 h-12 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center mx-auto mb-3">
-                <FolderOpen size={20} className="text-white/20" />
-              </div>
-              <p className="text-sm text-white/35">No project assigned yet.</p>
-              <p className="text-xs text-white/20 mt-1">Check back soon — your team is on it!</p>
-            </div>
-          )}
-
-          {/* Projects */}
-          {!projectsLoading && projects.length > 0 && (() => {
-            const latest = projects[0]
-            const others = projects.slice(1)
-            return (
-              <>
-                {/* Latest project hero */}
-                <div className="premium-card p-6 space-y-5">
-                  {/* Top accent */}
-                  <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-red-500/40 to-transparent rounded-t-2xl" style={{ position: 'relative' }} />
-
-                  <div className="flex items-start justify-between gap-4 flex-wrap">
-                    <div>
-                      <p className="text-[10px] font-mono font-bold uppercase tracking-widest text-red-500/70 mb-1">Latest Project</p>
-                      <h3 className="text-xl sm:text-2xl font-heading font-bold">{latest.title || 'Untitled Project'}</h3>
-                      {latest.description && <p className="text-sm text-white/50 mt-1 max-w-xl">{latest.description}</p>}
-                    </div>
-                    <div className="flex flex-col items-end gap-1">
-                      <StatusBadge status={latest.status} />
-                      {(latest as any).status_note && <p className="text-[10px] text-white/35 italic">{(latest as any).status_note}</p>}
-                    </div>
-                  </div>
-
-                  <div className="flex flex-wrap gap-3">
-                    {latest.deadline && (
-                      <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/[0.04] border border-white/[0.08] text-xs text-white/50">
-                        <Clock size={11} className="text-white/30" />
-                        Deadline: {new Date(latest.deadline).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
-                      </span>
-                    )}
-                    {latest.total_amount != null && (
-                      <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/[0.04] border border-white/[0.08] text-xs text-white/50">
-                        <Coins size={11} className="text-white/30" />
-                        Value: ₹{latest.total_amount.toLocaleString('en-IN')}
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Updates feed */}
-                  <div className="pt-3 border-t border-white/[0.07]">
-                    <p className="text-[10px] font-mono font-bold uppercase tracking-[0.18em] text-white/30 mb-3">Updates from Dizitup</p>
-                    {(!latest.updates || latest.updates.length === 0) ? (
-                      <p className="text-xs text-white/25 italic">No updates yet — your team is working on it.</p>
-                    ) : (
-                      <div className="space-y-2">
-                        {(latest.updates || []).map((u) => (
-                          <div key={u.id} className="p-3 rounded-xl bg-white/[0.03] border border-white/[0.07] hover:border-white/[0.12] transition-colors">
-                            <p className="text-sm text-white/75">{u.message}</p>
-                            <p className="text-[10px] text-white/25 mt-1.5">{new Date(u.created_at).toLocaleString()}</p>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Other projects */}
-                {others.length > 0 && (
-                  <div>
-                    <button
-                      onClick={() => setShowAllProjects((v) => !v)}
-                      className="flex items-center gap-1.5 text-xs font-mono uppercase tracking-wider text-white/35 hover:text-white/60 transition-colors mb-3"
-                    >
-                      {showAllProjects ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
-                      {showAllProjects ? 'Hide' : `Show ${others.length} more project${others.length > 1 ? 's' : ''}`}
-                    </button>
-                    <AnimatePresence>
-                      {showAllProjects && (
-                        <motion.div
-                          initial={{ opacity: 0, height: 0 }}
-                          animate={{ opacity: 1, height: 'auto' }}
-                          exit={{ opacity: 0, height: 0 }}
-                          className="space-y-3 overflow-hidden"
-                        >
-                          {others.map((p) => (
-                            <div key={p.id} className="p-4 glass-panel flex items-center justify-between gap-4">
-                              <div>
-                                <p className="font-heading font-bold text-sm">{p.title || 'Untitled'}</p>
-                                {p.deadline && <p className="text-xs text-white/35 mt-0.5">Deadline: {new Date(p.deadline).toLocaleDateString()}</p>}
-                              </div>
-                              <StatusBadge status={p.status} />
-                            </div>
-                          ))}
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
-                  </div>
-                )}
-              </>
-            )
-          })()}
-        </motion.section>
-
-        {/* Bookings section */}
-        <motion.section
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.45, duration: 0.5 }}
-          className="mt-10 space-y-5"
-        >
-          {/* Section header */}
-          <div className="flex items-center gap-3">
-            <div className="w-7 h-7 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center">
-              <CalendarDays size={14} className="text-white/50" />
-            </div>
-            <div>
-              <h2 className="text-sm font-heading font-bold uppercase tracking-wider text-white/80">My Bookings</h2>
-            </div>
-            <div className="flex-1 h-[1px] bg-gradient-to-r from-white/10 to-transparent" />
-          </div>
-
-          {/* Loading */}
-          {bookingsLoading && (
-            <div className="p-8 glass-panel flex items-center gap-3 text-white/40">
-              <span className="w-4 h-4 border-2 border-white/10 border-t-white/50 rounded-full animate-spin" />
-              <span className="text-sm">Loading your bookings…</span>
-            </div>
-          )}
-
-          {/* Empty */}
-          {!bookingsLoading && bookings.length === 0 && (
-            <div className="p-10 glass-panel text-center">
-              <div className="w-12 h-12 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center mx-auto mb-3">
-                <CalendarDays size={20} className="text-white/20" />
-              </div>
-              <p className="text-sm text-white/35">No bookings yet.</p>
-              <p className="text-xs text-white/20 mt-1">
-                Book a free strategy call —{' '}
-                <a href="/#book" className="text-red-500/60 hover:text-red-400 underline underline-offset-2 transition-colors">schedule now</a>
-              </p>
-            </div>
-          )}
-
-          {/* Booking cards */}
-          {!bookingsLoading && bookings.length > 0 && (
-            <div className="space-y-3">
-              {bookings.map((b) => {
-                const sc = statusConfig[b.status || ''] ?? { bg: 'bg-white/5', border: 'border-white/10', text: 'text-white/60', dot: 'bg-white/40' }
-                return (
-                  <div key={b.id} className="glass-panel p-5 space-y-3 hover:border-white/20 transition-colors">
-                    <div className="flex items-start justify-between gap-3 flex-wrap">
-                      <div>
-                        <p className="text-[10px] font-mono font-bold uppercase tracking-widest text-white/30 mb-0.5">Strategy Call</p>
-                        <p className="font-heading font-bold text-white/90">{b.project_type || 'General Enquiry'}</p>
-                      </div>
-                      <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border ${sc.bg} ${sc.border} ${sc.text}`}>
-                        <span className={`w-1.5 h-1.5 rounded-full ${sc.dot}`} />
-                        {(b.status || 'pending').replace('_', ' ')}
-                      </span>
-                    </div>
-
-                    <div className="flex flex-wrap gap-3">
-                      {b.meeting_date && (
-                        <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/[0.04] border border-white/[0.08] text-xs text-white/50">
-                          <CalendarDays size={11} className="text-white/30" />
-                          {new Date(b.meeting_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
-                          {b.meeting_time && <> · {b.meeting_time}</>}
-                        </span>
-                      )}
-                      {b.agency && (
-                        <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/[0.04] border border-white/[0.08] text-xs text-white/50">
-                          <Phone size={11} className="text-white/30" />
-                          {b.agency}
-                        </span>
-                      )}
-                    </div>
-
-                    {b.notes && (
-                      <p className="text-xs text-white/35 border-t border-white/[0.06] pt-3 leading-relaxed">{b.notes}</p>
-                    )}
-                  </div>
-                )
-              })}
-            </div>
-          )}
-        </motion.section>
-
-        {/* ── Chat with Dizitup Admin ─────────────────────────── */}
-        {(clientStatus === 'follow_up' || clientStatus === 'onboarded') && (
-          <motion.section
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.55, duration: 0.5 }}
-            className="mt-10 space-y-5"
-          >
-            {/* Section header */}
-            <div className="flex items-center gap-3">
-              <div className="w-7 h-7 rounded-lg bg-red-600/10 border border-red-500/20 flex items-center justify-center">
-                <MessageCircle size={14} className="text-red-400" />
-              </div>
-              <div>
-                <h2 className="text-sm font-heading font-bold uppercase tracking-wider text-white/80">Chat with Dizitup Admin</h2>
-              </div>
-              <div className="flex-1 h-[1px] bg-gradient-to-r from-red-500/20 to-transparent" />
-              <span className="flex items-center gap-1.5 text-[10px] font-mono text-green-400/70">
-                <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
-                Online
-              </span>
-            </div>
-
-            {/* Chat panel */}
-            <div className="glass-panel flex flex-col overflow-hidden" style={{ minHeight: '560px' }}>
-              {/* Chat header */}
-              <div className="flex items-center gap-3 px-6 py-4 border-b border-white/[0.06] bg-white/[0.02]">
-                <div className="w-9 h-9 rounded-full bg-gradient-to-br from-red-600 to-red-900 flex items-center justify-center shadow-[0_0_14px_rgba(220,38,38,0.35)]">
-                  <MessageCircle size={15} className="text-white" />
-                </div>
-                <div>
-                  <p className="text-sm font-bold text-white">Dizitup Admin</p>
-                  <p className="text-[10px] text-green-400 font-mono">● Online · replies within minutes</p>
-                </div>
-              </div>
-
-              {/* Messages */}
-              <div ref={chatContainerRef} className="flex-1 overflow-y-auto px-5 py-5 space-y-3 scrollbar-thin scrollbar-track-transparent scrollbar-thumb-white/10">
-                {chatMessages.length === 0 && (
-                  <div className="flex flex-col items-center justify-center h-full gap-3 py-16 text-center">
-                    <div className="w-12 h-12 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center">
-                      <MessageCircle size={20} className="text-white/20" />
-                    </div>
-                    <p className="text-sm text-white/35">No messages yet</p>
-                    <p className="text-xs text-white/20">Send a message to start chatting with the admin team</p>
-                  </div>
-                )}
-                {chatMessages.map(msg => (
-                  <div
-                    key={msg.id}
-                    className={`flex ${msg.sender_type === 'user' ? 'justify-end' : 'justify-start'}`}
-                  >
-                    <div
-                      className={`max-w-[72%] px-4 py-2.5 rounded-2xl text-sm leading-relaxed ${
-                        msg.sender_type === 'user'
-                          ? 'bg-red-600 text-white rounded-br-sm shadow-[0_2px_12px_rgba(220,38,38,0.25)]'
-                          : 'bg-white/[0.06] border border-white/10 text-white/80 rounded-bl-sm'
-                      }`}
-                    >
-                      {msg.sender_type === 'admin' && (
-                        <p className="text-[9px] font-bold uppercase tracking-wider text-white/40 mb-1">Admin</p>
-                      )}
-                      {msg.message}
-                      <p className={`text-[9px] mt-1 ${msg.sender_type === 'user' ? 'text-white/50' : 'text-white/30'}`}>
-                        {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                      </p>
-                    </div>
-                  </div>
-                ))}
-                <div ref={chatEndRef} />
-              </div>
-
-              {/* Input area */}
-              <div className="px-5 py-4 border-t border-white/[0.06] bg-white/[0.02]">
-                <div className="flex items-end gap-3">
-                  <textarea
-                    value={chatInput}
-                    onChange={e => setChatInput(e.target.value)}
-                    onKeyDown={e => {
-                      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChatMessage() }
-                    }}
-                    placeholder="Type a message to admin…"
-                    rows={1}
-                    className="flex-1 bg-white/[0.05] border border-white/10 rounded-2xl px-4 py-3 text-sm text-white placeholder-white/20 focus:outline-none focus:border-red-600/50 resize-none transition-all"
-                    style={{ maxHeight: '120px', overflowY: 'auto' }}
-                  />
-                  <button
-                    onClick={sendChatMessage}
-                    disabled={!chatInput.trim() || chatSending}
-                    className="w-11 h-11 flex-shrink-0 rounded-full bg-red-600 hover:bg-red-500 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center transition-all shadow-[0_0_12px_rgba(220,38,38,0.3)] hover:shadow-[0_0_18px_rgba(220,38,38,0.5)]"
-                  >
-                    {chatSending
-                      ? <Loader2 size={16} className="text-white animate-spin" />
-                      : <Send size={16} className="text-white" />
-                    }
-                  </button>
-                </div>
-                <p className="text-[10px] text-white/20 mt-2 text-center">
-                  Messages are visible to the Dizitup admin team · Press Enter to send
-                </p>
-              </div>
-            </div>
-          </motion.section>
-        )}
-
-        {/* Bottom back link */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.6 }}
-          className="mt-16 flex justify-center"
-        >
-          <button
-            onClick={() => navigate('/')}
-            className="flex items-center gap-2 text-xs font-mono uppercase tracking-widest text-white/20 hover:text-white/50 transition-colors group"
-          >
-            <ArrowLeft size={12} className="group-hover:-translate-x-0.5 transition-transform" />
-            Back to Dizitup Home
-          </button>
-        </motion.div>
-
-      </main>
-    </div>
+    <ClientLayout title="Dashboard" activeSection={activeSection}>
+      <Toaster position="top-right" />
+      <motion.div
+        key={activeSection}
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3 }}
+      >
+        {renderSection()}
+      </motion.div>
+      <BookingModal isOpen={isOpen} onClose={closeBooking} prefilledPackage={packageName} country={country} />
+    </ClientLayout>
   )
 }
+
+// Profile Section Component
+const ProfileSection: React.FC<{
+  user: any
+  updating: boolean
+  avatarPreview: string | null
+  onAvatarChange: (e: React.ChangeEvent<HTMLInputElement>) => void
+  onSaveProfile: () => void
+}> = ({ user, updating, avatarPreview, onAvatarChange, onSaveProfile }) => (
+  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+    {/* Profile Form */}
+    <div className="md:col-span-2 space-y-6">
+      <div className="glass-panel p-6 rounded-2xl space-y-6">
+        <div>
+          <label className="block text-xs font-bold uppercase tracking-widest text-white/60 mb-2">First Name</label>
+          <input
+            type="text"
+            value={user?.first_name || ''}
+            disabled
+            className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white/70 text-sm font-medium"
+          />
+        </div>
+        <div>
+          <label className="block text-xs font-bold uppercase tracking-widest text-white/60 mb-2">Last Name</label>
+          <input
+            type="text"
+            value={user?.last_name || ''}
+            disabled
+            className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white/70 text-sm font-medium"
+          />
+        </div>
+        <div>
+          <label className="block text-xs font-bold uppercase tracking-widest text-white/60 mb-2">Business Name</label>
+          <input
+            type="text"
+            value={user?.business_name || ''}
+            disabled
+            className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white/70 text-sm font-medium"
+          />
+        </div>
+        <div>
+          <label className="block text-xs font-bold uppercase tracking-widest text-white/60 mb-2">Phone</label>
+          <input
+            type="tel"
+            value={user?.phone || ''}
+            disabled
+            className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white/70 text-sm font-medium"
+          />
+        </div>
+        <button
+          onClick={onSaveProfile}
+          disabled={updating}
+          className="w-full py-3 rounded-xl bg-red-600 hover:bg-red-500 text-white font-semibold text-sm uppercase tracking-wider transition-all disabled:opacity-50"
+        >
+          {updating ? 'Saving...' : 'Save Profile'}
+        </button>
+      </div>
+    </div>
+
+    {/* Avatar */}
+    <div className="glass-panel p-6 rounded-2xl flex flex-col items-center text-center space-y-4">
+      <div className="w-24 h-24 rounded-2xl bg-gradient-to-br from-red-600 to-red-900 flex items-center justify-center text-white text-3xl font-bold">
+        {user?.avatar_url ? (
+          <img src={user.avatar_url} alt="Avatar" className="w-full h-full object-cover rounded-2xl" />
+        ) : (
+          `${user?.first_name?.[0]}${user?.last_name?.[0]}`
+        )}
+      </div>
+      <label className="w-full">
+        <input
+          type="file"
+          accept="image/*"
+          onChange={onAvatarChange}
+          className="hidden"
+        />
+        <div className="flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 hover:bg-red-500/20 cursor-pointer transition-all text-xs font-semibold">
+          <Camera className="w-4 h-4" />
+          Upload Photo
+        </div>
+      </label>
+      <p className="text-[10px] text-white/30">Recommended size: 400x400px</p>
+    </div>
+  </div>
+)
+
+// Bookings Section Component
+const BookingsSection: React.FC<{
+  bookings: BookingRow[]
+  bookingsLoading: boolean
+  openBooking: (pkg: string) => void
+}> = ({ bookings, bookingsLoading, openBooking }) => (
+  <div className="space-y-6">
+    <div>
+      <div className="flex items-center justify-between gap-4 mb-4">
+        <h2 className="text-2xl font-bold font-heading text-white">My Bookings</h2>
+        {bookings.length === 0 ? (
+          <button
+            onClick={() => openBooking('')}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-sm font-semibold hover:bg-emerald-500/20 transition-all"
+          >
+            <CalendarDays size={16} />
+            Book a Meeting
+          </button>
+        ) : (
+          <button
+            onClick={() => openBooking('')}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-sm font-semibold hover:bg-red-500/20 transition-all"
+          >
+            <RotateCcw size={16} />
+            Re-book
+          </button>
+        )}
+      </div>
+      {bookingsLoading && (
+        <div className="p-8 glass-panel flex items-center gap-3 text-white/40">
+          <span className="w-4 h-4 border-2 border-white/10 border-t-white/50 rounded-full animate-spin" />
+          <span className="text-sm">Loading your bookingsâ€¦</span>
+        </div>
+      )}
+
+      {!bookingsLoading && bookings.length === 0 && (
+        <div className="p-10 glass-panel text-center">
+          <CalendarDays className="w-12 h-12 text-white/20 mx-auto mb-3" />
+          <p className="text-sm text-white/35">No bookings yet.</p>
+        </div>
+      )}
+
+      {!bookingsLoading && bookings.length > 0 && (
+        <div className="space-y-3">
+          {bookings.map((b) => (
+            <div key={b.id} className="glass-panel p-5 space-y-3 hover:border-white/20 transition-colors">
+              <div className="flex items-start justify-between gap-3 flex-wrap">
+                <div>
+                  <p className="text-[10px] font-mono font-bold uppercase tracking-widest text-white/30 mb-0.5">Strategy Call</p>
+                  <p className="font-heading font-bold text-white/90">{b.project_type || 'General Enquiry'}</p>
+                </div>
+                <StatusBadge status={b.status || 'pending'} />
+              </div>
+
+              <div className="flex flex-wrap gap-3">
+                {b.meeting_date && (
+                  <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/[0.04] border border-white/[0.08] text-xs text-white/50">
+                    <CalendarDays size={11} className="text-white/30" />
+                    {new Date(b.meeting_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                    {b.meeting_time && <> Â· {b.meeting_time}</>}
+                  </span>
+                )}
+                {b.agency && (
+                  <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/[0.04] border border-white/[0.08] text-xs text-white/50">
+                    <Phone size={11} className="text-white/30" />
+                    {b.agency}
+                  </span>
+                )}
+              </div>
+
+              {b.notes && (
+                <p className="text-xs text-white/35 border-t border-white/[0.06] pt-3 leading-relaxed">{b.notes}</p>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  </div>
+)
+
+// Projects Section Component
+const ProjectsSection: React.FC<{
+  projects: ProjectWithUpdates[]
+  projectsLoading: boolean
+}> = ({ projects, projectsLoading }) => (
+  <div className="space-y-6">
+    <div>
+      <h2 className="text-2xl font-bold font-heading text-white mb-4">My Projects</h2>
+      {projectsLoading && (
+        <div className="p-8 glass-panel flex items-center gap-3 text-white/40">
+          <Loader2 className="w-4 h-4 animate-spin" />
+          <span className="text-sm">Loading projectsâ€¦</span>
+        </div>
+      )}
+
+      {!projectsLoading && projects.length === 0 && (
+        <div className="p-10 glass-panel text-center">
+          <p className="text-sm text-white/35">No active projects yet.</p>
+        </div>
+      )}
+
+      {!projectsLoading && projects.length > 0 && (
+        <div className="space-y-3">
+          {projects.map((p) => (
+            <div key={p.id} className="glass-panel p-5 space-y-3">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-[10px] font-mono font-bold uppercase tracking-widest text-white/30 mb-0.5">Project</p>
+                  <p className="font-heading font-bold text-white/90">{p.title}</p>
+                </div>
+                <StatusBadge status={p.status} />
+              </div>
+              {p.description && <p className="text-sm text-white/50">{p.description}</p>}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  </div>
+)
+
+// Accounts Section Component
+const AccountsSection: React.FC<any> = ({
+  user,
+  updating,
+  newPassword,
+  setNewPassword,
+  showPassword,
+  setShowPassword,
+  onChangePassword,
+  newEmail,
+  setNewEmail,
+  onChangeEmail,
+  clientStatus,
+  chatMessages,
+  chatInput,
+  setChatInput,
+  chatSending,
+  onSendMessage,
+  chatEndRef,
+}) => (
+  <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    {/* Account Settings */}
+    <div className="lg:col-span-2 space-y-6">
+      {/* Email */}
+      <div className="glass-panel p-6 rounded-2xl space-y-4">
+        <h3 className="text-lg font-semibold flex items-center gap-2">
+          <Mail className="w-5 h-5 text-red-400" />
+          Email
+        </h3>
+        <p className="text-sm text-white/50">{user?.email}</p>
+        <input
+          type="email"
+          value={newEmail}
+          onChange={(e) => setNewEmail(e.target.value)}
+          placeholder="New email address"
+          className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white text-sm placeholder-white/30"
+        />
+        <button
+          onClick={onChangeEmail}
+          disabled={updating || !newEmail}
+          className="w-full py-2 rounded-lg bg-red-600 hover:bg-red-500 text-white font-semibold text-sm uppercase transition-all disabled:opacity-50"
+        >
+          {updating ? 'Updating...' : 'Change Email'}
+        </button>
+      </div>
+
+      {/* Password */}
+      <div className="glass-panel p-6 rounded-2xl space-y-4">
+        <h3 className="text-lg font-semibold flex items-center gap-2">
+          <KeyRound className="w-5 h-5 text-red-400" />
+          Password
+        </h3>
+        <div className="relative">
+          <input
+            type={showPassword ? 'text' : 'password'}
+            value={newPassword}
+            onChange={(e) => setNewPassword(e.target.value)}
+            placeholder="New password"
+            className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white text-sm placeholder-white/30 pr-10"
+          />
+          <button
+            onClick={() => setShowPassword(!showPassword)}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 hover:text-white/60"
+          >
+            {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+          </button>
+        </div>
+        <button
+          onClick={onChangePassword}
+          disabled={updating || !newPassword}
+          className="w-full py-2 rounded-lg bg-red-600 hover:bg-red-500 text-white font-semibold text-sm uppercase transition-all disabled:opacity-50"
+        >
+          {updating ? 'Updating...' : 'Change Password'}
+        </button>
+      </div>
+    </div>
+
+    {/* Chat with Admin */}
+    {(clientStatus === 'follow_up' || clientStatus === 'onboarded') && (
+      <div className="glass-panel p-6 rounded-2xl flex flex-col h-[600px]">
+        <div className="flex items-center gap-2 mb-4">
+          <MessageCircle className="w-5 h-5 text-red-400" />
+          <h3 className="text-lg font-semibold">Chat with Admin</h3>
+        </div>
+
+        <div className="flex-1 min-h-0 overflow-y-auto space-y-3 mb-4 pr-2" style={{ scrollbarWidth: 'thin' }}>
+          {chatMessages.map((msg) => (
+            <div key={msg.id} className={`flex ${msg.sender_type === 'user' ? 'justify-end' : 'justify-start'}`}>
+              <div
+                className={`max-w-xs px-3 py-2 rounded-lg text-sm ${
+                  msg.sender_type === 'user'
+                    ? 'bg-red-600 text-white'
+                    : 'bg-white/10 text-white/70'
+                }`}
+              >
+                {msg.message}
+              </div>
+            </div>
+          ))}
+          <div ref={chatEndRef} />
+        </div>
+
+        <div className="flex gap-2">
+          <input
+            type="text"
+            value={chatInput}
+            onChange={(e) => setChatInput(e.target.value)}
+            onKeyPress={(e) => e.key === 'Enter' && !chatSending && onSendMessage()}
+            placeholder="Type a message..."
+            className="flex-1 px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm placeholder-white/30 focus:outline-none focus:border-red-600/50"
+          />
+          <button
+            onClick={onSendMessage}
+            disabled={chatSending || !chatInput.trim()}
+            className="p-2 rounded-lg bg-red-600 hover:bg-red-500 text-white transition-all disabled:opacity-50"
+          >
+            {chatSending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+          </button>
+        </div>
+      </div>
+    )}
+  </div>
+)
 
 export default Dashboard

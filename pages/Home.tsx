@@ -9,8 +9,7 @@ import Portfolio from '../components/Portfolio';
 import DynamicPricing from '../components/DynamicPricing';
 import CustomProjects from '../components/CustomProjects';
 import BookingModal from '../components/BookingModal';
-import PersonalizationFlow from '../components/PersonalizationFlow';
-import type { UserProfile, Country } from '../components/PersonalizationFlow';
+import type { Country } from '../components/PersonalizationFlow';
 import Footer from '../components/Footer';
 import WelcomeLoader from '../components/WelcomeLoader';
 import CursorGlow from '../components/CursorGlow';
@@ -19,12 +18,11 @@ import AnimatedCounter from '../components/AnimatedCounter';
 import AuthModal from '../components/AuthModal';
 import ContactAdminModal from '../components/ContactAdminModal';
 import ChatWidget from '../components/ChatWidget';
-import DiziAIChat from '../components/DiziAIChat';
 import { useBooking } from '../contexts/BookingContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import { BrainCircuit, Zap, Target } from 'lucide-react';
 
-type HomePhase = 'loader' | 'personalize' | 'site';
+type HomePhase = 'loader' | 'site';
 
 // Trust logos for marquee
 const TRUST_LOGOS = ['NEXUS', 'STELLAR', 'AURA', 'VELOCITY', 'QUANTUM', 'APEX', 'CIPHER', 'PRISM'];
@@ -57,40 +55,26 @@ const Home: React.FC = () => {
     contactAdminOpen, closeContactAdmin,
   } = useBooking();
 
-  // Determine initial phase
+  // Determine initial phase — skip personalize, go straight to site after loader
   const initialPhase = useMemo<HomePhase>(() => {
-    const w = window as unknown as { __WELCOME_SHOWN?: boolean; __USER_PROFILE?: UserProfile };
+    const w = window as unknown as { __WELCOME_SHOWN?: boolean };
     if (!w.__WELCOME_SHOWN) return 'loader';
-    if (!w.__USER_PROFILE) return 'personalize';
     return 'site';
   }, []);
 
   const [phase, setPhase] = useState<HomePhase>(initialPhase);
 
-  // User profile state
-  const cachedProfile = useMemo(() => {
-    return (window as unknown as { __USER_PROFILE?: UserProfile }).__USER_PROFILE;
-  }, []);
-  const [userProfile, setUserProfile] = useState<UserProfile | null>(cachedProfile ?? null);
+  const country: Country = 'Other';
 
   const handleLoaderComplete = useCallback(() => {
     (window as unknown as { __WELCOME_SHOWN?: boolean }).__WELCOME_SHOWN = true;
-    setPhase('personalize');
+    setPhase('site');
   }, []);
 
-  const handlePersonalizationComplete = useCallback((profile: UserProfile) => {
-    (window as unknown as { __USER_PROFILE?: UserProfile }).__USER_PROFILE = profile;
-    setUserProfile(profile);
-    setBookingCountry(profile.country);
-    setPhase('site');
-  }, [setBookingCountry]);
-
-  const country: Country = userProfile?.country ?? 'Other';
-
-  // Sync country to booking context on mount (if returning user)
+  // Sync country to booking context on mount
   useEffect(() => {
-    if (userProfile) setBookingCountry(userProfile.country);
-  }, [userProfile, setBookingCountry]);
+    setBookingCountry(country);
+  }, [setBookingCountry]);
 
   return (
     <div className="min-h-screen min-h-[100dvh] bg-[#050505] text-white selection:bg-red-600 selection:text-white overflow-x-hidden">
@@ -101,12 +85,6 @@ const Home: React.FC = () => {
         )}
       </AnimatePresence>
 
-      {/* Phase 2: Personalization Flow */}
-      <AnimatePresence>
-        {phase === 'personalize' && (
-          <PersonalizationFlow onComplete={handlePersonalizationComplete} />
-        )}
-      </AnimatePresence>
 
       {/* Phase 3: Main Site */}
       {phase === 'site' && (
@@ -291,8 +269,6 @@ const Home: React.FC = () => {
           {/* Floating in-app chat widget (follow_up + onboarded users only) */}
           <ChatWidget />
 
-          {/* Dizi AI Chat Widget - Coming Soon */}
-          <DiziAIChat />
         </motion.div>
       )}
     </div>

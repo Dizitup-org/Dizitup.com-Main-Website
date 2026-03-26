@@ -18,6 +18,7 @@ const AdminBookings: React.FC = () => {
   const [bookings, setBookings] = useState<BookingRow[]>([]);
   const [bookingsLoading, setBookingsLoading] = useState(true);
   const [bookingsError, setBookingsError] = useState<string | null>(null);
+  const [meetingDoneChecked, setMeetingDoneChecked] = useState<Set<string>>(new Set());
 
   // Tab state
   const [tab, setTab] = useState<TabKey>('pending');
@@ -132,9 +133,42 @@ const AdminBookings: React.FC = () => {
     try {
       await api.patch(`/api/admin/bookings/${booking.id}/status`, { status: 'meeting_done' });
       setBookings(prev => prev.map(b => b.id === booking.id ? { ...b, status: 'meeting_done' } : b));
+      // Add booking ID to meetingDoneChecked set
+      setMeetingDoneChecked(prev => new Set(prev).add(booking.id));
       toast.success('Marked as meeting done', { icon: '✅' });
     } catch (err: any) {
       toast.error(err.message || 'Failed to update booking');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleDeclineBooking = async (booking: BookingRow) => {
+    if (!confirm(`Are you sure you want to decline the booking for ${booking.name || 'this client'}?`)) return;
+    
+    setActionLoading(booking.id);
+    
+    try {
+      console.log(`❌ Declining booking ${booking.id}...`);
+      
+      const data = await api.patch<any>(`/api/admin/bookings/${booking.id}`, { status: 'declined' });
+      console.log('✅ Decline booking API response:', data);
+      
+      // Success: Update booking status in UI
+      setBookings((prev) => prev.map((b) => 
+        b.id === booking.id ? { ...b, status: 'declined' } : b
+      ));
+      
+      toast.success('Booking declined successfully!', { icon: '❌' });
+      
+      // Refresh bookings list
+      setTimeout(async () => {
+        await fetchBookings();
+      }, 500);
+      
+    } catch (error: any) {
+      console.error('❌ Decline booking error:', error);
+      toast.error(`Failed to decline booking: ${error.message}`);
     } finally {
       setActionLoading(null);
     }
@@ -168,11 +202,14 @@ const AdminBookings: React.FC = () => {
   const filteredBookings = useMemo(() => {
     let result = bookings;
 
+    // Exclude onboarded clients
+    result = result.filter(b => !b.is_onboarded);
+
     // Filter by tab status
     if (tab === 'pending') {
       result = result.filter(b => b.status === 'pending');
     } else if (tab === 'accepted') {
-      result = result.filter(b => b.status === 'accepted');
+      result = result.filter(b => b.status === 'accepted' || b.status === 'meeting_done');
     }
 
     // Filter by search query
@@ -211,6 +248,7 @@ const AdminBookings: React.FC = () => {
       confirmed: { bg: 'bg-blue-500/10', text: 'text-blue-400', label: 'Confirmed' },
       meeting_done: { bg: 'bg-cyan-500/10', text: 'text-cyan-400', label: 'Meeting Done' },
       follow_up: { bg: 'bg-orange-500/10', text: 'text-orange-400', label: 'Follow-up' },
+      declined: { bg: 'bg-red-500/10', text: 'text-red-400', label: 'Declined' },
       rejected: { bg: 'bg-red-500/10', text: 'text-red-400', label: 'Rejected' }
     };
 
@@ -311,7 +349,7 @@ const AdminBookings: React.FC = () => {
                 : 'text-white/60 border-b-transparent hover:text-white/80'
             }`}
           >
-            Accepted ({bookings.filter(b => b.status === 'accepted').length})
+            Accepted ({bookings.filter(b => b.status === 'accepted' || b.status === 'meeting_done').length})
           </button>
         </div>
 
@@ -346,7 +384,7 @@ const AdminBookings: React.FC = () => {
             </p>
           </div>
         ) : (
-          <div className="space-y-4">
+          <div className="max-h-[calc(100vh-350px)] overflow-y-auto space-y-4 pr-2">
             {paginatedBookings.map((booking) => (
               <div
                 key={booking.id}
@@ -369,7 +407,7 @@ const AdminBookings: React.FC = () => {
                         <p className="text-xs text-white/40">Agency: {booking.agency}</p>
                       )}
                       <div className="flex flex-wrap gap-2 mt-2">
-                        {getStatusBadge(booking.status)}
+                        {tab === 'accepted' ? getStatusBadge('accepted') : getStatusBadge(booking.status)}
                         {booking.project_type && (
                           <span className="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-white/5 border border-white/10 text-white/60">
                             {booking.project_type}
@@ -393,61 +431,112 @@ const AdminBookings: React.FC = () => {
                     </div>
 
                     <div className="flex gap-2 flex-wrap">
-                      <button
-                        onClick={() => handleAcceptBooking(booking)}
-                        disabled={actionLoading === booking.id}
-                        className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-green-500/10 border border-green-500/20 text-green-400 text-xs font-semibold hover:bg-green-500/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        {actionLoading === booking.id ? (
-                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                        ) : (
-                          <CheckCircle className="w-3.5 h-3.5" />
-                        )}
-                        {actionLoading === booking.id ? 'Accepting...' : 'Accept'}
-                      </button>
-                      <button
-                        onClick={() => handleFollowUpBooking(booking)}
-                        disabled={actionLoading === booking.id}
-                        className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-yellow-500/10 border border-yellow-500/20 text-yellow-400 text-xs font-semibold hover:bg-yellow-500/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        {actionLoading === booking.id ? (
-                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                        ) : (
-                          <PhoneCall className="w-3.5 h-3.5" />
-                        )}
-                        {actionLoading === booking.id ? 'Moving...' : 'Follow-up'}
-                      </button>
-                      <button
-                        onClick={() => handleOnboardBooking(booking)}
-                        disabled={actionLoading === booking.id}
-                        className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-400 text-xs font-semibold hover:bg-blue-500/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        {actionLoading === booking.id ? (
-                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                        ) : (
-                          <Users className="w-3.5 h-3.5" />
-                        )}
-                        {actionLoading === booking.id ? 'Onboarding...' : 'Onboard'}
-                      </button>
-                      <button
-                        onClick={() => handleMeetingDone(booking)}
-                        disabled={actionLoading === booking.id}
-                        className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 text-xs font-semibold hover:bg-cyan-500/20 transition-all disabled:opacity-50"
-                      >
-                        {actionLoading === booking.id ? (
-                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                        ) : (
-                          <CheckCircle className="w-3.5 h-3.5" />
-                        )}
-                        Meeting Done
-                      </button>
-                      <button
-                        onClick={() => handleDeleteBooking(booking)}
-                        disabled={actionLoading === booking.id}
-                        className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-white/60 text-xs font-semibold hover:bg-red-500/10 hover:border-red-500/20 hover:text-red-400 transition-all disabled:opacity-50"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
+                      {booking.status === 'pending' ? (
+                        <>
+                          <button
+                            onClick={() => handleAcceptBooking(booking)}
+                            disabled={actionLoading === booking.id}
+                            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-green-500/10 border border-green-500/20 text-green-400 text-xs font-semibold hover:bg-green-500/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            {actionLoading === booking.id ? (
+                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            ) : (
+                              <CheckCircle className="w-3.5 h-3.5" />
+                            )}
+                            {actionLoading === booking.id ? 'Accepting...' : 'Accept'}
+                          </button>
+                          <button
+                            onClick={() => handleDeclineBooking(booking)}
+                            disabled={actionLoading === booking.id}
+                            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-xs font-semibold hover:bg-red-500/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            {actionLoading === booking.id ? (
+                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            ) : (
+                              <Trash2 className="w-3.5 h-3.5" />
+                            )}
+                            {actionLoading === booking.id ? 'Declining...' : 'Decline'}
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          {tab === 'pending' && booking.status !== 'accepted' && (
+                            <button
+                              onClick={() => handleAcceptBooking(booking)}
+                              disabled={actionLoading === booking.id}
+                              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-green-500/10 border border-green-500/20 text-green-400 text-xs font-semibold hover:bg-green-500/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              {actionLoading === booking.id ? (
+                                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                              ) : (
+                                <CheckCircle className="w-3.5 h-3.5" />
+                              )}
+                              {actionLoading === booking.id ? 'Accepting...' : 'Accept'}
+                            </button>
+                          )}
+                          <button
+                            onClick={() => handleFollowUpBooking(booking)}
+                            disabled={actionLoading === booking.id}
+                            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-yellow-500/10 border border-yellow-500/20 text-yellow-400 text-xs font-semibold hover:bg-yellow-500/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            {actionLoading === booking.id ? (
+                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            ) : (
+                              <PhoneCall className="w-3.5 h-3.5" />
+                            )}
+                            {actionLoading === booking.id ? 'Moving...' : 'Follow-up'}
+                          </button>
+                          {tab === 'pending' && booking.status !== 'accepted' && (
+                            <button
+                              onClick={() => handleOnboardBooking(booking)}
+                              disabled={actionLoading === booking.id}
+                              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-400 text-xs font-semibold hover:bg-blue-500/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              {actionLoading === booking.id ? (
+                                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                              ) : (
+                                <Users className="w-3.5 h-3.5" />
+                              )}
+                              {actionLoading === booking.id ? 'Onboarding...' : 'Onboard'}
+                            </button>
+                          )}
+                          <div className="flex items-center gap-3">
+                            {!meetingDoneChecked.has(booking.id) ? (
+                              <button
+                                onClick={() => handleMeetingDone(booking)}
+                                disabled={actionLoading === booking.id}
+                                className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 text-xs font-semibold hover:bg-cyan-500/20 transition-all disabled:opacity-50"
+                              >
+                                {actionLoading === booking.id ? (
+                                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                ) : (
+                                  <CheckCircle className="w-3.5 h-3.5" />
+                                )}
+                                Meeting Done
+                              </button>
+                            ) : (
+                              <label className="flex items-center gap-2 px-3 py-2 text-xs font-semibold text-cyan-400">
+                                <input
+                                  type="checkbox"
+                                  checked={true}
+                                  readOnly
+                                  className="w-4 h-4 rounded border-cyan-500/20 bg-cyan-500/10 accent-cyan-400 cursor-default"
+                                />
+                                Meeting Done
+                              </label>
+                            )}
+                          </div>
+                          {tab === 'pending' && (
+                            <button
+                              onClick={() => handleDeleteBooking(booking)}
+                              disabled={actionLoading === booking.id}
+                              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-white/60 text-xs font-semibold hover:bg-red-500/10 hover:border-red-500/20 hover:text-red-400 transition-all disabled:opacity-50"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                        </>
+                      )}
                     </div>
                   </div>
                 </div>

@@ -43,7 +43,7 @@ const AdminClients: React.FC = () => {
   const fetchQueryClients = useCallback(async () => {
     setQueryClientsLoading(true);
     setQueryClientsError(null);
-    const { data, error } = await getQueryClients();
+    const { data, error } = await getQueryClients(true); // skipCache = true for fresh data
     if (error) {
       setQueryClientsError(error);
       setQueryClients([]);
@@ -62,6 +62,30 @@ const AdminClients: React.FC = () => {
       toast.success(`Client "${clientName}" deleted`);
     } catch (err: any) {
       toast.error(err.message || 'Failed to delete client');
+    } finally {
+      setActionLoading(null);
+    }
+  }, []);
+
+  const handleUpdateFollowupDate = useCallback(async (clientId: string, newDate: string | null) => {
+    setActionLoading(clientId);
+    try {
+      const response = await api.patch(`/api/admin/clients/query/${clientId}/followup`, {
+        followup_date: newDate
+      });
+      
+      setQueryClients((prev) =>
+        prev.map((c) =>
+          c.id === clientId
+            ? { ...c, follow_up_date: response.client?.follow_up_date || newDate || null }
+            : c
+        )
+      );
+      
+      toast.success(newDate ? 'Follow-up date set' : 'Follow-up date cleared', { icon: '📅' });
+    } catch (err: any) {
+      console.error('❌ Update followup date error:', err);
+      toast.error(err.message || 'Failed to update follow-up date');
     } finally {
       setActionLoading(null);
     }
@@ -404,14 +428,23 @@ const AdminClients: React.FC = () => {
                             <td className="px-6 py-4 text-white/70">{client.email || 'No email'}</td>
                             <td className="px-6 py-4 text-white/70">{client.phone || '—'}</td>
                             <td className="px-6 py-4">
-                              {client.follow_up_date ? (
-                                <span className="flex items-center gap-2 text-yellow-400">
-                                  <Calendar className="w-4 h-4" />
-                                  {new Date(client.follow_up_date).toLocaleDateString()}
-                                </span>
-                              ) : (
-                                <span className="text-white/40">—</span>
-                              )}
+                              <input
+                                type="date"
+                                value={
+                                  client.follow_up_date
+                                    ? new Date(client.follow_up_date).toISOString().split('T')[0]
+                                    : ''
+                                }
+                                onChange={(e) =>
+                                  handleUpdateFollowupDate(
+                                    client.id,
+                                    e.target.value ? new Date(e.target.value).toISOString() : null
+                                  )
+                                }
+                                disabled={actionLoading === client.id}
+                                className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-red-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all min-w-[140px]"
+                                title="Set follow-up date"
+                              />
                             </td>
                             <td className="px-6 py-4">{getStatusBadge(client.status || 'pending')}</td>
                             <td className="px-6 py-4">
