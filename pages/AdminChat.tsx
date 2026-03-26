@@ -3,8 +3,14 @@ import AdminLayout from '../components/AdminLayout';
 import ChatBox from '../components/ChatBox';
 import { MessageCircle, Send, Loader2, Users, Circle } from 'lucide-react';
 import { useAuth } from '../contexts/AuthProvider';
+import { getToken } from '../utils/apiClient';
 
 const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000';
+
+const authHeaders = () => {
+  const t = getToken();
+  return { 'Content-Type': 'application/json', ...(t ? { Authorization: `Bearer ${t}` } : {}) };
+};
 
 interface Conversation {
   id: string;
@@ -47,7 +53,7 @@ const AdminChat: React.FC = () => {
   // Fetch conversations list
   const fetchConversations = useCallback(async () => {
     try {
-      const res = await fetch(`${BASE_URL}/api/admin/chat/conversations`);
+      const res = await fetch(`${BASE_URL}/api/admin/chat/conversations`, { headers: authHeaders() });
       const data = await res.json();
       if (data.success) setConversations(data.conversations);
     } catch { /* silent */ } finally {
@@ -58,7 +64,7 @@ const AdminChat: React.FC = () => {
   // Fetch messages for selected conversation
   const fetchMessages = useCallback(async (convId: string) => {
     try {
-      const res = await fetch(`${BASE_URL}/api/admin/chat/messages/${convId}`);
+      const res = await fetch(`${BASE_URL}/api/admin/chat/messages/${convId}`, { headers: authHeaders() });
       const data = await res.json();
       if (data.success) setMessages(data.messages);
     } catch { /* silent */ }
@@ -87,7 +93,7 @@ const AdminChat: React.FC = () => {
     try {
       const res = await fetch(`${BASE_URL}/api/admin/chat/message`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authHeaders(),
         body: JSON.stringify({ conversationId: selectedConv.id, message: input.trim() }),
       });
       const data = await res.json();

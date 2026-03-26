@@ -53,20 +53,20 @@ router.get('/:channel', async (req, res, next) => {
 
 // ----------------------------------------------------------
 // POST /:channel — send a message
-// Body: { message: string, sender_name: string }
+// Body: { message: string, sender_name: string, sender_id?: string }
 // ----------------------------------------------------------
 router.post('/:channel', async (req, res, next) => {
   try {
-    const { message, sender_name } = req.body;
+    const { message, sender_name, sender_id } = req.body;
     if (!message || !message.trim()) {
       return res.status(400).json({ success: false, message: 'message is required' });
     }
     const name = (sender_name || 'Unknown').trim();
     const result = await db.query(
-      `INSERT INTO team_messages (channel, sender_name, message)
-       VALUES ($1, $2, $3)
-       RETURNING id, sender_name, message, created_at`,
-      [req.params.channel, name, message.trim()]
+      `INSERT INTO team_messages (channel, sender_name, message, sender_id)
+       VALUES ($1, $2, $3, $4)
+       RETURNING id, sender_name, message, sender_id, created_at`,
+      [req.params.channel, name, message.trim(), sender_id || null]
     );
     res.json({ success: true, message: result.rows[0] });
   } catch (err) { next(err); }
