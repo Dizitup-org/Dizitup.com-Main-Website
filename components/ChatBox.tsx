@@ -27,7 +27,7 @@ const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000';
 const ChatBox: React.FC<ChatBoxProps> = ({
   channel,
   senderName,
-  apiBase = '/api/chat/channel',
+  apiBase = '/api/staff/chat',
   label = 'Team Chat',
 }) => {
   const { user } = useAuth();
@@ -72,7 +72,7 @@ const ChatBox: React.FC<ChatBoxProps> = ({
       const res = await fetch(`${BASE_URL}${apiBase}/${channel}`, {
         method: 'POST',
         headers: authHeaders(),
-        body: JSON.stringify({ message: input.trim(), sender_name: senderName }),
+        body: JSON.stringify({ message: input.trim(), sender_name: senderName, sender_id: user?.id }),
       });
       const data = await res.json();
       if (data.success) {

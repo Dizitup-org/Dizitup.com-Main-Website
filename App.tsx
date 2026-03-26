@@ -19,6 +19,7 @@ import ManagerChat from './pages/ManagerChat';
 import ManagerTasks from './pages/ManagerTasks';
 import EmployeeTasks from './pages/EmployeeTasks';
 import EmployeeProjects from './pages/EmployeeProjects';
+import EmployeeChat from './pages/EmployeeChat';
 import { AuthProvider } from './contexts/AuthProvider';
 import { BookingProvider } from './contexts/BookingContext';
 import { RequireAdmin, RequireAuth, RequireRole } from './components/ProtectedRoute';
@@ -160,6 +161,14 @@ const App: React.FC = () => {
               element={(
                 <RequireRole roles={['admin', 'manager', 'employee']}>
                   <EmployeeProjects />
+                </RequireRole>
+              )}
+            />
+            <Route
+              path="/admin/employee/chat"
+              element={(
+                <RequireRole roles={['admin', 'manager', 'employee']}>
+                  <EmployeeChat />
                 </RequireRole>
               )}
             />
