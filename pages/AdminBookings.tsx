@@ -340,7 +340,7 @@ const AdminBookings: React.FC = () => {
                 : 'text-white/60 border-b-transparent hover:text-white/80'
             }`}
           >
-            Accepted ({bookings.filter(b => b.is_onboarded !== true && b.has_follow_up !== true).length})
+            Accepted ({bookings.filter(b => (b.status === 'accepted' || b.status === 'meeting_done') && b.is_onboarded !== true && b.has_follow_up !== true).length})
           </button>
         </div>
 
