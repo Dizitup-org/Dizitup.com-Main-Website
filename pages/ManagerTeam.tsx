@@ -97,7 +97,7 @@ const ManagerTeam: React.FC = () => {
   const removeAccess = async (adminId: string, name: string) => {
     if (!window.confirm(`Remove ${name}'s staff access? Their user account will remain.`)) return;
     try {
-      const res = await fetch(`${BASE_URL}/api/manager/employees/${adminId}`, {
+      const res = await fetch(`${BASE_URL}/api/admin/users/staff/${adminId}`, {
         method: 'DELETE',
         headers: authHeaders(),
       });

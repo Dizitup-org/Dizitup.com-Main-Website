@@ -120,7 +120,10 @@ router.post('/employees', async (req, res, next) => {
 // ----------------------------------------------------------
 router.delete('/employees/:id', async (req, res, next) => {
   try {
-    await db.query('DELETE FROM admins WHERE id = $1 AND role = \'employee\'', [req.params.id]);
+    const result = await db.query('DELETE FROM admins WHERE id = $1 AND role != \'admin\'', [req.params.id]);
+    if (result.rowCount === 0) {
+      return res.status(404).json({ success: false, message: 'Staff member not found or cannot remove an admin' });
+    }
     res.json({ success: true });
   } catch (err) { console.error('[DELETE /manager/employees/:id]', err.message, err.stack); next(err); }
 });
