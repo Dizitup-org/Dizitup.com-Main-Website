@@ -168,9 +168,18 @@ router.patch('/:id', async (req, res, next) => {
         [req.params.id]
       );
       if (existing.rows.length === 0) {
+        // Fetch booking data and user phone
+        const bookingData = await db.query(
+          `SELECT b.name, b.email, u.phone FROM bookings b
+           LEFT JOIN users u ON b.user_id = u.id
+           WHERE b.id = $1`,
+          [req.params.id]
+        );
+        const { name, email, phone } = bookingData.rows[0] || {};
+        
         await db.query(
-          `INSERT INTO query_clients (booking_id, user_id) VALUES ($1, $2)`,
-          [req.params.id, user_id]
+          `INSERT INTO query_clients (booking_id, user_id, name, email, phone) VALUES ($1, $2, $3, $4, $5)`,
+          [req.params.id, user_id, name || null, email || null, phone || null]
         );
       }
     }
@@ -231,10 +240,19 @@ router.patch('/:id/status', async (req, res, next) => {
         );
         
         if (existingQuery.rows.length === 0) {
+          // Fetch booking data and user phone
+          const bookingData = await db.query(
+            `SELECT b.name, b.email, u.phone FROM bookings b
+             LEFT JOIN users u ON b.user_id = u.id
+             WHERE b.id = $1`,
+            [req.params.id]
+          );
+          const { name, email, phone } = bookingData.rows[0] || {};
+          
           await db.query(
-            `INSERT INTO query_clients (booking_id, user_id, status)
-             VALUES ($1, $2, $3)`,
-            [req.params.id, user_id, 'active']
+            `INSERT INTO query_clients (booking_id, user_id, status, name, email, phone)
+             VALUES ($1, $2, $3, $4, $5, $6)`,
+            [req.params.id, user_id, 'active', name || null, email || null, phone || null]
           );
           console.log('Query client record created successfully');
         } else {
@@ -306,9 +324,10 @@ router.post('/:id/onboard', async (req, res, next) => {
     console.log(`Onboarding booking ${req.params.id}...`);
 
     const booking = await client.query(
-      `SELECT user_id, name, email, agency
-       FROM bookings
-       WHERE id = $1`,
+      `SELECT b.user_id, b.name, b.email, b.agency, u.phone
+       FROM bookings b
+       LEFT JOIN users u ON b.user_id = u.id
+       WHERE b.id = $1`,
       [req.params.id]
     );
 
@@ -316,7 +335,7 @@ router.post('/:id/onboard', async (req, res, next) => {
       throw new AppError('Booking not found', 404);
     }
 
-    const { user_id, name, email, agency } = booking.rows[0];
+    const { user_id, name, email, phone, agency } = booking.rows[0];
     console.log('Booking data retrieved:', { user_id, name, email, agency });
 
     if (!user_id) {
@@ -341,10 +360,10 @@ router.post('/:id/onboard', async (req, res, next) => {
     
     const onboardResult = await client.query(
       `INSERT INTO onboard_clients
-       (user_id, booking_id, contact_name, email, company_name)
-       VALUES ($1, $2, $3, $4, $5)
+       (user_id, booking_id, contact_name, email, phone, company_name)
+       VALUES ($1, $2, $3, $4, $5, $6)
        RETURNING *`,
-      [user_id, req.params.id, name, email, agency || null]
+      [user_id, req.params.id, name, email, phone || null, agency || null]
     );
 
     console.log('Onboard client created:', onboardResult.rows[0]);

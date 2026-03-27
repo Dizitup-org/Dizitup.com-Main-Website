@@ -27,6 +27,7 @@ router.post('/', protect, async (req, res, next) => {
     const {
       name,
       email,
+      phone,
       agency,
       project_type,
       meeting_date,
@@ -57,10 +58,10 @@ router.post('/', protect, async (req, res, next) => {
 
     // Insert booking into database using parameterized query
     const result = await db.query(
-      `INSERT INTO bookings (user_id, name, email, agency, project_type, meeting_date, meeting_time, notes, status, created_at, updated_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW())
+      `INSERT INTO bookings (user_id, name, email, phone, agency, project_type, meeting_date, meeting_time, notes, status, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW(), NOW())
        RETURNING id`,
-      [user_id, name, email, agency, project_type, meeting_date, meeting_time, notes || '', status || 'pending']
+      [user_id, name, email, phone || null, agency, project_type, meeting_date, meeting_time, notes || '', status || 'pending']
     );
 
     // Return success response

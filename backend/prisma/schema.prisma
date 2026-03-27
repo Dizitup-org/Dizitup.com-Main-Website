@@ -32,7 +32,9 @@ model bookings {
   meeting_date     DateTime         @db.Date
   meeting_time     DateTime         @db.Time(6)
   email            String?
+  phone            String?          @db.VarChar(20)
   agency           String?
+  declined_at      DateTime?        @db.Timestamptz(6)
   updated_at       DateTime?        @default(now()) @db.Timestamp(6)
   users            users?           @relation(fields: [user_id], references: [id], onDelete: Restrict, onUpdate: NoAction)
   onboard_clients  onboard_clients?
@@ -103,8 +105,13 @@ model projects {
   deadline        DateTime?        @db.Date
   client_name     String?
   project_name    String?
+  admin_notes     String?
+  status_note     String?
   onboard_clients onboard_clients? @relation(fields: [client_id], references: [id], onDelete: Restrict, onUpdate: NoAction)
   sales           sales[]
+  tasks           tasks[]
+  project_updates project_updates[]
+  project_assignments project_assignments[]
 
   @@index([client_id], map: "idx_projects_client_id")
   @@index([status], map: "idx_projects_status")
@@ -154,6 +161,50 @@ model sales {
   @@index([project_id], map: "idx_sales_project_id")
 }
 
+model project_updates {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  project_id  String    @db.Uuid
+  message     String
+  employee_id String?   @db.Uuid
+  author_role String    @default("admin") @db.VarChar(50)
+  created_at  DateTime  @default(now()) @db.Timestamptz(6)
+  projects    projects  @relation(fields: [project_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([project_id], map: "idx_project_updates_project")
+}
+
+model project_assignments {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  project_id  String    @db.Uuid
+  employee_id String    @db.Uuid
+  assigned_by String    @db.Uuid
+  status      String    @default("active") @db.VarChar(50)
+  created_at  DateTime  @default(now()) @db.Timestamptz(6)
+  projects    projects  @relation(fields: [project_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([project_id], map: "idx_project_assignments_project")
+  @@index([employee_id], map: "idx_project_assignments_employee")
+}
+
+model team_messages {
+  id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  channel   String    @db.VarChar(200)
+  sender_name String  @db.VarChar(255)
+  sender_id String?   @db.Uuid
+  message   String
+  created_at DateTime  @default(now()) @db.Timestamptz(6)
+
+  @@index([channel], map: "idx_team_messages_channel")
+}
+
+model visitor_leads {
+  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name       String?
+  agency_size String?
+  country    String?
+  created_at DateTime  @default(now()) @db.Timestamptz(6)
+}
+
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model subscriptions {
   id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
@@ -167,6 +218,65 @@ model subscriptions {
   @@index([user_id], map: "idx_subscriptions_user_id")
 }
 
+model tasks {
+  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  project_id    String?   @db.Uuid
+  title         String
+  description   String?
+  employee_id   String?   @db.Uuid
+  assigned_by   String?   @db.Uuid
+  status        String    @default("pending") @db.VarChar(50)
+  deadline      DateTime? @db.Date
+  manager_notes String?
+  updated_at    DateTime? @db.Timestamptz(6)
+  created_at    DateTime  @default(now()) @db.Timestamptz(6)
+  projects      projects? @relation(fields: [project_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  users         users?    @relation(fields: [employee_id], references: [id], onUpdate: NoAction)
+  task_notes    task_notes[]
+
+  @@index([project_id], map: "idx_tasks_project")
+  @@index([employee_id], map: "idx_tasks_employee")
+}
+
+model task_notes {
+  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  task_id       String    @db.Uuid
+  employee_id   String?   @db.Uuid
+  employee_name String?   @db.VarChar(255)
+  note          String
+  created_at    DateTime  @default(now()) @db.Timestamptz(6)
+  tasks         tasks     @relation(fields: [task_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  users         users?    @relation(fields: [employee_id], references: [id], onUpdate: NoAction)
+
+  @@index([task_id], map: "idx_task_notes_task")
+}
+
+model chat_conversations {
+  id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id         String    @db.Uuid
+  status          String    @default("open") @db.VarChar(20)
+  last_message_at DateTime? @db.Timestamptz(6)
+  created_at      DateTime  @default(now()) @db.Timestamptz(6)
+  users           users     @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  chat_messages   chat_messages[]
+
+  @@index([user_id], map: "idx_chat_conv_user")
+}
+
+model chat_messages {
+  id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  conversation_id String    @db.Uuid
+  sender_type     String    @db.VarChar(10)
+  sender_id       String?   @db.Uuid
+  message         String
+  is_read         Boolean   @default(false)
+  created_at      DateTime  @default(now()) @db.Timestamptz(6)
+  chat_conversations chat_conversations @relation(fields: [conversation_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  users           users?    @relation(fields: [sender_id], references: [id], onUpdate: NoAction)
+
+  @@index([conversation_id], map: "idx_chat_msg_conv")
+}
+
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 /// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
 model users {
@@ -178,6 +288,7 @@ model users {
   last_name             String            @db.VarChar(100)
   phone                 String?           @db.VarChar(20)
   business_name         String?           @db.VarChar(150)
+  manager_id            String?           @db.Uuid
   created_at            DateTime          @default(now()) @db.Timestamptz(6)
   username_change_count Int               @default(0)
   profile_picture       String?
@@ -186,6 +297,10 @@ model users {
   onboard_clients       onboard_clients[]
   query_clients         query_clients[]
   subscriptions         subscriptions[]
+  tasks                 tasks[]
+  task_notes            task_notes[]
+  chat_conversations    chat_conversations[]
+  chat_messages         chat_messages[]
 
   @@index([email], map: "idx_users_email")
   @@index([username], map: "idx_users_username")
