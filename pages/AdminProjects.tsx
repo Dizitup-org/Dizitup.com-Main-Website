@@ -243,10 +243,7 @@ const AdminProjects: React.FC = () => {
                           </div>
                         </td>
                         <td className="px-6 py-4 text-white/70">
-                          {project.first_name || project.last_name 
-                            ? `${project.first_name || ''} ${project.last_name || ''}`.trim() 
-                            : '-'
-                          }
+                          {project.client_name || '-'}
                         </td>
                         <td className="px-6 py-4">
                           <button

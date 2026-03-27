@@ -45,17 +45,17 @@ router.get('/query', async (req, res, next) => {
       SELECT
       qc.id,
       b.id as booking_id,
-      b.name,
-      b.email,
-      qc.phone,
+      COALESCE(qc.name, b.name) as name,
+      COALESCE(qc.email, b.email) as email,
+      COALESCE(u.phone, b.phone) as phone,git
       b.agency,
       b.project_type,
-      b.notes,
+      qc.notes,
       qc.created_at,
       qc.follow_up_date
       FROM query_clients qc
-      JOIN bookings b
-      ON qc.booking_id=b.id
+      JOIN bookings b ON qc.booking_id=b.id
+      LEFT JOIN users u ON qc.user_id=u.id
       WHERE qc.status!='converted'
       ORDER BY qc.created_at DESC
     `);
@@ -80,16 +80,17 @@ router.get('/onboarded', async (req, res, next) => {
   try {
     const result = await db.query(`
       SELECT
-        id,
-        booking_id,
-        contact_name,
-        email,
-        phone,
-        company_name,
-        status,
-        onboarded_at
-      FROM onboard_clients
-      ORDER BY onboarded_at DESC
+        oc.id,
+        oc.booking_id,
+        oc.contact_name,
+        oc.email,
+        COALESCE(oc.phone, u.phone) AS phone,
+        oc.company_name,
+        oc.status,
+        oc.onboarded_at
+      FROM onboard_clients oc
+      LEFT JOIN users u ON oc.user_id = u.id
+      ORDER BY oc.onboarded_at DESC
     `);
 
     res.json({ success: true, clients: result.rows });

@@ -28,7 +28,7 @@ router.get('/', async (req, res) => {
       SELECT
         p.id,
         p.title         AS project_name,
-        p.client_name,
+        COALESCE(oc.company_name, oc.contact_name, b.agency, b.name, p.client_name, '-') AS client_name,
         p.manager_id,
         p.created_at,
         CASE 
@@ -37,6 +37,8 @@ router.get('/', async (req, res) => {
           ELSE NULL
         END AS assigned_to
       FROM projects p
+      LEFT JOIN onboard_clients oc ON p.client_id = oc.id
+      LEFT JOIN bookings b ON oc.booking_id = b.id
       LEFT JOIN admins a ON p.manager_id = a.id
       LEFT JOIN users u ON a.user_id = u.id
       ORDER BY p.created_at DESC
