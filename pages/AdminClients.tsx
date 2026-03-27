@@ -77,7 +77,7 @@ const AdminClients: React.FC = () => {
       setQueryClients((prev) =>
         prev.map((c) =>
           c.id === clientId
-            ? { ...c, follow_up_date: response.client?.follow_up_date || newDate || null }
+            ? { ...c, follow_up_date: (response as any).client?.follow_up_date || newDate || null }
             : c
         )
       );

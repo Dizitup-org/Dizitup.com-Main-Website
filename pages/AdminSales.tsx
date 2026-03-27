@@ -489,7 +489,7 @@ const AdminSales: React.FC = () => {
                     <Tooltip
                       contentStyle={{ backgroundColor: '#111', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px' }}
                       itemStyle={{ color: '#fff' }}
-                      formatter={(value: number) => [`₹${value.toLocaleString()}`, 'Revenue']}
+                      formatter={(value: number | undefined) => value ? [`₹${value.toLocaleString()}`, 'Revenue'] : ['-', 'Revenue']}
                     />
                     <Area type="monotone" dataKey="revenue" stroke="#b91c1c" strokeWidth={3} fillOpacity={1} fill="url(#colorRevenue)" />
                   </AreaChart>

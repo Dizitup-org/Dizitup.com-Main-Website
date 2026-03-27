@@ -597,7 +597,7 @@ const AccountsSection: React.FC<any> = ({
         </div>
 
         <div className="flex-1 min-h-0 overflow-y-auto space-y-3 mb-4 pr-2" style={{ scrollbarWidth: 'thin' }}>
-          {chatMessages.map((msg) => (
+          {chatMessages.map((msg: any) => (
             <div key={msg.id} className={`flex ${msg.sender_type === 'user' ? 'justify-end' : 'justify-start'}`}>
               <div
                 className={`max-w-xs px-3 py-2 rounded-lg text-sm ${

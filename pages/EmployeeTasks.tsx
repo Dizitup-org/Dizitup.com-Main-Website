@@ -304,7 +304,7 @@ const EmployeeTasks: React.FC = () => {
 
   useEffect(() => {
     fetchTasks();
-    const interval = setInterval(() => fetchTasks(), 15000);
+    const interval = setInterval(() => fetchTasks(), 5000);
     return () => clearInterval(interval);
   }, [fetchTasks]);
 

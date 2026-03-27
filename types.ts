@@ -39,6 +39,7 @@ export interface BookingRow {
   created_at?: string | null;
   username?: string | null;
   is_onboarded?: boolean;
+  has_follow_up?: boolean;
 }
 
 // Query Clients table (Follow-ups) - includes booking data

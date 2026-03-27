@@ -52,10 +52,7 @@ const AdminBookings: React.FC = () => {
     setActionLoading(booking.id);
     
     try {
-      console.log(`📄 Accepting booking ${booking.id}...`);
-      
       const data = await api.patch<any>(`/api/admin/bookings/${booking.id}`, { status: 'accepted' });
-      console.log('✅ Accept booking API response:', data);
       
       // Success: Update booking status in UI
       setBookings((prev) => prev.map((b) => 
@@ -81,10 +78,7 @@ const AdminBookings: React.FC = () => {
     setActionLoading(booking.id);
     
     try {
-      console.log(`📞 Setting booking ${booking.id} for follow-up...`);
-      
       const data = await api.patch<any>(`/api/admin/bookings/${booking.id}/status`, { status: 'follow_up' });
-      console.log('✅ Follow-up booking API response:', data);
       
       // Success: Remove from bookings list (moved to query_clients by backend trigger)
       setBookings((prev) => prev.filter((b) => b.id !== booking.id));
@@ -103,8 +97,6 @@ const AdminBookings: React.FC = () => {
     setActionLoading(booking.id);
     
     try {
-      console.log(`🎉 Onboarding booking ${booking.id}...`);
-      
       const data = await api.post<any>('/api/admin/clients/onboard', {
         booking_id: booking.id,
         user_id: booking.id, // Using booking.id as user_id for now
@@ -113,7 +105,6 @@ const AdminBookings: React.FC = () => {
         phone: booking.phone || '',
         company_name: booking.agency || ''
       });
-      console.log('✅ Onboard client API response:', data);
       
       // Success: Remove from bookings list (moved to onboard_clients)
       setBookings((prev) => prev.filter((b) => b.id !== booking.id));
@@ -149,10 +140,7 @@ const AdminBookings: React.FC = () => {
     setActionLoading(booking.id);
     
     try {
-      console.log(`❌ Declining booking ${booking.id}...`);
-      
       const data = await api.patch<any>(`/api/admin/bookings/${booking.id}`, { status: 'declined' });
-      console.log('✅ Decline booking API response:', data);
       
       // Success: Update booking status in UI
       setBookings((prev) => prev.map((b) => 
@@ -180,8 +168,6 @@ const AdminBookings: React.FC = () => {
     setActionLoading(booking.id);
     
     try {
-      console.log(`🗑 Deleting booking ${booking.id}...`);
-      
       await api.delete(`/api/admin/bookings/${booking.id}`);
       
       // Success: Remove from bookings list
@@ -202,8 +188,8 @@ const AdminBookings: React.FC = () => {
   const filteredBookings = useMemo(() => {
     let result = bookings;
 
-    // Exclude onboarded clients
-    result = result.filter(b => !b.is_onboarded);
+    // Exclude onboarded clients and clients already in follow-up (query_clients)
+    result = result.filter(b => !b.is_onboarded && !b.has_follow_up);
 
     // Filter by tab status
     if (tab === 'pending') {
@@ -297,8 +283,8 @@ const AdminBookings: React.FC = () => {
           prev.map((b) => (b.id === updatedBooking.id ? updatedBooking : b))
         );
       },
-      (deletedBookingId) => {
-        setBookings((prev) => prev.filter((b) => b.id !== deletedBookingId));
+      (payload) => {
+        setBookings((prev) => prev.filter((b) => b.id !== payload.id));
       }
     );
 
@@ -307,8 +293,13 @@ const AdminBookings: React.FC = () => {
     };
   }, [fetchBookings]);
 
+  useEffect(() => {
+    const acceptedCount = bookings.filter(b => b.is_onboarded !== true && b.has_follow_up !== true).length;
+    console.log('Accepted Bookings Count:', acceptedCount);
+  }, [bookings]);
+
   return (
-    <AdminLayout>
+    <AdminLayout title="Bookings Management">
       <div className="space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
@@ -349,7 +340,7 @@ const AdminBookings: React.FC = () => {
                 : 'text-white/60 border-b-transparent hover:text-white/80'
             }`}
           >
-            Accepted ({bookings.filter(b => b.status === 'accepted' || b.status === 'meeting_done').length})
+            Accepted ({bookings.filter(b => (b.status === 'accepted' || b.status === 'meeting_done') && b.is_onboarded !== true && b.has_follow_up !== true).length})
           </button>
         </div>
 
@@ -407,7 +398,7 @@ const AdminBookings: React.FC = () => {
                         <p className="text-xs text-white/40">Agency: {booking.agency}</p>
                       )}
                       <div className="flex flex-wrap gap-2 mt-2">
-                        {tab === 'accepted' ? getStatusBadge('accepted') : getStatusBadge(booking.status)}
+                        {tab === 'accepted' ? getStatusBadge('accepted') : getStatusBadge(booking.status || '')}
                         {booking.project_type && (
                           <span className="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-white/5 border border-white/10 text-white/60">
                             {booking.project_type}

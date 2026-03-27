@@ -31,11 +31,25 @@ const router = express.Router();
 // ----------------------------------------------------------
 router.get('/projects', async (req, res, next) => {
   try {
+    // Fetch tasks as projects (tasks are the projects employees work on)
     const result = await db.query(`
-      SELECT p.* FROM projects p
-      JOIN project_assignments pa ON pa.project_id = p.id
-      WHERE pa.employee_id = $1 AND pa.status = 'active'
-      ORDER BY p.created_at DESC
+      SELECT 
+        t.id,
+        t.title,
+        t.description,
+        t.status,
+        t.deadline,
+        t.project_id,
+        t.priority,
+        p.title as project_title,
+        oc.company_name,
+        t.created_at,
+        t.manager_notes
+      FROM tasks t
+      LEFT JOIN projects p ON p.id = t.project_id
+      LEFT JOIN onboard_clients oc ON oc.id = p.client_id
+      WHERE t.employee_id = $1
+      ORDER BY t.created_at DESC
     `, [req.admin.id]);
     res.json({ success: true, projects: result.rows });
   } catch (err) { next(err); }

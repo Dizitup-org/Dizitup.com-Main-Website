@@ -8,20 +8,18 @@ const isProduction = !!process.env.DATABASE_URL;
 
 // ✅ Create pool
 const pool = new Pool(
-  isProduction
-    ? {
-        connectionString: process.env.DATABASE_URL,
-
-        // 🔥 REQUIRED for Railway / Neon / cloud DBs
-        ssl: {
-          rejectUnauthorized: false,
-        },
-
+  process.env.DATABASE_URL
+    ? { connectionString: process.env.DATABASE_URL, max: 10, idleTimeoutMillis: 30000, connectionTimeoutMillis: 10000, statement_timeout: 10000 }
+    : {
+        host:     process.env.DB_HOST,
+        port:     parseInt(process.env.DB_PORT),
+        database: process.env.DB_NAME,
+        user:     process.env.DB_USER,
+        password: process.env.DB_PASSWORD,
         max: 10,
         idleTimeoutMillis: 30000,
-        connectionTimeoutMillis: 5000,
+        connectionTimeoutMillis: 10000,
       }
-      : {}
 );
 
 // ✅ Test connection properly (async safe)
