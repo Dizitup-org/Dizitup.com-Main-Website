@@ -47,7 +47,7 @@ router.get('/query', async (req, res, next) => {
       b.id as booking_id,
       COALESCE(qc.name, b.name) as name,
       COALESCE(qc.email, b.email) as email,
-      COALESCE(u.phone, b.phone) as phone,git
+      COALESCE(u.phone, b.phone) as phone,
       b.agency,
       b.project_type,
       qc.notes,
