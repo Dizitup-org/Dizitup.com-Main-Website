@@ -70,7 +70,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, title }) => {
             ? [
                 { to: '/admin/employee/tasks', icon: CheckSquare, label: 'My Tasks' },
                 { to: '/admin/employee/projects', icon: FolderOpen, label: 'My Projects' },
-                { to: '/admin/chat', icon: MessageCircle, label: 'Chat' },
+                { to: '/admin/employee/chat', icon: MessageCircle, label: 'Chat' },
               ]
             : [
                 { to: '/admin', icon: LayoutDashboard, label: 'Overview' },

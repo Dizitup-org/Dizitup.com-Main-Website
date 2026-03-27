@@ -10,7 +10,7 @@ const BentoCard = ({ title, desc, icon: Icon, span, delay, onBook }: any) => (
     whileInView={{ opacity: 1, y: 0 }}
     viewport={{ once: true }}
     transition={{ delay, duration: 0.8, ease: [0.23, 1, 0.32, 1] }}
-    className={`${span} p-8 lg:p-12 rounded-[2.5rem] bg-[#0c0c0c] border border-white/5 hover:border-white/10 transition-all group relative overflow-hidden flex flex-col justify-between min-h-[300px]`}
+    className={`${span} p-5 sm:p-8 lg:p-12 rounded-[1.5rem] sm:rounded-[2rem] lg:rounded-[2.5rem] bg-[#0c0c0c] border border-white/5 hover:border-white/10 transition-all group relative overflow-hidden flex flex-col justify-between min-h-[220px] sm:min-h-[280px] lg:min-h-[300px]`}
   >
     <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:opacity-20 transition-opacity">
       <Icon className="w-32 h-32" />
@@ -20,7 +20,7 @@ const BentoCard = ({ title, desc, icon: Icon, span, delay, onBook }: any) => (
       <div className="w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center text-white/40 mb-8 group-hover:text-red-500 transition-colors">
         <Icon className="w-6 h-6" />
       </div>
-      <h3 className="text-3xl font-heading font-bold mb-4 tracking-tight">{title}</h3>
+      <h3 className="text-xl sm:text-2xl lg:text-3xl font-heading font-bold mb-3 sm:mb-4 tracking-tight">{title}</h3>
       <p className="text-white/30 font-light leading-relaxed max-w-xs text-sm">
         {desc}
       </p>
@@ -93,12 +93,12 @@ const Services: React.FC = () => {
   ];
 
   return (
-    <section id="capabilities" className="py-40 px-6 lg:px-20 bg-black">
+    <section id="capabilities" className="py-16 sm:py-24 lg:py-40 px-4 sm:px-6 lg:px-20 bg-black">
       <div className="container mx-auto">
-        <div className="flex flex-col lg:flex-row justify-between items-start lg:items-end gap-10 mb-20">
+        <div className="flex flex-col lg:flex-row justify-between items-start lg:items-end gap-6 sm:gap-10 mb-10 sm:mb-16 lg:mb-20">
           <div>
             <span className="text-red-600 font-mono text-[10px] uppercase tracking-[0.5em] mb-4 block">Services</span>
-            <h2 className="text-5xl lg:text-7xl font-heading font-bold tracking-tighter">What We Sell.</h2>
+            <h2 className="text-3xl sm:text-5xl lg:text-7xl font-heading font-bold tracking-tighter">What We Sell.</h2>
           </div>
           <p className="text-white/30 max-w-sm text-sm font-light">
             Clear packages, clear outcomes — built with AI speed and human polish.

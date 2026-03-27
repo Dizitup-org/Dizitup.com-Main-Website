@@ -45,18 +45,19 @@ router.get('/query', async (req, res, next) => {
       SELECT
       qc.id,
       b.id as booking_id,
-      b.name,
-      b.email,
-      qc.phone,
+      COALESCE(qc.name, b.name) as name,
+      COALESCE(qc.email, b.email) as email,
+      COALESCE(qc.phone, u.phone) as phone,
       b.agency,
       b.project_type,
       b.notes,
       qc.created_at,
-      qc.follow_up_date
+      qc.follow_up_date,
+      qc.status
       FROM query_clients qc
-      JOIN bookings b
-      ON qc.booking_id=b.id
-      WHERE qc.status!='converted'
+      JOIN bookings b ON qc.booking_id = b.id
+      LEFT JOIN users u ON qc.user_id = u.id
+      WHERE qc.status != 'converted'
       ORDER BY qc.created_at DESC
     `);
 
@@ -78,18 +79,45 @@ router.get('/query', async (req, res, next) => {
 // ----------------------------------------------------------
 router.get('/onboarded', async (req, res, next) => {
   try {
+    // Ensure trigger exists to sync phone from users table
+    await db.query(`
+      CREATE OR REPLACE FUNCTION sync_onboard_client_phone()
+      RETURNS TRIGGER AS $$
+      BEGIN
+        IF NEW.phone IS NULL THEN
+          SELECT u.phone INTO NEW.phone
+          FROM users u
+          WHERE u.id = NEW.user_id;
+        END IF;
+        RETURN NEW;
+      END;
+      $$ LANGUAGE plpgsql;
+    `).catch(() => {}); // Ignore if function already exists
+
+    await db.query(`
+      DROP TRIGGER IF EXISTS sync_phone_trigger ON onboard_clients
+    `).catch(() => {});
+
+    await db.query(`
+      CREATE TRIGGER sync_phone_trigger
+      BEFORE INSERT ON onboard_clients
+      FOR EACH ROW
+      EXECUTE FUNCTION sync_onboard_client_phone();
+    `).catch(() => {}); // Ignore if trigger already exists
+
     const result = await db.query(`
       SELECT
-        id,
-        booking_id,
-        contact_name,
-        email,
-        phone,
-        company_name,
-        status,
-        onboarded_at
-      FROM onboard_clients
-      ORDER BY onboarded_at DESC
+        oc.id,
+        oc.booking_id,
+        oc.contact_name,
+        oc.email,
+        COALESCE(oc.phone, u.phone) as phone,
+        oc.company_name,
+        oc.status,
+        oc.onboarded_at
+      FROM onboard_clients oc
+      LEFT JOIN users u ON oc.user_id = u.id
+      ORDER BY oc.onboarded_at DESC
     `);
 
     res.json({ success: true, clients: result.rows });
@@ -223,7 +251,11 @@ router.get('/:id', async (req, res, next) => {
 
     // Client info
     const clientResult = await db.query(
-      `SELECT oc.*, u.username, u.email AS user_email, u.phone AS user_phone
+      `SELECT oc.id, oc.booking_id, oc.contact_name, oc.email, 
+              COALESCE(oc.phone, u.phone) as phone,
+              oc.company_name, oc.status, oc.onboarded_at, oc.username, oc.avatar_url, 
+              oc.start_date, oc.admin_notes, oc.feedback,
+              u.username as user_username, u.email AS user_email
        FROM onboard_clients oc
        LEFT JOIN users u ON u.id = oc.user_id
        WHERE oc.id = $1`,

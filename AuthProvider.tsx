@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
-import { api, getToken, setToken, removeToken } from '../utils/apiClient';
+import { api, getToken, setToken, removeToken } from './utils/apiClient';
 
 const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000';
 
@@ -41,7 +41,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     
     console.log('🔍 Verifying token with backend...');
     api.get<{ success: boolean; user: AuthUser }>('/api/user/me')
-      .then((response) => {
+      .then((response: { success: boolean; user: AuthUser }) => {
         console.log('✅ Token verification successful:', response);
         if (response.success && response.user) {
           setUser(response.user);
@@ -52,7 +52,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setUser(null);
         }
       })
-      .catch((error) => {
+      .catch((error: Error) => {
         console.error('❌ Token verification failed:', error);
         console.log('🗑️ Removing invalid token');
         removeToken();

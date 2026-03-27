@@ -32,7 +32,7 @@ const Hero: React.FC = () => {
   const y = useTransform(scrollYProgress, [0, 0.3], [0, 100]);
 
   return (
-    <section ref={targetRef} className="relative min-h-screen lg:min-h-[110vh] flex flex-col justify-center px-4 sm:px-6 lg:px-20 pt-20 sm:pt-24">
+    <section ref={targetRef} className="relative min-h-screen flex flex-col justify-center px-4 sm:px-6 lg:px-8 py-16 sm:py-20 md:py-24 lg:py-32">
       {/* Floating Particles */}
       {PARTICLES.map((p, i) => (
         <div
@@ -54,63 +54,42 @@ const Hero: React.FC = () => {
       <div className="container mx-auto">
         <motion.div
           style={{ opacity: textOpacity, y }}
-          className="max-w-[1200px]"
+          className="w-full"
         >
-          {/* Status Badge */}
-          <motion.div
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            className="flex flex-wrap items-center gap-3 mb-12"
-          >
-            <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-white/5 border border-white/10">
-              <span className="w-1.5 h-1.5 rounded-full bg-red-600 animate-pulse" />
-              <span className="text-[10px] font-mono uppercase tracking-widest text-white/60">Available for Strategic Deployment</span>
-            </div>
-            <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-white/5 border border-white/10 text-white/40">
-              <Cpu className="w-3 h-3" />
-              <span className="text-[10px] font-mono uppercase tracking-widest">Logic Engine v2.4.0</span>
-            </div>
-          </motion.div>
+          
 
-          <h1 className="text-[11vw] sm:text-[12vw] lg:text-[10rem] font-heading font-bold leading-[0.85] sm:leading-[0.8] tracking-[-0.04em] mb-8 sm:mb-12 hero-title">
-            <TextShimmer>POSITION</TextShimmer> <br />
-            <span className="text-white/20 italic">WITH</span> LOGIC.
+          <h1 className="text-[clamp(2rem,6vw,4.5rem)] xl:text-[clamp(2.5rem,7vw,5.5rem)] font-heading font-bold leading-[1.1] sm:leading-[1.1] tracking-[-0.04em] mb-6 sm:mb-8 hero-title text-center">
+            <TextShimmer>POSITION</TextShimmer> <span className="text-white/20 italic mr-4">WITH</span> LOGIC.
           </h1>
 
-          <div className="grid lg:grid-cols-2 gap-8 sm:gap-12 items-end">
-            <div className="space-y-6">
-              <p className="text-lg sm:text-xl lg:text-3xl text-white leading-tight font-medium tracking-tight">
+          <div className="space-y-6 text-center">
+            <div className="space-y-4 md:space-y-5 max-w-[90%] md:max-w-[600px] mx-auto">
+              <p className="text-sm sm:text-base md:text-lg lg:text-xl text-white leading-relaxed font-medium tracking-tight">
                 Stop wondering where AI fits.
               </p>
-              <p className="text-base sm:text-lg lg:text-xl text-white/40 leading-snug font-light max-w-xl">
+              <p className="text-sm sm:text-base md:text-lg text-white/40 leading-relaxed font-light">
                 Dizitup architects autonomous systems that automate your friction—reducing overhead so you can focus on building your empire.
               </p>
             </div>
 
-            <div className="flex flex-col sm:flex-row flex-wrap gap-3 sm:gap-4 lg:justify-end">
+            <div className="flex flex-col sm:flex-row flex-wrap gap-3 sm:gap-4 justify-center">
               <MagneticButton>
                 <button
                   onClick={() => navigate('/login')}
-                  className="w-full sm:w-auto px-8 sm:px-10 py-4 sm:py-5 bg-white text-black rounded-full font-bold text-xs uppercase tracking-widest hover:bg-red-600 hover:text-white transition-all duration-500 flex items-center justify-center gap-2 shadow-[0_20px_50px_rgba(255,255,255,0.1)]"
+                  className="w-full sm:w-auto px-7 sm:px-9 py-3 sm:py-4 bg-white text-black rounded-full font-bold text-xs uppercase tracking-widest hover:bg-red-600 hover:text-white transition-all duration-500 flex items-center justify-center gap-2 shadow-[0_20px_50px_rgba(255,255,255,0.1)]"
                 >
-                  Book a Free AI Strategy Call <ArrowUpRight className="w-4 h-4" />
+                  Book a Call <ArrowUpRight className="w-4 h-4" />
                 </button>
               </MagneticButton>
               <a
                 href="#works"
-                className="w-full sm:w-auto px-8 sm:px-10 py-4 sm:py-5 bg-transparent border border-white/10 text-white rounded-full font-bold text-xs uppercase tracking-widest hover:border-white transition-all text-center"
+                className="w-full sm:w-auto px-7 sm:px-9 py-3 sm:py-4 bg-transparent border border-white/10 text-white rounded-full font-bold text-xs uppercase tracking-widest hover:border-white transition-all text-center"
               >
                 Our Work
               </a>
             </div>
           </div>
         </motion.div>
-      </div>
-
-      <div className="absolute bottom-10 left-10 hidden lg:flex flex-col gap-4 text-[10px] font-mono text-white/20">
-        <span>[ 01 ] AUTOMATE FRICTION</span>
-        <span>[ 02 ] REDUCE OVERHEAD</span>
-        <span>[ 03 ] SCALE REVENUE</span>
       </div>
     </section>
   );

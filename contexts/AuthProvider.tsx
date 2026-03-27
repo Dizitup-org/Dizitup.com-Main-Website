@@ -41,7 +41,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     
     console.log('🔍 Verifying token with backend...');
     api.get<{ success: boolean; user: AuthUser }>('/api/user/me')
-      .then((response) => {
+      .then((response: any) => {
         console.log('✅ Token verification successful:', response);
         if (response.success && response.user) {
           setUser(response.user);
@@ -52,7 +52,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setUser(null);
         }
       })
-      .catch((error) => {
+      .catch((error: any) => {
         console.error('❌ Token verification failed:', error);
         console.log('🗑️ Removing invalid token');
         removeToken();

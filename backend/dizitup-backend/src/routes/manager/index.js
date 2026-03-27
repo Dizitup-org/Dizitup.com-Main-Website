@@ -120,7 +120,10 @@ router.post('/employees', async (req, res, next) => {
 // ----------------------------------------------------------
 router.delete('/employees/:id', async (req, res, next) => {
   try {
-    await db.query('DELETE FROM admins WHERE id = $1 AND role = \'employee\'', [req.params.id]);
+    const result = await db.query('DELETE FROM admins WHERE id = $1 AND role != \'admin\'', [req.params.id]);
+    if (result.rowCount === 0) {
+      return res.status(404).json({ success: false, message: 'Staff member not found or cannot remove an admin' });
+    }
     res.json({ success: true });
   } catch (err) { console.error('[DELETE /manager/employees/:id]', err.message, err.stack); next(err); }
 });
@@ -282,6 +285,16 @@ router.post('/tasks', async (req, res, next) => {
       [project_id]
     );
 
+    // If employee is assigned, create project assignment so it shows in "My Projects"
+    if (employee_id) {
+      await db.query(
+        `INSERT INTO project_assignments (project_id, employee_id, status)
+         VALUES ($1, $2, $3)
+         ON CONFLICT (project_id, employee_id) DO NOTHING`,
+        [project_id, employee_id, 'active']
+      ).catch(err => console.warn('Project assignment creation skipped:', err.message));
+    }
+
     res.json({ success: true, task: result.rows[0] });
   } catch (err) { next(err); }
 });
@@ -318,6 +331,16 @@ router.patch('/tasks/:id', async (req, res, next) => {
 
     if (result.rows.length === 0) {
       return res.status(404).json({ success: false, message: 'Task not found' });
+    }
+
+    // If employee_id is being assigned, create project assignment
+    if (req.body.employee_id && result.rows[0].project_id) {
+      await db.query(
+        `INSERT INTO project_assignments (project_id, employee_id, status)
+         VALUES ($1, $2, $3)
+         ON CONFLICT (project_id, employee_id) DO NOTHING`,
+        [result.rows[0].project_id, req.body.employee_id, 'active']
+      ).catch(err => console.warn('Project assignment creation skipped:', err.message));
     }
 
     res.json({ success: true, task: result.rows[0] });

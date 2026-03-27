@@ -31,9 +31,9 @@ const tiers = [
 
 const Pricing: React.FC = () => {
   return (
-    <section id="pricing" className="py-40 bg-black">
+    <section id="pricing" className="py-16 sm:py-28 lg:py-40 bg-black">
       <div className="container mx-auto px-6">
-        <div className="text-center max-w-3xl mx-auto mb-24">
+        <div className="text-center max-w-3xl mx-auto mb-12 sm:mb-20">
           <motion.h2 
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
@@ -53,7 +53,7 @@ const Pricing: React.FC = () => {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ delay: i * 0.1 }}
-              className={`relative p-12 rounded-[3rem] border flex flex-col group transition-all duration-700 ${tier.recommended ? 'bg-white text-black border-transparent shadow-[0_40px_100px_-20px_rgba(255,255,255,0.1)]' : 'bg-white/[0.02] border-white/10 text-white hover:border-white/30'}`}
+              className={`relative p-6 sm:p-8 lg:p-12 rounded-[1.5rem] sm:rounded-[2rem] lg:rounded-[3rem] border flex flex-col group transition-all duration-700 h-full ${tier.recommended ? 'bg-white text-black border-transparent shadow-[0_40px_100px_-20px_rgba(255,255,255,0.1)]' : 'bg-white/[0.02] border-white/10 text-white hover:border-white/30'}`}
             >
               {tier.recommended && (
                 <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-red-600 text-white px-5 py-1.5 rounded-full text-[10px] font-black tracking-widest uppercase shadow-lg z-20">
@@ -61,17 +61,17 @@ const Pricing: React.FC = () => {
                 </div>
               )}
               
-              <div className="mb-10">
+              <div className="mb-6 sm:mb-8 lg:mb-10">
                 <h3 className={`text-lg font-bold tracking-tight mb-2 opacity-50 uppercase`}>{tier.name}</h3>
                 <div className="flex items-baseline gap-2">
-                  <span className="text-5xl font-heading font-bold">{tier.price}</span>
+                  <span className="text-3xl sm:text-4xl lg:text-5xl font-heading font-bold">{tier.price}</span>
                   <span className="text-xs opacity-40 uppercase tracking-widest">{tier.period}</span>
                 </div>
               </div>
               
               <p className="text-sm mb-12 opacity-60 leading-relaxed font-light">{tier.desc}</p>
               
-              <div className="space-y-5 mb-14 flex-grow">
+              <div className="space-y-4 sm:space-y-5 mb-8 sm:mb-10 lg:mb-14 flex-grow">
                 {tier.features.map((feature, idx) => (
                   <div key={idx} className="flex items-start gap-4">
                     <div className={`mt-1 flex-shrink-0 w-4 h-4 rounded-full flex items-center justify-center ${tier.recommended ? 'bg-red-600 text-white' : 'bg-white/10 text-red-500'}`}>
