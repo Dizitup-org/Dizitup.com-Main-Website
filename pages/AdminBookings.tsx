@@ -283,8 +283,8 @@ const AdminBookings: React.FC = () => {
           prev.map((b) => (b.id === updatedBooking.id ? updatedBooking : b))
         );
       },
-      (deletedBookingId) => {
-        setBookings((prev) => prev.filter((b) => b.id !== deletedBookingId));
+      (payload) => {
+        setBookings((prev) => prev.filter((b) => b.id !== payload.id));
       }
     );
 
@@ -299,7 +299,7 @@ const AdminBookings: React.FC = () => {
   }, [bookings]);
 
   return (
-    <AdminLayout>
+    <AdminLayout title="Bookings Management">
       <div className="space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
@@ -398,7 +398,7 @@ const AdminBookings: React.FC = () => {
                         <p className="text-xs text-white/40">Agency: {booking.agency}</p>
                       )}
                       <div className="flex flex-wrap gap-2 mt-2">
-                        {tab === 'accepted' ? getStatusBadge('accepted') : getStatusBadge(booking.status)}
+                        {tab === 'accepted' ? getStatusBadge('accepted') : getStatusBadge(booking.status || '')}
                         {booking.project_type && (
                           <span className="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-white/5 border border-white/10 text-white/60">
                             {booking.project_type}
