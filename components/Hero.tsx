@@ -37,7 +37,7 @@ const Hero: React.FC = () => {
       {PARTICLES.map((p, i) => (
         <div
           key={i}
-          className="floating-particle"
+          className="floating-particle z-10"
           style={{
             width: p.size,
             height: p.size,

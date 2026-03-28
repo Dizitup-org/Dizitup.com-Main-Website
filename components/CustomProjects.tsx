@@ -67,7 +67,7 @@ interface Props {
 const CustomProjects: React.FC<Props> = ({ country, onBookCall }) => {
   const pricingKey = getPricingRegion(country);
   return (
-    <section className="py-16 sm:py-32 md:py-40 bg-[#050505] relative overflow-hidden">
+    <section className="py-16 sm:py-32 md:py-40 bg-transparent relative overflow-hidden">
       <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[700px] h-[400px] bg-red-600/[0.03] blur-[120px] rounded-full pointer-events-none" />
 
         <div className="container mx-auto px-4 sm:px-6 relative z-10">
