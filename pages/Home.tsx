@@ -1,14 +1,16 @@
-
 import React, { useMemo, useState, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import Hero from '../components/Hero';
-import ScrollStory from '../components/ScrollStory';
+import Scrollytelling from '../components/Scrollytelling';
 import HowItWorks from '../components/HowItWorks';
 import Portfolio from '../components/Portfolio';
 import DynamicPricing from '../components/DynamicPricing';
 import CustomProjects from '../components/CustomProjects';
 import BookingModal from '../components/BookingModal';
+import ERPDashboard from '../components/ERPDashboard';
+import CRMDashboard from '../components/CRMDashboard';
+import MobileMockup from '../components/MobileMockup';
 import type { Country } from '../components/PersonalizationFlow';
 import Footer from '../components/Footer';
 import WelcomeLoader from '../components/WelcomeLoader';
@@ -126,7 +128,7 @@ const Home: React.FC = () => {
             {/* Section Divider */}
             <div className="section-divider" />
 
-            <ScrollStory />
+            <Scrollytelling />
 
             {/* Section Divider */}
             <div className="section-divider" />
@@ -225,6 +227,27 @@ const Home: React.FC = () => {
                 </div>
               </div>
             </section>
+
+            {/* Section Divider */}
+            <div className="section-divider" />
+
+            {/* ERP Dashboard */}
+            <ERPDashboard />
+
+            {/* Section Divider */}
+            <div className="section-divider" />
+
+            {/* CRM Dashboard */}
+            <CRMDashboard />
+
+            {/* Section Divider */}
+            <div className="section-divider" />
+
+            {/* Mobile Mockup */}
+            <MobileMockup />
+
+            {/* Section Divider */}
+            <div className="section-divider" />
 
             {/* Final CTA */}
             <section className="py-16 sm:py-28 lg:py-40 container mx-auto px-4 sm:px-6">
