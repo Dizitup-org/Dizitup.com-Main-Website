@@ -4,10 +4,10 @@ import { Link } from 'react-router-dom';
 
 const Footer: React.FC = () => {
   return (
-    <footer className="py-12 sm:py-20 bg-black border-t border-white/5 relative">
+    <footer className="py-12 sm:py-20 bg-transparent border-t border-white/5 relative overflow-hidden">
       {/* Animated gradient glow */}
-      <div className="footer-glow-border absolute top-0 left-0 right-0" />
-      <div className="container mx-auto px-4 sm:px-6">
+      <div className="footer-glow-border absolute top-0 left-0 right-0 z-10" />
+      <div className="container mx-auto px-4 sm:px-6 relative z-10">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-8 sm:gap-10">
           <div>
             <Link to="/" className="text-2xl font-bold font-heading tracking-tight flex items-center gap-2 mb-4">

@@ -83,7 +83,7 @@ interface Props {
 const DynamicPricing: React.FC<Props> = ({ country, onBookCall }) => {
   const pricingKey = getPricingRegion(country);
   return (
-    <section className="py-16 sm:py-32 md:py-40 bg-black relative overflow-hidden">
+    <section className="py-16 sm:py-32 md:py-40 bg-transparent relative overflow-hidden">
       {/* bg glow */}
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[900px] h-[900px] bg-red-600/[0.04] blur-[150px] rounded-full pointer-events-none" />
 

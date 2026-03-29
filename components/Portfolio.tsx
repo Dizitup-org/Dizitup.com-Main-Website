@@ -95,7 +95,7 @@ const Portfolio: React.FC = () => {
   }, []);
 
   return (
-    <section id="works" className="py-20 sm:py-32 lg:py-40 px-6 lg:px-20 bg-[#050505] relative overflow-hidden">
+    <section id="works" className="py-20 sm:py-32 lg:py-40 px-6 lg:px-20 bg-transparent relative overflow-hidden">
       {/* Background Decorative Element */}
       <div className="absolute top-0 right-0 w-[1000px] h-[1000px] bg-red-600/[0.02] blur-[150px] rounded-full -translate-y-1/2 translate-x-1/3" />
 

@@ -8,11 +8,11 @@ const ProblemCard = ({ text, delay }: { text: string; delay: number }) => (
     whileInView={{ opacity: 1, x: 0 }}
     viewport={{ once: true }}
     transition={{ delay }}
-    className="p-5 sm:p-8 rounded-[1.5rem] sm:rounded-[2rem] bg-white/[0.02] border border-white/5 mb-3 sm:mb-4 group hover:border-white/10 transition-all"
+    className="p-4 sm:p-6 rounded-[1rem] sm:rounded-[1.5rem] bg-white/[0.02] border border-white/5 mb-3 group hover:border-white/10 transition-all text-sm sm:text-base"
   >
-    <div className="flex items-center gap-3 sm:gap-4">
+    <div className="flex items-center gap-3">
       <div className="w-1.5 h-1.5 rounded-full bg-white/20 group-hover:bg-red-600 transition-colors flex-shrink-0" />
-      <p className="text-white/40 group-hover:text-white transition-colors text-base sm:text-lg font-light">{text}</p>
+      <p className="text-white/40 group-hover:text-white transition-colors font-light">{text}</p>
     </div>
   </motion.div>
 );
@@ -40,12 +40,12 @@ const WordReveal = ({ text, className = '' }: { text: string; className?: string
 
 const ScrollStory: React.FC = () => {
   return (
-    <section className="py-20 sm:py-40 lg:py-60 bg-black overflow-hidden border-y border-white/5">
-      <div className="container mx-auto px-4 sm:px-6">
-        <div className="grid lg:grid-cols-2 gap-10 sm:gap-16 lg:gap-20 items-center">
+    <section className="py-16 sm:py-24 lg:py-32 bg-transparent overflow-hidden border-y border-white/5 relative">
+      <div className="container max-w-6xl mx-auto px-4 sm:px-6 relative z-10">
+        <div className="grid lg:grid-cols-2 gap-8 sm:gap-12 lg:gap-16 items-center">
           <div>
-            <span className="text-red-600 font-mono text-[10px] uppercase tracking-[0.5em] mb-6 block">The Bottleneck</span>
-            <h2 className="text-3xl sm:text-5xl md:text-7xl font-heading font-bold mb-8 sm:mb-12 tracking-tighter">
+            <span className="text-red-600 font-mono text-[10px] uppercase tracking-[0.5em] mb-4 block">The Bottleneck</span>
+            <h2 className="text-3xl sm:text-4xl md:text-6xl font-heading font-bold mb-8 sm:mb-10 tracking-tighter">
               <WordReveal text="Boring Work" /> <br />
               <WordReveal text="Kills Growth." className="text-white/30 italic" />
             </h2>
@@ -62,17 +62,17 @@ const ScrollStory: React.FC = () => {
             initial={{ opacity: 0, scale: 0.95 }}
             whileInView={{ opacity: 1, scale: 1 }}
             viewport={{ once: true }}
-            className="relative p-8 sm:p-12 lg:p-20 rounded-[2rem] sm:rounded-[4rem] bg-[#0c0c0c] border border-white/5 overflow-hidden group"
+            className="relative p-6 sm:p-10 lg:p-14 rounded-[1.5rem] sm:rounded-[2.5rem] bg-[#0c0c0c] border border-white/5 overflow-hidden group"
           >
             <div className="absolute top-0 right-0 w-96 h-96 bg-red-600/5 blur-[120px] pointer-events-none"></div>
 
-            <h3 className="text-2xl sm:text-4xl font-heading font-bold mb-6 sm:mb-8 text-white tracking-tight">The Dizitup Intelligence</h3>
-            <p className="text-base sm:text-xl text-white/40 leading-relaxed mb-8 sm:mb-12 font-light">
+            <h3 className="text-xl sm:text-3xl font-heading font-bold mb-4 sm:mb-6 text-white tracking-tight">The Dizitup Intelligence</h3>
+            <p className="text-sm sm:text-lg text-white/40 leading-relaxed mb-6 sm:mb-8 font-light">
               We replace the "boring" with one <span className="text-white font-bold">architected system</span>.
               We don't just add AI; we rebuild your operational logic from the ground up.
             </p>
 
-            <ul className="space-y-6">
+            <ul className="space-y-4">
               {[
                 { label: 'Automated Lead Intake', desc: 'Zero manual entry. High response speed.' },
                 { label: 'AI Content Pipeline', desc: 'Predictive assets that actually sell.' },
@@ -80,11 +80,11 @@ const ScrollStory: React.FC = () => {
                 { label: 'Founder Autonomy', desc: 'Reclaim 20+ hours per week.' }
               ].map((item, i) => (
                 <li key={i} className="flex flex-col gap-1">
-                  <div className="flex items-center gap-3 text-white font-bold tracking-tight">
-                    <div className="w-2 h-2 rounded-full bg-red-600" />
+                  <div className="flex items-center gap-2 text-white font-bold tracking-tight text-sm sm:text-base">
+                    <div className="w-1.5 h-1.5 rounded-full bg-red-600" />
                     {item.label}
                   </div>
-                  <p className="pl-5 text-sm text-white/30">{item.desc}</p>
+                  <p className="pl-4 text-xs sm:text-sm text-white/30">{item.desc}</p>
                 </li>
               ))}
             </ul>

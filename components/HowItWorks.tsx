@@ -33,7 +33,7 @@ const HowItWorks: React.FC = () => {
   });
 
   return (
-    <section ref={containerRef} id="how-it-works" className="py-20 sm:py-40 lg:py-60 bg-black relative">
+    <section ref={containerRef} id="how-it-works" className="py-20 sm:py-40 lg:py-60 bg-transparent relative">
       <div className="container mx-auto px-4 sm:px-6">
         <div className="grid lg:grid-cols-12 gap-10 sm:gap-16 lg:gap-20">
           <div className="lg:col-span-4 lg:sticky lg:top-40 h-fit">
