@@ -24,8 +24,7 @@ import { BrainCircuit, Zap, Target } from 'lucide-react';
 
 type HomePhase = 'loader' | 'site';
 
-// Trust logos for marquee
-const TRUST_LOGOS = ['NEXUS', 'STELLAR', 'AURA', 'VELOCITY', 'QUANTUM', 'APEX', 'CIPHER', 'PRISM'];
+
 
 // Staggered word reveal component
 const WordReveal = ({ text, className = '' }: { text: string; className?: string }) => {
@@ -267,27 +266,6 @@ const Home: React.FC = () => {
             <div id="works">
               <Portfolio />
             </div>
-
-            {/* Section Divider */}
-            <div className="section-divider" />
-
-            {/* ═══ Infinite Marquee Trust Logos ═══ */}
-            <section className="py-16 sm:py-28 lg:py-40 border-y border-white/5 relative overflow-hidden">
-              <div className="absolute inset-0 bg-gradient-to-r from-black via-white/[0.01] to-black pointer-events-none" />
-              <div className="container mx-auto px-4 sm:px-6 overflow-hidden">
-                <div className="marquee-track">
-                  {/* Duplicate the logos for seamless infinite scroll */}
-                  {[...TRUST_LOGOS, ...TRUST_LOGOS].map((logo, i) => (
-                    <span
-                      key={i}
-                      className="text-xl sm:text-3xl font-heading font-black tracking-tighter italic text-white/10 hover:text-white/30 transition-colors duration-500 mx-8 sm:mx-16 whitespace-nowrap select-none"
-                    >
-                      {logo}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            </section>
 
             {/* Section Divider */}
             <div className="section-divider" />
