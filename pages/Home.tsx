@@ -1,5 +1,4 @@
 import React, { useMemo, useState, useCallback, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import Hero from '../components/Hero';
 import Scrollytelling from '../components/Scrollytelling';
@@ -8,9 +7,6 @@ import Portfolio from '../components/Portfolio';
 import DynamicPricing from '../components/DynamicPricing';
 import CustomProjects from '../components/CustomProjects';
 import BookingModal from '../components/BookingModal';
-import ERPDashboard from '../components/ERPDashboard';
-import CRMDashboard from '../components/CRMDashboard';
-import MobileMockup from '../components/MobileMockup';
 import type { Country } from '../components/PersonalizationFlow';
 import Footer from '../components/Footer';
 import WelcomeLoader from '../components/WelcomeLoader';
@@ -20,6 +16,7 @@ import AnimatedCounter from '../components/AnimatedCounter';
 import AuthModal from '../components/AuthModal';
 import ContactAdminModal from '../components/ContactAdminModal';
 import ChatWidget from '../components/ChatWidget';
+import DiziAIChat from '../components/DiziAIChat';
 import DarkVeil from '../components/DarkVeil';
 import { useBooking } from '../contexts/BookingContext';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -52,7 +49,6 @@ const WordReveal = ({ text, className = '' }: { text: string; className?: string
 };
 
 const Home: React.FC = () => {
-  const navigate = useNavigate();
   const { isOpen: bookingOpen, packageName: bookingPackage, openBooking, closeBooking, setCountry: setBookingCountry,
     authPromptOpen, closeAuthPrompt, onBookingLoginSuccess,
     contactAdminOpen, closeContactAdmin,
@@ -117,6 +113,9 @@ const Home: React.FC = () => {
           <div className="relative z-10 w-full h-full">
             {/* Cursor Glow — follows mouse across the whole page */}
             <CursorGlow />
+
+            {/* Dizi AI — always visible, shows teaser when logged out */}
+            <DiziAIChat />
 
             <Navbar />
 
@@ -200,6 +199,68 @@ const Home: React.FC = () => {
               <CustomProjects country={country} onBookCall={openBooking} />
             </div>
 
+            {/* ── ALL UNDER ONE ROOF — CTA conversion block ── */}
+            <section className="bg-transparent relative overflow-hidden py-16 sm:py-24">
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                <div className="w-[700px] h-[300px] bg-white/[0.025] blur-[100px] rounded-full" />
+              </div>
+              <div className="container mx-auto px-4 sm:px-6 relative z-10 flex flex-col items-center text-center">
+                <div className="w-24 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent mb-10" />
+                <p className="text-[10px] sm:text-xs font-mono font-bold uppercase tracking-[0.4em] text-white/25 mb-6">
+                  The Dizitup Promise
+                </p>
+                <motion.h2
+                  initial={{ opacity: 0, y: 30 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1] }}
+                  className="font-heading font-black text-white leading-[0.95] tracking-tight"
+                  style={{ fontSize: 'clamp(2.8rem, 9vw, 7.5rem)' }}
+                >
+                  All Under{' '}
+                  <span style={{
+                    background: 'linear-gradient(90deg, #fff 0%, rgba(255,255,255,0.5) 100%)',
+                    WebkitBackgroundClip: 'text',
+                    WebkitTextFillColor: 'transparent',
+                    backgroundClip: 'text',
+                  }}>
+                    One Roof.
+                  </span>
+                </motion.h2>
+                <motion.p
+                  initial={{ opacity: 0, y: 16 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ duration: 0.8, delay: 0.2 }}
+                  className="mt-6 text-white/40 text-base sm:text-xl max-w-[520px] leading-relaxed"
+                >
+                  ERP. CRM. Mobile. Branding. AI.{' '}
+                  <span className="text-white/70">Everything your business needs</span> — built, scaled, and grown in one place.
+                </motion.p>
+                <motion.div
+                  initial={{ opacity: 0, y: 16 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ duration: 0.8, delay: 0.38 }}
+                  className="mt-10 flex flex-col sm:flex-row gap-4 items-center"
+                >
+                  <button
+                    onClick={() => openBooking()}
+                    className="px-8 sm:px-12 py-4 sm:py-5 bg-white text-black rounded-full font-black text-[11px] uppercase tracking-widest hover:bg-white/90 transition-all shadow-[0_0_40px_rgba(255,255,255,0.12)] hover:shadow-[0_0_60px_rgba(255,255,255,0.2)] hover:scale-105 active:scale-95"
+                  >
+                    Book a Free Strategy Call →
+                  </button>
+                  <button
+                    onClick={() => { const el = document.getElementById('capabilities'); el?.scrollIntoView({ behavior: 'smooth' }); }}
+                    className="px-8 py-4 sm:py-5 bg-white/5 border border-white/15 text-white/70 rounded-full font-bold text-[11px] uppercase tracking-widest hover:border-white/30 hover:text-white transition-all"
+                  >
+                    Explore Services
+                  </button>
+                </motion.div>
+                <div className="w-24 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent mt-10" />
+              </div>
+            </section>
+
             {/* Section Divider */}
             <div className="section-divider" />
 
@@ -231,24 +292,6 @@ const Home: React.FC = () => {
             {/* Section Divider */}
             <div className="section-divider" />
 
-            {/* ERP Dashboard */}
-            <ERPDashboard />
-
-            {/* Section Divider */}
-            <div className="section-divider" />
-
-            {/* CRM Dashboard */}
-            <CRMDashboard />
-
-            {/* Section Divider */}
-            <div className="section-divider" />
-
-            {/* Mobile Mockup */}
-            <MobileMockup />
-
-            {/* Section Divider */}
-            <div className="section-divider" />
-
             {/* Final CTA */}
             <section className="py-16 sm:py-28 lg:py-40 container mx-auto px-4 sm:px-6">
               <motion.div
@@ -265,7 +308,7 @@ const Home: React.FC = () => {
                   </h2>
                   <div className="flex flex-col md:flex-row items-center justify-center gap-6">
                     <button
-                      onClick={() => navigate('/login')}
+                      onClick={() => openBooking()}
                       className="w-full sm:w-auto px-8 sm:px-12 py-4 sm:py-6 bg-black text-white rounded-full font-bold hover:bg-white hover:text-black transition-all duration-500 uppercase tracking-widest text-xs"
                     >
                       Book a Free AI Strategy Call

@@ -97,13 +97,13 @@ const DynamicPricing: React.FC<Props> = ({ country, onBookCall }) => {
           >
             <div className="inline-flex items-center gap-2 px-4 py-2 bg-white/[0.04] border border-white/10 rounded-full mb-8">
               <Sparkles className="w-3 h-3 text-red-500" />
-              <span className="text-[10px] font-mono uppercase tracking-[0.3em] text-white/50">Core AI Systems</span>
+              <span className="text-[10px] font-mono uppercase tracking-[0.3em] text-white/50">Monthly Retainers · Long-Term Growth</span>
             </div>
             <h2 className="text-3xl sm:text-4xl md:text-7xl font-heading font-bold tracking-tighter mb-4 sm:mb-6">
-              Predictable <span className="text-white/20 italic font-light">Investment.</span>
+              Growth <span className="text-white/20 italic font-light">Partnerships.</span>
             </h2>
             <p className="text-base sm:text-lg text-white/40 font-light max-w-xl mx-auto">
-              Transparency is the bedrock of premium partnerships. Choose your growth speed.
+              Long-term commitments, not one-off projects. We embed into your business as your ongoing AI growth partners — building, scaling, and optimizing every month.
             </p>
           </motion.div>
         </div>
@@ -139,15 +139,14 @@ const DynamicPricing: React.FC<Props> = ({ country, onBookCall }) => {
                     <h3 className="text-lg font-bold tracking-tight uppercase text-white/60">{tier.name}</h3>
                   </div>
 
-                  {/* Price */}
-                  <div className="mb-6">
-                    <div className="flex items-baseline gap-3 flex-wrap">
-                      <span className="text-2xl sm:text-3xl lg:text-4xl font-heading font-bold text-white">{price.setup}</span>
-                      <span className="text-xs text-white/30 uppercase tracking-widest">Setup</span>
+                  {/* Pricing hidden — contact for pricing */}
+                  <div className="mb-6 flex items-center gap-2">
+                    <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-widest ${
+                      tier.popular ? 'bg-red-600/15 text-red-400 border border-red-500/20' : 'bg-white/5 text-white/30 border border-white/10'
+                    }`}>
+                      <span className="w-1.5 h-1.5 rounded-full bg-current animate-pulse" />
+                      Custom Pricing
                     </div>
-                    <p className="text-sm text-white/40 mt-1">
-                      + <span className="text-white/60 font-semibold">{price.monthly}</span>
-                    </p>
                   </div>
 
                   {/* Description */}
