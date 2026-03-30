@@ -50,7 +50,9 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, title }) => {
       <div className="p-6">
         <Link to="/" className="text-xl font-bold font-heading tracking-tight flex items-center gap-2" onClick={() => setMobileOpen(false)}>
           <div className="w-3 h-3 bg-red-600 rounded-full" />
-          DIZITUP <span className="text-[10px] text-red-500 font-black tracking-widest px-1.5 py-0.5 rounded bg-red-500/10 border border-red-500/20">ADMIN</span>
+          DIZITUP <span className="text-[10px] text-red-500 font-black tracking-widest px-1.5 py-0.5 rounded bg-red-500/10 border border-red-500/20 uppercase">
+            {user?.adminRole === 'manager' ? 'MANAGER' : user?.adminRole === 'employee' ? 'STAFF' : 'ADMIN'}
+          </span>
         </Link>
 
         {/* Auth status — compact on mobile */}

@@ -1,7 +1,11 @@
 const express = require('express');
+const multer = require('multer');
 const db = require('../db');
 const { protect } = require('../middleware/auth');
+const { uploadToCloudinary } = require('../utils/cloudinary');
 const router = express.Router();
+
+const upload = multer({ storage: multer.memoryStorage() });
 
 router.get('/me', protect, async (req, res, next) => {
   try {
@@ -25,6 +29,44 @@ router.get('/me', protect, async (req, res, next) => {
         isAdmin,
         adminRole: row.admin_role || null
       }
+    });
+  } catch (err) { next(err); }
+});
+
+// ----------------------------------------------------------
+// POST /api/user/avatar
+// ----------------------------------------------------------
+// Uploads a profile picture to Cloudinary and updates DB.
+// ----------------------------------------------------------
+router.post('/avatar', protect, upload.single('avatar'), async (req, res, next) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ success: false, error: 'No file uploaded.' });
+    }
+
+    // Upload to Cloudinary
+    const result = await uploadToCloudinary(req.file.buffer, {
+      folder: 'dizitup/avatars',
+      resource_type: 'image'
+    });
+
+    const updateRes = await db.query(
+      `UPDATE users SET avatar_url = $1 WHERE id = $2 RETURNING id, username, email, first_name, last_name, phone, business_name, avatar_url`,
+      [result.url, req.user.id]
+    );
+
+    if (!updateRes.rows.length) {
+      return res.status(404).json({ success: false, error: 'User not found.' });
+    }
+    
+    const row = updateRes.rows[0];
+    const userRes = await db.query('SELECT role FROM admins WHERE user_id = $1', [req.user.id]);
+    const isAdmin = userRes.rows.length > 0;
+    
+    res.json({
+      success: true,
+      avatar_url: result.url,
+      user: { ...row, isAdmin, adminRole: isAdmin ? userRes.rows[0].role : null }
     });
   } catch (err) { next(err); }
 });

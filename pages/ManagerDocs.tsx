@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import AdminLayout from '../components/AdminLayout';
 import { getToken } from '../utils/apiClient';
-import { FileText, Loader2, Send, Inbox, CornerDownRight } from 'lucide-react';
+import { FileText, Loader2, Send, Inbox, CornerDownRight, Trash2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000';
@@ -23,6 +23,13 @@ const ManagerDocs: React.FC = () => {
   const [fwdEmp, setFwdEmp]     = useState('');
   const [fwdNote, setFwdNote]   = useState('');
   const [fwdSending, setFwdSending] = useState(false);
+
+  // Direct upload states
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [uploadTitle, setUploadTitle] = useState('');
+  const [uploadDesc, setUploadDesc]  = useState('');
+  const [uploadEmp, setUploadEmp]    = useState('');
+  const [uploading, setUploading]    = useState(false);
 
   const fetchInbox = useCallback(async () => {
     try {
@@ -76,6 +83,61 @@ const ManagerDocs: React.FC = () => {
     } catch { toast.error('Network error'); } finally { setFwdSending(false); }
   };
 
+  const handleUpload = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!uploadFile) return toast.error('Please select a file');
+    if (!uploadTitle.trim()) return toast.error('Title is required');
+    if (!uploadEmp) return toast.error('Please select an employee');
+    
+    const emp = employees.find(e => e.admin_id === uploadEmp);
+    setUploading(true);
+    
+    try {
+      const form = new FormData();
+      form.append('file', uploadFile);
+      form.append('title', uploadTitle);
+      form.append('description', uploadDesc);
+      form.append('employee_id', uploadEmp);
+      form.append('employee_name', `${emp?.first_name} ${emp?.last_name}`);
+      
+      const t = getToken();
+      const res = await fetch(`${BASE_URL}/api/manager/docs/upload`, {
+        method: 'POST',
+        headers: t ? { Authorization: `Bearer ${t}` } : {},
+        body: form
+      });
+      
+      const data = await res.json();
+      if (data.success) {
+        toast.success('Document uploaded to employee!');
+        setUploadFile(null);
+        setUploadTitle('');
+        setUploadDesc('');
+        setUploadEmp('');
+        fetchSent();
+      } else {
+        toast.error(data.message || 'Failed to upload');
+      }
+    } catch { toast.error('Network error'); } finally { setUploading(false); }
+  };
+
+  const handleDelete = async (docId: string) => {
+    if (!window.confirm('Are you sure you want to delete this document?')) return;
+    try {
+      const res = await fetch(`${BASE_URL}/api/manager/docs/${docId}`, {
+        method: 'DELETE',
+        headers: authH(),
+      });
+      const data = await res.json();
+      if (data.success) {
+        toast.success('Document deleted');
+        fetchSent();
+      } else {
+        toast.error(data.message || 'Failed to delete');
+      }
+    } catch { toast.error('Network error'); }
+  };
+
   const DocCard = ({ doc, showForward }: { doc: Doc; showForward?: boolean }) => (
     <div className="p-4 rounded-xl border border-white/[0.06] bg-white/[0.02] space-y-3">
       <div className="flex items-start gap-3">
@@ -104,6 +166,15 @@ const ManagerDocs: React.FC = () => {
               className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-red-600/10 hover:bg-red-600/20 border border-red-500/20 text-[11px] text-red-400 transition-all"
             >
               <CornerDownRight size={11} /> Forward
+            </button>
+          )}
+          {!showForward && (
+            <button
+              onClick={() => handleDelete(doc.id)}
+              className="p-1.5 rounded-lg bg-white/5 hover:bg-red-500/10 border border-white/10 hover:border-red-500/20 text-white/40 hover:text-red-400 transition-all"
+              title="Delete Document"
+            >
+              <Trash2 size={13} />
             </button>
           )}
         </div>
@@ -177,7 +248,55 @@ const ManagerDocs: React.FC = () => {
 
         {/* Sent */}
         {tab === 'sent' && !loading && (
-          <div className="space-y-3">
+          <div className="space-y-4">
+            {/* Direct Upload Form */}
+            <form onSubmit={handleUpload} className="p-4 rounded-xl border border-white/[0.06] bg-white/[0.02] space-y-3">
+              <p className="text-xs font-bold uppercase tracking-widest text-white/50 mb-2">Direct Upload</p>
+              <div className="grid md:grid-cols-2 gap-3">
+                <input
+                  type="text"
+                  placeholder="Document Title *"
+                  value={uploadTitle}
+                  onChange={e => setUploadTitle(e.target.value)}
+                  className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-red-600/50"
+                  required
+                />
+                <select
+                  value={uploadEmp}
+                  onChange={e => setUploadEmp(e.target.value)}
+                  className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-red-600/50"
+                  required
+                >
+                  <option value="">Select Employee *</option>
+                  {employees.map(e => <option key={e.admin_id} value={e.admin_id}>{e.first_name} {e.last_name} (@{e.username})</option>)}
+                </select>
+                <input
+                  type="text"
+                  placeholder="Optional description"
+                  value={uploadDesc}
+                  onChange={e => setUploadDesc(e.target.value)}
+                  className="md:col-span-2 bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-red-600/50"
+                />
+                <div className="md:col-span-2 flex gap-3">
+                  <input
+                    type="file"
+                    accept="application/pdf,image/jpeg,image/png,image/webp"
+                    onChange={e => e.target.files && setUploadFile(e.target.files[0])}
+                    className="flex-1 bg-white/5 border border-white/10 rounded-xl px-3 py-1.5 text-sm text-white/70 file:mr-4 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-red-600/20 file:text-red-400 hover:file:bg-red-600/30 transition-all cursor-pointer focus:outline-none focus:border-red-600/50"
+                    required
+                  />
+                  <button
+                    type="submit"
+                    disabled={uploading}
+                    className="flex-shrink-0 flex items-center gap-2 px-5 py-2 rounded-xl bg-red-600 hover:bg-red-500 disabled:opacity-40 text-sm font-bold transition-all"
+                  >
+                    {uploading ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />} Upload
+                  </button>
+                </div>
+              </div>
+            </form>
+
+            <div className="space-y-3">
             {sent.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-40 rounded-xl border border-white/[0.06]">
                 <FileText size={24} className="text-white/15 mb-2" />
@@ -186,6 +305,7 @@ const ManagerDocs: React.FC = () => {
             ) : (
               sent.map(doc => <DocCard key={doc.id} doc={doc} />)
             )}
+            </div>
           </div>
         )}
       </div>

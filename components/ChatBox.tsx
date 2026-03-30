@@ -128,26 +128,46 @@ const ChatBox: React.FC<ChatBoxProps> = ({
 
     if (msg.media_type === 'image' && msg.media_url) {
       content = (
-        <a href={msg.media_url} target="_blank" rel="noopener noreferrer">
+        <div className="relative group/img">
           <img
             src={msg.media_url}
             alt={msg.file_name || 'Image'}
             className="max-w-full rounded-lg max-h-48 object-cover border border-white/10"
           />
-        </a>
+          <button
+            onClick={() => {
+              const link = document.createElement('a');
+              link.href = msg.media_url!;
+              link.setAttribute('download', msg.file_name || 'image.jpg');
+              document.body.appendChild(link);
+              link.click();
+              document.body.removeChild(link);
+            }}
+            className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover/img:opacity-100 transition-opacity rounded-lg"
+          >
+            <div className="bg-white/10 backdrop-blur-md border border-white/20 p-2 rounded-full">
+              <ExternalLink size={16} className="text-white" />
+            </div>
+          </button>
+        </div>
       );
     } else if (msg.media_type === 'pdf' && msg.media_url) {
       content = (
-        <a
-          href={msg.media_url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className={`flex items-center gap-2 px-1 py-0.5 rounded-lg group/pdf ${isOwn ? 'text-white' : 'text-white/80'}`}
+        <button
+          onClick={() => {
+            const link = document.createElement('a');
+            link.href = msg.media_url!;
+            link.setAttribute('download', msg.file_name || 'document.pdf');
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+          }}
+          className={`flex items-center gap-2 px-1 py-0.5 rounded-lg group/pdf w-full text-left transition-colors hover:bg-white/5 ${isOwn ? 'text-white' : 'text-white/80'}`}
         >
           <FileText size={16} className="flex-shrink-0 opacity-80" />
           <span className="text-xs font-medium truncate max-w-[160px]">{msg.file_name || 'Document.pdf'}</span>
           <ExternalLink size={10} className="flex-shrink-0 opacity-60 group-hover/pdf:opacity-100" />
-        </a>
+        </button>
       );
     } else {
       content = <p className="text-sm leading-relaxed">{msg.message}</p>;

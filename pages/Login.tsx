@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { useNavigate, Link } from 'react-router-dom'
+import { useNavigate, useLocation, Link } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ArrowLeft, Mail, Lock, User, Phone, Building2, Eye, EyeOff } from 'lucide-react'
 import { useAuth } from '../contexts/AuthProvider'
@@ -41,6 +41,7 @@ const InputField: React.FC<InputFieldProps> = ({ type, placeholder, value, onCha
         value={value}
         onChange={onChange}
         required={required}
+        autoComplete="new-password"
         className="w-full glass-input px-4 py-3 pl-10 pr-10 text-sm"
       />
       {showToggle && (
@@ -60,6 +61,7 @@ const InputField: React.FC<InputFieldProps> = ({ type, placeholder, value, onCha
 const Login: React.FC = () => {
   const { signIn, signUp, resetPassword, user, isAdmin, loading } = useAuth()
   const navigate = useNavigate()
+  const location = useLocation()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirm, setConfirm] = useState('')
@@ -68,7 +70,7 @@ const Login: React.FC = () => {
   const [username, setUsername] = useState('')
   const [businessName, setBusinessName] = useState('')
   const [phone, setPhone] = useState('')
-  const [mode, setMode] = useState<'login' | 'signup'>('login')
+  const [mode, setMode] = useState<'login' | 'signup'>(location.state?.mode || 'login')
   const [submitting, setSubmitting] = useState(false)
   const [showWelcome, setShowWelcome] = useState(false)
 

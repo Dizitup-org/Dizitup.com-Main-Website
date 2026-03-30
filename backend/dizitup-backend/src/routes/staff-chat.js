@@ -49,11 +49,11 @@ const upload = multer({
         created_at  TIMESTAMPTZ DEFAULT NOW()
       )
     `);
-    // Add media columns to existing table if not present (idempotent)
     await db.query(`ALTER TABLE team_messages ADD COLUMN IF NOT EXISTS media_url TEXT`).catch(() => {});
     await db.query(`ALTER TABLE team_messages ADD COLUMN IF NOT EXISTS media_type VARCHAR(50)`).catch(() => {});
     await db.query(`ALTER TABLE team_messages ADD COLUMN IF NOT EXISTS file_name VARCHAR(255)`).catch(() => {});
     await db.query(`ALTER TABLE team_messages ADD COLUMN IF NOT EXISTS sender_id UUID`).catch(() => {});
+    await db.query(`ALTER TABLE team_messages ALTER COLUMN message DROP NOT NULL`).catch(() => {});
     await db.query(
       `CREATE INDEX IF NOT EXISTS idx_team_msg_channel ON team_messages(channel, created_at)`
     ).catch(() => {});
@@ -99,6 +99,43 @@ router.get('/:channel', async (req, res, next) => {
 });
 
 // ----------------------------------------------------------
+// POST /:channel/upload — send image or PDF
+// multipart/form-data: file (required), sender_name (required), sender_id (optional)
+// ----------------------------------------------------------
+router.post('/:channel/upload', upload.single('file'), async (req, res, next) => {
+  try {
+    const userRole = req.admin?.role || 'employee';
+    if (!validateChannelAccess(req.params.channel, userRole, req.user?.id)) {
+      return res.status(403).json({ success: false, message: 'Access denied to this channel' });
+    }
+    if (!req.file) {
+      return res.status(400).json({ success: false, message: 'No file uploaded' });
+    }
+
+    const { sender_name, sender_id } = req.body;
+    const isPdf = req.file.mimetype === 'application/pdf';
+
+    // Upload to Cloudinary
+    const uploaded = await uploadToCloudinary(req.file.buffer, {
+      folder:        'dizitup/chat',
+      resource_type: 'auto',
+    });
+
+    const mediaType = isPdf ? 'pdf' : 'image';
+    const name      = (sender_name || 'Unknown').trim();
+
+    const result = await db.query(
+      `INSERT INTO team_messages (channel, sender_name, message, sender_id, media_url, media_type, file_name)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
+       RETURNING id, sender_name, message, sender_id, media_url, media_type, file_name, created_at`,
+      [req.params.channel, name, '', sender_id || null, uploaded.url, mediaType, req.file.originalname]
+    );
+
+    res.json({ success: true, message: result.rows[0] });
+  } catch (err) { next(err); }
+});
+
+// ----------------------------------------------------------
 // POST /:channel — send a text message
 // Body: { message: string, sender_name: string, sender_id?: string }
 // ----------------------------------------------------------
@@ -119,43 +156,6 @@ router.post('/:channel', async (req, res, next) => {
        RETURNING id, sender_name, message, sender_id, media_url, media_type, file_name, created_at`,
       [req.params.channel, name, message.trim(), sender_id || null]
     );
-    res.json({ success: true, message: result.rows[0] });
-  } catch (err) { next(err); }
-});
-
-// ----------------------------------------------------------
-// POST /:channel/upload — send image or PDF
-// multipart/form-data: file (required), sender_name (required), sender_id (optional)
-// ----------------------------------------------------------
-router.post('/:channel/upload', upload.single('file'), async (req, res, next) => {
-  try {
-    const userRole = req.admin?.role || 'employee';
-    if (!validateChannelAccess(req.params.channel, userRole, req.user?.id)) {
-      return res.status(403).json({ success: false, message: 'Access denied to this channel' });
-    }
-    if (!req.file) {
-      return res.status(400).json({ success: false, message: 'No file uploaded' });
-    }
-
-    const { sender_name, sender_id } = req.body;
-    const isPdf = req.file.mimetype === 'application/pdf';
-
-    // Upload to Cloudinary
-    const uploaded = await uploadToCloudinary(req.file.buffer, {
-      folder:        'dizitup/chat',
-      resource_type: isPdf ? 'raw' : 'image',
-    });
-
-    const mediaType = isPdf ? 'pdf' : 'image';
-    const name      = (sender_name || 'Unknown').trim();
-
-    const result = await db.query(
-      `INSERT INTO team_messages (channel, sender_name, sender_id, media_url, media_type, file_name)
-       VALUES ($1, $2, $3, $4, $5, $6)
-       RETURNING id, sender_name, message, sender_id, media_url, media_type, file_name, created_at`,
-      [req.params.channel, name, sender_id || null, uploaded.url, mediaType, req.file.originalname]
-    );
-
     res.json({ success: true, message: result.rows[0] });
   } catch (err) { next(err); }
 });
