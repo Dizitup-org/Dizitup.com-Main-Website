@@ -1,5 +1,10 @@
 // utils/apiClient.ts — replaces supabaseClient.ts
-const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000';
+let VITE_API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000';
+// Remove trailing slash if present
+if (VITE_API_URL.endsWith('/')) {
+  VITE_API_URL = VITE_API_URL.slice(0, -1);
+}
+const BASE_URL = VITE_API_URL;
 
 export function getToken(): string | null { return localStorage.getItem('dizitup_token'); }
 export function setToken(token: string) { 
