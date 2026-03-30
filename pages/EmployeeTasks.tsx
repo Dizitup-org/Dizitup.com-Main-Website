@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import AdminLayout from '../components/AdminLayout';
-import ChatBox from '../components/ChatBox';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   AlertTriangle, Loader2, RefreshCw, CalendarDays, Check,
@@ -8,7 +7,6 @@ import {
   CircleDot, CircleCheck, CircleX, CircleDashed, CheckCircle2,
 } from 'lucide-react';
 import { getToken } from '../utils/apiClient';
-import { useAuth } from '../contexts/AuthProvider';
 import toast from 'react-hot-toast';
 
 const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000';
@@ -289,8 +287,6 @@ const TaskSection: React.FC<{
 // ─── Page ──────────────────────────────────────────────────────────────────────
 const EmployeeTasks: React.FC = () => {
 
-  const { user } = useAuth();
-  const senderName = `${user?.first_name || ''} ${user?.last_name || ''}`.trim() || 'Employee';
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -376,16 +372,6 @@ const EmployeeTasks: React.FC = () => {
           </div>
         )}
 
-        {/* Chat with Manager */}
-        {user && (
-          <div style={{ marginTop: '2rem' }}>
-            <ChatBox
-              channel={`manager_employee_${user?.id}`}
-              senderName={senderName}
-              label="Chat with Manager"
-            />
-          </div>
-        )}
       </motion.div>
     </AdminLayout>
   );
