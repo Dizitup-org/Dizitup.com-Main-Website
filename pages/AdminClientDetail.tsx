@@ -5,7 +5,7 @@ import { getOnboardClientById, updateClientNotes } from '../utils/clientsApi';
 import { getToken } from '../utils/apiClient';
 
 const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000';
-import { Loader2, User, Briefcase, Calendar, DollarSign, FileText, TrendingUp, Mail, Phone, Building, Clock, Target, ArrowLeft, Edit3, Save, X, Plus } from 'lucide-react';
+import { Loader2, User, Briefcase, Calendar, DollarSign, FileText, TrendingUp, Mail, Phone, Building, Clock, Target, ArrowLeft, Edit3, Save, X, Plus, Camera } from 'lucide-react';
 import toast from 'react-hot-toast';
 import type { OnboardClientRow, ProjectRow, SaleRow } from '../types';
 
@@ -33,6 +33,35 @@ const AdminClientDetail: React.FC = () => {
   const [showAddProject, setShowAddProject] = useState(false);
   const [addProjectForm, setAddProjectForm] = useState({ title: '', description: '', admin_notes: '', total_amount: '', deadline: '', start_date: '' });
   const [addingProject, setAddingProject] = useState(false);
+
+  // Avatar upload
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const avatarInputRef = React.useRef<HTMLInputElement>(null);
+
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !clientId) return;
+    e.target.value = '';
+    if (file.size > 5 * 1024 * 1024) { toast.error('Max 5MB for profile picture'); return; }
+    setUploadingAvatar(true);
+    try {
+      const t  = getToken();
+      const form = new FormData();
+      form.append('avatar', file);
+      const res  = await fetch(`${BASE_URL}/api/admin/clients/${clientId}/avatar`, {
+        method: 'POST',
+        headers: t ? { Authorization: `Bearer ${t}` } : {},
+        body: form,
+      });
+      const data = await res.json();
+      if (data.success) {
+        setClient(prev => prev ? { ...prev, avatar_url: data.avatar_url } : prev);
+        toast.success('Profile picture updated!');
+      } else {
+        toast.error(data.message || 'Upload failed');
+      }
+    } catch { toast.error('Network error'); } finally { setUploadingAvatar(false); }
+  };
 
   useEffect(() => {
     let isMounted = true;
@@ -218,17 +247,27 @@ const AdminClientDetail: React.FC = () => {
           {/* Client Header */}
           <div className="p-8 rounded-3xl bg-white/[0.02] border border-white/10 backdrop-blur-xl">
             <div className="flex flex-col md:flex-row md:items-center gap-6">
-              {client.avatar_url ? (
-                <img
-                  src={client.avatar_url}
-                  alt=""
-                  className="w-24 h-24 rounded-2xl object-cover shadow-2xl"
-                />
-              ) : (
-                <div className="w-24 h-24 rounded-2xl bg-gradient-to-br from-red-600 to-red-800 flex items-center justify-center font-bold text-3xl shadow-2xl shadow-red-600/30">
-                  {(client.contact_name || 'C')[0].toUpperCase()}
+              {/* Avatar — clickable to upload */}
+              <input ref={avatarInputRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={handleAvatarUpload} />
+              <div className="relative group cursor-pointer flex-shrink-0" onClick={() => avatarInputRef.current?.click()}>
+                {client.avatar_url ? (
+                  <img
+                    src={client.avatar_url}
+                    alt=""
+                    className="w-24 h-24 rounded-2xl object-cover shadow-2xl"
+                  />
+                ) : (
+                  <div className="w-24 h-24 rounded-2xl bg-gradient-to-br from-red-600 to-red-800 flex items-center justify-center font-bold text-3xl shadow-2xl shadow-red-600/30">
+                    {(client.contact_name || 'C')[0].toUpperCase()}
+                  </div>
+                )}
+                {/* Overlay */}
+                <div className="absolute inset-0 rounded-2xl bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                  {uploadingAvatar
+                    ? <Loader2 size={20} className="animate-spin text-white" />
+                    : <Camera size={20} className="text-white" />}
                 </div>
-              )}
+              </div>
               <div className="flex-1">
                 <h1 className="text-3xl font-bold font-heading text-white mb-2">{client.contact_name || 'Unknown Client'}</h1>
                 <p className="text-white/60 text-lg mb-3">{client.company_name || 'No company name'}</p>

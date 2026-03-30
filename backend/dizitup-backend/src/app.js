@@ -37,6 +37,9 @@ const adminChatRoutes       = require('./routes/admin/chat');
 const managerRoutes         = require('./routes/manager/index');
 const employeeRoutes        = require('./routes/employee/index');
 const staffChatRoutes       = require('./routes/staff-chat');
+const adminDocsRoutes       = require('./routes/admin/docs');
+const managerDocsRoutes     = require('./routes/manager/docs');
+const employeeDocsRoutes    = require('./routes/employee/docs');
 
 // Middleware
 const { protect } = require('./middleware/auth');
@@ -121,6 +124,13 @@ app.use('/api/employee', protect, isAdmin, requireRole('admin', 'manager', 'empl
 // STAFF CHANNEL CHAT — accessible by admin + manager + employee
 // ============================================================
 app.use('/api/staff/chat', protect, isAdmin, requireRole('admin', 'manager', 'employee'), staffChatRoutes);
+
+// ============================================================
+// DOCS ROUTES — official document chain (admin→manager→employee)
+// ============================================================
+app.use('/api/admin/docs',    protect, isAdmin, requireRole('admin'), adminDocsRoutes);
+app.use('/api/manager/docs',  protect, isAdmin, requireRole('admin', 'manager'), managerDocsRoutes);
+app.use('/api/employee/docs', protect, isAdmin, requireRole('admin', 'manager', 'employee'), employeeDocsRoutes);
 
 // User chat (protect applied inside chat.js per-route)
 app.use('/api/chat',            chatRoutes);

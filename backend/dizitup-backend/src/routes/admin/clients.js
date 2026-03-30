@@ -12,11 +12,23 @@
 const express = require('express');
 const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
+const multer = require('multer');
 const db = require('../../db');
 const { AppError } = require('../../utils/errors');
 const { validators } = require('../../middleware/validate');
+const { uploadToCloudinary } = require('../../utils/cloudinary');
 
 const router = express.Router();
+
+const avatarUpload = multer({
+  storage: multer.memoryStorage(),
+  limits:  { fileSize: 5 * 1024 * 1024 }, // 5MB
+  fileFilter: (_req, file, cb) => {
+    const allowed = ['image/jpeg', 'image/png', 'image/webp'];
+    if (allowed.includes(file.mimetype)) cb(null, true);
+    else cb(new Error('Only JPEG, PNG, WEBP images allowed for avatars'));
+  },
+});
 
 // ----------------------------------------------------------
 // Schema migrations — run at startup
@@ -426,6 +438,30 @@ router.patch('/:clientId/projects/:projectId/payments/:paymentId', async (req, r
   } catch (err) {
     next(err);
   }
+});
+
+// ----------------------------------------------------------
+// POST /api/admin/clients/:id/avatar — upload client profile picture
+// ----------------------------------------------------------
+router.post('/:id/avatar', avatarUpload.single('avatar'), async (req, res, next) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ success: false, message: 'Image file is required' });
+    }
+
+    const uploaded = await uploadToCloudinary(req.file.buffer, {
+      folder:        'dizitup/avatars',
+      resource_type: 'image',
+      transformation: [{ width: 400, height: 400, crop: 'fill', gravity: 'face' }],
+    });
+
+    await db.query(
+      `UPDATE onboard_clients SET avatar_url = $1 WHERE id = $2`,
+      [uploaded.url, req.params.id]
+    );
+
+    res.json({ success: true, avatar_url: uploaded.url });
+  } catch (err) { next(err); }
 });
 
 // ----------------------------------------------------------

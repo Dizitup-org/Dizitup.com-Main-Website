@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { NavLink, Link, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, BarChart3, Users, LogOut, Search, Layout, Home as HomeIcon, Shield, FolderOpen, UserPlus, MessageCircle, CheckSquare, Calendar, Menu, X, ChevronRight } from 'lucide-react';
+import { LayoutDashboard, BarChart3, Users, LogOut, Search, Layout, Home as HomeIcon, Shield, FolderOpen, UserPlus, MessageCircle, CheckSquare, Calendar, FileText, Menu, X, ChevronRight } from 'lucide-react';
 import { useAuth } from '../contexts/AuthProvider';
 import { getToken } from '../utils/apiClient';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -23,12 +23,14 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, title }) => {
         { to: '/admin/manager/tasks', icon: CheckSquare, label: 'Tasks' },
         { to: '/admin/manager/team', icon: Users, label: 'Team' },
         { to: '/admin/manager/chat', icon: MessageCircle, label: 'Chat' },
+        { to: '/admin/manager/docs', icon: FileText, label: 'Docs' },
       ]
     : user?.adminRole === 'employee'
     ? [
         { to: '/admin/employee/tasks', icon: CheckSquare, label: 'My Tasks' },
         { to: '/admin/employee/projects', icon: FolderOpen, label: 'My Projects' },
         { to: '/admin/employee/chat', icon: MessageCircle, label: 'Chat' },
+        { to: '/admin/employee/docs', icon: FileText, label: 'Docs' },
       ]
     : [
         { to: '/admin', icon: LayoutDashboard, label: 'Overview' },
@@ -39,6 +41,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, title }) => {
         { to: '/admin/portfolio', icon: Layout, label: 'Portfolio' },
         { to: '/admin/chat', icon: MessageCircle, label: 'Chat' },
         { to: '/admin/manager/team', icon: UserPlus, label: 'Team' },
+        { to: '/admin/docs', icon: FileText, label: 'Docs' },
       ];
 
   const SidebarContent = () => (
