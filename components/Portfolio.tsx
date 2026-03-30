@@ -76,9 +76,8 @@ const Portfolio: React.FC = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchProjects = async () => {
-      try {
-        const response = await fetch('http://localhost:4000/api/portfolio');
+        const BASE_URL = (import.meta.env.VITE_API_URL || 'http://localhost:4000').replace(/\/$/, '');
+        const response = await fetch(`${BASE_URL}/api/portfolio`);
         const data = await response.json();
         
         if (data.portfolio && Array.isArray(data.portfolio)) {
