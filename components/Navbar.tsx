@@ -58,7 +58,6 @@ const Navbar: React.FC = () => {
             borderWidth: '1px',
             borderColor: scrolled ? 'rgba(255,255,255,0.10)' : 'rgba(255,255,255,0)',
             backdropFilter: scrolled ? 'blur(20px) saturate(1.8)' : 'blur(0px)',
-            WebkitBackdropFilter: scrolled ? 'blur(20px) saturate(1.8)' : 'blur(0px)',
           }}
           transition={{ type: 'spring', stiffness: 260, damping: 30 }}
           style={{ borderStyle: 'solid' }}
