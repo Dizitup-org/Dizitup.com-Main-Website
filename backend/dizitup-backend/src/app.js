@@ -56,6 +56,8 @@ const app = express();
 // CORS — Allow your frontend to call this backend
 const allowedOrigins = [
   process.env.FRONTEND_URL,
+  'https://dizitup.com',
+  'https://www.dizitup.com',
   'http://localhost:3000',
   'http://localhost:3001',
   'http://localhost:5173', // Vite default
