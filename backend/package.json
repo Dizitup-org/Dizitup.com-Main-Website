@@ -1,7 +1,8 @@
 {
   "scripts": {
     "dev": "npm run dev --prefix dizitup-backend",
-    "start": "npm start --prefix dizitup-backend"
+    "start": "npm start --prefix dizitup-backend",
+    "build": "npm install && npm install --prefix dizitup-backend && npx prisma db push && npx prisma generate"
   },
   "dependencies": {
     "@prisma/client": "^7.4.2",
