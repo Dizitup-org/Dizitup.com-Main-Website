@@ -20,6 +20,9 @@ import ManagerTasks from './pages/ManagerTasks';
 import EmployeeTasks from './pages/EmployeeTasks';
 import EmployeeProjects from './pages/EmployeeProjects';
 import EmployeeChat from './pages/EmployeeChat';
+import AdminDocs from './pages/AdminDocs';
+import ManagerDocs from './pages/ManagerDocs';
+import EmployeeDocs from './pages/EmployeeDocs';
 import { AuthProvider } from './contexts/AuthProvider';
 import { BookingProvider } from './contexts/BookingContext';
 import { RequireAdmin, RequireAuth, RequireRole } from './components/ProtectedRoute';
@@ -169,6 +172,32 @@ const App: React.FC = () => {
               element={(
                 <RequireRole roles={['admin', 'manager', 'employee']}>
                   <EmployeeChat />
+                </RequireRole>
+              )}
+            />
+
+            {/* Docs Routes */}
+            <Route
+              path="/admin/docs"
+              element={(
+                <RequireAdmin>
+                  <AdminDocs />
+                </RequireAdmin>
+              )}
+            />
+            <Route
+              path="/admin/manager/docs"
+              element={(
+                <RequireRole roles={['admin', 'manager']}>
+                  <ManagerDocs />
+                </RequireRole>
+              )}
+            />
+            <Route
+              path="/admin/employee/docs"
+              element={(
+                <RequireRole roles={['admin', 'manager', 'employee']}>
+                  <EmployeeDocs />
                 </RequireRole>
               )}
             />

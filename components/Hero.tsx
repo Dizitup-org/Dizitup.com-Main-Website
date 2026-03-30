@@ -5,7 +5,6 @@ import { ArrowUpRight, Cpu } from 'lucide-react';
 import MagneticButton from './MagneticButton';
 import TextShimmer from './TextShimmer';
 import { useBooking } from '../contexts/BookingContext';
-import { useNavigate } from 'react-router-dom';
 
 // Floating particles data — small, subtle dots
 const PARTICLES = [
@@ -19,8 +18,6 @@ const PARTICLES = [
 
 const Hero: React.FC = () => {
 
-  const navigate = useNavigate();
-  
   const { openBooking } = useBooking();
   const targetRef = useRef(null);
   const { scrollYProgress } = useScroll({
@@ -37,7 +34,7 @@ const Hero: React.FC = () => {
       {PARTICLES.map((p, i) => (
         <div
           key={i}
-          className="floating-particle"
+          className="floating-particle z-10"
           style={{
             width: p.size,
             height: p.size,
@@ -75,7 +72,7 @@ const Hero: React.FC = () => {
             <div className="flex flex-col sm:flex-row flex-wrap gap-3 sm:gap-4 justify-center">
               <MagneticButton>
                 <button
-                  onClick={() => navigate('/login')}
+                  onClick={() => openBooking()}
                   className="w-full sm:w-auto px-7 sm:px-9 py-3 sm:py-4 bg-white text-black rounded-full font-bold text-xs uppercase tracking-widest hover:bg-red-600 hover:text-white transition-all duration-500 flex items-center justify-center gap-2 shadow-[0_20px_50px_rgba(255,255,255,0.1)]"
                 >
                   Book a Call <ArrowUpRight className="w-4 h-4" />

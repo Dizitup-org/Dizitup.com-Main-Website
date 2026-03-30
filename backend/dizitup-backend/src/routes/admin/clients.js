@@ -12,11 +12,23 @@
 const express = require('express');
 const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
+const multer = require('multer');
 const db = require('../../db');
 const { AppError } = require('../../utils/errors');
 const { validators } = require('../../middleware/validate');
+const { uploadToCloudinary } = require('../../utils/cloudinary');
 
 const router = express.Router();
+
+const avatarUpload = multer({
+  storage: multer.memoryStorage(),
+  limits:  { fileSize: 5 * 1024 * 1024 }, // 5MB
+  fileFilter: (_req, file, cb) => {
+    const allowed = ['image/jpeg', 'image/png', 'image/webp'];
+    if (allowed.includes(file.mimetype)) cb(null, true);
+    else cb(new Error('Only JPEG, PNG, WEBP images allowed for avatars'));
+  },
+});
 
 // ----------------------------------------------------------
 // Schema migrations — run at startup
@@ -45,19 +57,19 @@ router.get('/query', async (req, res, next) => {
       SELECT
       qc.id,
       b.id as booking_id,
-      COALESCE(qc.name, b.name) as name,
-      COALESCE(qc.email, b.email) as email,
-      COALESCE(qc.phone, u.phone) as phone,
+      b.name,
+      b.email,
+      qc.phone,
       b.agency,
       b.project_type,
-      b.notes,
+      qc.notes,
       qc.created_at,
       qc.follow_up_date,
       qc.status
       FROM query_clients qc
-      JOIN bookings b ON qc.booking_id = b.id
-      LEFT JOIN users u ON qc.user_id = u.id
-      WHERE qc.status != 'converted'
+      JOIN bookings b
+      ON qc.booking_id=b.id
+      WHERE qc.status!='converted'
       ORDER BY qc.created_at DESC
     `);
 
@@ -107,17 +119,16 @@ router.get('/onboarded', async (req, res, next) => {
 
     const result = await db.query(`
       SELECT
-        oc.id,
-        oc.booking_id,
-        oc.contact_name,
-        oc.email,
-        COALESCE(oc.phone, u.phone) as phone,
-        oc.company_name,
-        oc.status,
-        oc.onboarded_at
-      FROM onboard_clients oc
-      LEFT JOIN users u ON oc.user_id = u.id
-      ORDER BY oc.onboarded_at DESC
+        id,
+        booking_id,
+        contact_name,
+        email,
+        phone,
+        company_name,
+        status,
+        onboarded_at
+      FROM onboard_clients
+      ORDER BY onboarded_at DESC
     `);
 
     res.json({ success: true, clients: result.rows });
@@ -427,6 +438,30 @@ router.patch('/:clientId/projects/:projectId/payments/:paymentId', async (req, r
   } catch (err) {
     next(err);
   }
+});
+
+// ----------------------------------------------------------
+// POST /api/admin/clients/:id/avatar — upload client profile picture
+// ----------------------------------------------------------
+router.post('/:id/avatar', avatarUpload.single('avatar'), async (req, res, next) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ success: false, message: 'Image file is required' });
+    }
+
+    const uploaded = await uploadToCloudinary(req.file.buffer, {
+      folder:        'dizitup/avatars',
+      resource_type: 'image',
+      transformation: [{ width: 400, height: 400, crop: 'fill', gravity: 'face' }],
+    });
+
+    await db.query(
+      `UPDATE onboard_clients SET avatar_url = $1 WHERE id = $2`,
+      [uploaded.url, req.params.id]
+    );
+
+    res.json({ success: true, avatar_url: uploaded.url });
+  } catch (err) { next(err); }
 });
 
 // ----------------------------------------------------------

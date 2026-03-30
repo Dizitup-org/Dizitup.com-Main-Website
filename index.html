@@ -50,26 +50,15 @@
       .font-mono {
         font-family: 'JetBrains Mono', monospace;
       }
-      /* The Luxury Grain Overlay */
-      body::before {
-        content: "";
-        position: fixed;
-        top: 0; left: 0; width: 100%; height: 100%;
-        background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
-        opacity: 0.04;
-        pointer-events: none;
-        z-index: 50;
-      }
-      /* Background Grid */
-      .bg-grid {
-        background-size: 40px 40px;
-        background-image: linear-gradient(to right, rgba(255,255,255,0.02) 1px, transparent 1px),
-                          linear-gradient(to bottom, rgba(255,255,255,0.02) 1px, transparent 1px);
-      }
+      .bg-grid { /* Grid removed */ }
       ::-webkit-scrollbar { width: 4px; }
       ::-webkit-scrollbar-track { background: #000; }
       ::-webkit-scrollbar-thumb { background: #333; border-radius: 10px; }
       ::-webkit-scrollbar-thumb:hover { background: var(--accent); }
+      select option {
+        background-color: #111;
+        color: #fff;
+      }
     </style>
   <script type="importmap">
 {
@@ -88,7 +77,7 @@
 </script>
 </head>
   <body>
-    <div id="root" class="bg-grid"></div>
+    <div id="root"></div>
     <script type="module" src="/index.tsx"></script>
   </body>
 </html>

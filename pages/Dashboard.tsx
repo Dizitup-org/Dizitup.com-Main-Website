@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useState, useRef, useCallback } from 'react'
+import React, { useEffect, useState, useRef, useCallback } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { Camera, Loader2, RotateCcw, CalendarDays, Phone, Send, Mail, Eye, EyeOff, MessageCircle, KeyRound } from 'lucide-react'
@@ -365,9 +365,11 @@ const ProfileSection: React.FC<{
 
     {/* Avatar */}
     <div className="glass-panel p-6 rounded-2xl flex flex-col items-center text-center space-y-4">
-      <div className="w-24 h-24 rounded-2xl bg-gradient-to-br from-red-600 to-red-900 flex items-center justify-center text-white text-3xl font-bold">
-        {user?.avatar_url ? (
-          <img src={user.avatar_url} alt="Avatar" className="w-full h-full object-cover rounded-2xl" />
+      <div className="w-24 h-24 rounded-2xl bg-gradient-to-br from-red-600 to-red-900 flex items-center justify-center text-white text-3xl font-bold overflow-hidden">
+        {avatarPreview ? (
+          <img src={avatarPreview} alt="Avatar Preview" className="w-full h-full object-cover" />
+        ) : user?.avatar_url ? (
+          <img src={user.avatar_url} alt="Avatar" className="w-full h-full object-cover" />
         ) : (
           `${user?.first_name?.[0]}${user?.last_name?.[0]}`
         )}

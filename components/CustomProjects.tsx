@@ -3,13 +3,11 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { Globe, Palette, Cpu, Workflow, ArrowRight } from 'lucide-react';
 import type { Country } from './PersonalizationFlow';
-import { getPricingRegion, type PricingRegion } from './PersonalizationFlow';
 
 interface CustomProject {
   name: string;
   icon: React.ReactNode;
   description: string;
-  startingPrice: Record<PricingRegion, string>;
 }
 
 const PROJECTS: CustomProject[] = [
@@ -17,45 +15,21 @@ const PROJECTS: CustomProject[] = [
     name: 'Conversion Website Development',
     icon: <Globe className="w-6 h-6" />,
     description: 'High-converting websites engineered for lead capture, speed, and authority positioning.',
-    startingPrice: {
-      'India': '₹35,000',
-      'United States': '$1,200',
-      'Europe': '€1,100',
-      'Other': '$1,200',
-    },
   },
   {
     name: 'AI Content System Setup',
     icon: <Palette className="w-6 h-6" />,
     description: 'Automated content pipelines — ideation, generation, scheduling, and analytics in one system.',
-    startingPrice: {
-      'India': '₹20,000',
-      'United States': '$750',
-      'Europe': '€700',
-      'Other': '$750',
-    },
   },
   {
     name: 'Custom AI Platform / App',
     icon: <Cpu className="w-6 h-6" />,
     description: 'Bespoke AI-powered platforms tailored to your unique business logic and workflows.',
-    startingPrice: {
-      'India': '₹80,000',
-      'United States': '$3,000',
-      'Europe': '€2,800',
-      'Other': '$3,000',
-    },
   },
   {
     name: 'Advanced Workflow Automation',
     icon: <Workflow className="w-6 h-6" />,
     description: 'End-to-end process automation connecting your tools, teams, and data into one intelligent flow.',
-    startingPrice: {
-      'India': '₹30,000',
-      'United States': '$1,000',
-      'Europe': '€950',
-      'Other': '$1,000',
-    },
   },
 ];
 
@@ -64,10 +38,9 @@ interface Props {
   onBookCall: (packageName: string) => void;
 }
 
-const CustomProjects: React.FC<Props> = ({ country, onBookCall }) => {
-  const pricingKey = getPricingRegion(country);
+const CustomProjects: React.FC<Props> = ({ country: _country, onBookCall }) => {
   return (
-    <section className="py-16 sm:py-32 md:py-40 bg-[#050505] relative overflow-hidden">
+    <section className="py-16 sm:py-32 md:py-40 bg-transparent relative overflow-hidden">
       <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[700px] h-[400px] bg-red-600/[0.03] blur-[120px] rounded-full pointer-events-none" />
 
         <div className="container mx-auto px-4 sm:px-6 relative z-10">
@@ -107,20 +80,15 @@ const CustomProjects: React.FC<Props> = ({ country, onBookCall }) => {
                 <h3 className="text-base font-bold tracking-tight text-white">{proj.name}</h3>
               </div>
               <p className="text-sm text-white/40 font-light leading-relaxed mb-6 flex-grow">{proj.description}</p>
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-[10px] font-mono text-white/30 uppercase tracking-widest mb-1">Starting From</p>
-                  <p className="text-xl font-heading font-bold text-white">{proj.startingPrice[pricingKey]}</p>
-                </div>
-                <motion.button
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={() => onBookCall(proj.name)}
-                  className="p-3 rounded-full bg-white/5 border border-white/10 hover:bg-red-600/20 hover:border-red-600/30 transition-all group/btn"
-                >
-                  <ArrowRight className="w-4 h-4 text-white/40 group-hover/btn:text-red-400 transition-colors" />
-                </motion.button>
-              </div>
+              <motion.button
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.97 }}
+                onClick={() => onBookCall(proj.name)}
+                className="w-full py-3 px-5 rounded-xl bg-white/[0.04] border border-white/10 hover:bg-red-600/10 hover:border-red-500/30 text-white/60 hover:text-white text-[11px] font-bold uppercase tracking-widest transition-all flex items-center justify-center gap-2 group/cta"
+              >
+                Get a Custom Quote
+                <ArrowRight className="w-3.5 h-3.5 group-hover/cta:translate-x-1 transition-transform" />
+              </motion.button>
             </motion.div>
           ))}
         </div>
