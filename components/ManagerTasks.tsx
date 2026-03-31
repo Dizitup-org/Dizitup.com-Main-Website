@@ -660,7 +660,7 @@ const ManagerTasks: React.FC = () => {
 
                 <div>
                   <label className="block text-[11px] font-semibold uppercase tracking-wider text-white/40 mb-1.5">Urgency</label>
-                  <div className="grid grid-cols-5 gap-1.5">
+                  <div className="grid grid-cols-3 sm:grid-cols-5 gap-1.5">
                     {([
                       { value: 'no_priority', label: 'None',   emoji: '—',  cls: 'text-white/30 border-white/[0.08] hover:border-white/20 hover:bg-white/[0.04]',                       activeCls: 'bg-white/[0.08] border-white/20 text-white/70' },
                       { value: 'low',         label: 'Low',    emoji: '↓',  cls: 'text-white/40 border-white/[0.08] hover:border-blue-400/30 hover:bg-blue-400/[0.06]',           activeCls: 'bg-blue-400/10 border-blue-400/40 text-blue-300' },
