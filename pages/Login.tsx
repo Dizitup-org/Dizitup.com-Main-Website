@@ -269,12 +269,12 @@ const Login: React.FC = () => {
               {mode === 'login' ? "Don't have an account? Sign up" : 'Already have an account? Login'}
             </button>
             {mode === 'login' && (
-              <button
-                onClick={handleReset}
+              <Link
+                to="/forgot-password"
                 className="text-xs text-white/40 hover:text-red-400 transition-colors underline underline-offset-2"
               >
                 Forgot password?
-              </button>
+              </Link>
             )}
           </div>
         </div>
