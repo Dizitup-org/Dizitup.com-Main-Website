@@ -10,8 +10,8 @@ const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
-const db = require('../db');
-const transporter = require('../utils/mailer');
+const prisma = require('../utils/prisma');
+const resend = require('../utils/resend');
 const { AppError } = require('../utils/errors');
 const { validators } = require('../middleware/validate');
 
@@ -61,36 +61,42 @@ router.post('/signup', async (req, res, next) => {
     // Hash the password
     const password_hash = await bcrypt.hash(password, 12);
 
-    // Ensure username is unique
-    const usernameCheck = await db.query(
-      'SELECT 1 FROM users WHERE LOWER(username) = LOWER($1) LIMIT 1',
-      [username]
-    );
-    if (usernameCheck.rows.length > 0) {
-      throw new AppError('Username already taken. Please choose another.', 400);
+    // Ensure username or email is unique
+    const existingUser = await prisma.users.findFirst({
+      where: {
+        OR: [
+          { username: { equals: username, mode: 'insensitive' } },
+          { email: { equals: email, mode: 'insensitive' } }
+        ]
+      }
+    });
+
+    if (existingUser) {
+      const field = existingUser.username.toLowerCase() === username.toLowerCase() ? 'Username' : 'Email';
+      throw new AppError(`${field} already taken.`, 400);
     }
 
-    // Ensure email is unique
-    const emailCheck = await db.query(
-      'SELECT 1 FROM users WHERE LOWER(email) = LOWER($1) LIMIT 1',
-      [email]
-    );
-    if (emailCheck.rows.length > 0) {
-      throw new AppError('Email already registered. Please login instead.', 400);
-    }
+    // Insert user into database via Prisma
+    const user = await prisma.users.create({
+      data: {
+        username,
+        email,
+        password_hash,
+        first_name,
+        last_name,
+        phone: phone || null,
+        business_name: business_name || null
+      },
+      select: {
+        id: true,
+        username: true,
+        email: true,
+        first_name: true,
+        last_name: true,
+        created_at: true
+      }
+    });
 
-    // Insert user into database
-    // $1, $2, $3 etc. are parameterised placeholders.
-    // NEVER use string concatenation for SQL — this prevents SQL injection.
-    const result = await db.query(
-      `INSERT INTO users
-         (username, email, password_hash, first_name, last_name, phone, business_name)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)
-       RETURNING id, username, email, first_name, last_name, created_at`,
-      [username, email, password_hash, first_name, last_name, phone || null, business_name || null]
-    );
-
-    const user = result.rows[0];
     const token = signToken(user.id);
 
     res.status(201).json({
@@ -121,18 +127,15 @@ router.post('/login', async (req, res, next) => {
     validators.required(email,    'Email');
     validators.required(password, 'Password');
 
-    // Find user by email
-    const result = await db.query(
-      'SELECT * FROM users WHERE email = $1',
-      [email.toLowerCase().trim()]
-    );
+    // Find user by email via Prisma
+    const user = await prisma.users.findUnique({
+      where: { email: email.toLowerCase().trim() }
+    });
 
-    if (result.rows.length === 0) {
+    if (!user) {
       // Use a vague message — don't reveal whether the email exists
       throw new AppError('Invalid email or password.', 401);
     }
-
-    const user = result.rows[0];
 
     // Compare submitted password with stored hash
     const passwordMatch = await bcrypt.compare(password, user.password_hash);
@@ -140,13 +143,14 @@ router.post('/login', async (req, res, next) => {
       throw new AppError('Invalid email or password.', 401);
     }
 
-    // Check if user is admin
-    const adminCheck = await db.query(
-      'SELECT role FROM admins WHERE user_id = $1',
-      [user.id]
-    );
-    const isAdmin = adminCheck.rows.length > 0;
-    const adminRole = isAdmin ? adminCheck.rows[0].role : null;
+    // Check if user is admin via Prisma
+    const adminRecord = await prisma.admins.findUnique({
+      where: { user_id: user.id },
+      select: { role: true }
+    });
+    
+    const isAdmin = !!adminRecord;
+    const adminRole = adminRecord ? adminRecord.role : null;
 
     const token = signToken(user.id);
 
@@ -183,14 +187,15 @@ router.post('/forgot-password', async (req, res, next) => {
     validators.required(email, 'Email');
     validators.email(email);
 
-    // 1. Check if user exists
-    const userRes = await db.query('SELECT id FROM users WHERE email = $1', [email.toLowerCase().trim()]);
-    
-    // Always return same message even if email not found (security)
-    const successMsg = { success: true, message: 'If that email is in our system, a reset link has been sent.' };
+    const successMsg = { success: true };
 
-    if (userRes.rows.length === 0) {
-      console.log(`[forgot-password] Email not found: ${email}`);
+    // 1. Check if user exists via Prisma
+    const user = await prisma.users.findUnique({
+      where: { email: email.toLowerCase().trim() }
+    });
+    
+    if (!user) {
+      // Return success even if email not found for security
       return res.json(successMsg);
     }
 
@@ -198,58 +203,41 @@ router.post('/forgot-password', async (req, res, next) => {
     const token = crypto.randomBytes(32).toString('hex');
     const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 mins
 
-    // 3. Save to DB
-    try {
-      await db.query(
-        'INSERT INTO password_reset_tokens (email, token, expires_at) VALUES ($1, $2, $3)',
-        [email.toLowerCase().trim(), token, expiresAt]
-      );
-    } catch (dbErr) {
-      console.error('[forgot-password] Database Insert Error:', dbErr);
-      if (dbErr.message && dbErr.message.includes('relation "password_reset_tokens" does not exist')) {
-        throw new Error('CRITICAL: password_reset_tokens table is missing. Please run database setup.');
+    // 3. Save via Prisma
+    await prisma.PasswordResetToken.create({
+      data: {
+        email: email.toLowerCase().trim(),
+        token,
+        expiresAt
       }
-      throw dbErr;
-    }
+    });
 
-    // 4. Send email via Nodemailer
+    // 4. Send email via Resend
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
     const resetLink = `${frontendUrl}/#/reset-password?token=${token}`;
 
     try {
-      await transporter.sendMail({
-        from: process.env.EMAIL_FROM,
+      await resend.emails.send({
+        from: 'Dizitup <onboarding@resend.dev>', // Update this to your verified domain in production
         to: email,
-        subject: 'Reset your password — Dizitup',
+        subject: 'Reset Your Password',
         html: `
-          <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; color: #333;">
-            <h2>Reset Your Password</h2>
-            <p>We received a request to reset your password for your Dizitup account.</p>
-            <p>Click the button below to set a new password. This link is valid for 15 minutes.</p>
-            <div style="margin: 30px 0;">
-              <a href="${resetLink}" style="background-color: #dc2626; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block;">Reset Password</a>
-            </div>
-            <p>If you didn't request this, you can safely ignore this email.</p>
-            <p>Best regards,<br/>The Dizitup Team</p>
-            <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;" />
-            <p style="font-size: 11px; color: #999;">If the button above doesn't work, copy and paste this URL into your browser:<br/>${resetLink}</p>
+          <div style="font-family:sans-serif;max-width:480px;margin:auto;padding:32px;background:#0a0a0a;color:#fff;border-radius:12px">
+            <h2 style="color:#fff">Reset Your Password</h2>
+            <p style="color:#aaa">Click below to reset your Dizitup password. Expires in 15 minutes.</p>
+            <a href="${resetLink}" style="display:inline-block;margin-top:24px;padding:12px 28px;background:#7c3aed;color:#fff;border-radius:8px;text-decoration:none;font-weight:600">Reset Password</a>
+            <p style="color:#555;font-size:12px;margin-top:32px">If you didn't request this, ignore this email.</p>
           </div>
         `,
       });
-      console.log(`[forgot-password] Reset email sent to: ${email}`);
     } catch (mailErr) {
-      console.error('[forgot-password] Nodemailer Error:', mailErr);
-      throw new Error('Failed to send reset email. Please contact support.');
+      console.error('[forgot-password] Resend Error:', mailErr);
+      // We don't throw here to avoid revealing email existence, 
+      // but in a real app you might want to log this carefully.
     }
 
     res.json(successMsg);
   } catch (err) {
-    console.error('[forgot-password] FATAL ERROR:', err);
-    console.error('Context:', {
-      hasEmailUser: !!process.env.EMAIL_USER,
-      hasEmailFrom: !!process.env.EMAIL_FROM,
-      dbUrl: process.env.DATABASE_URL ? 'PRESENT' : 'MISSING'
-    });
     next(err);
   }
 });
@@ -266,57 +254,32 @@ router.post('/reset-password', async (req, res, next) => {
     validators.required(password, 'New password');
     validators.password(password);
 
-    // 1. Find and validate token
-    const tokenRes = await db.query(
-      'SELECT * FROM password_reset_tokens WHERE token = $1 AND expires_at > NOW()',
-      [token]
-    );
+    // 1. Find and validate token via Prisma
+    const record = await prisma.PasswordResetToken.findUnique({
+      where: { token }
+    });
 
-    if (tokenRes.rows.length === 0) {
+    if (!record || record.expiresAt < new Date()) {
       throw new AppError('Invalid or expired reset token.', 400);
     }
 
-    const { email } = tokenRes.rows[0];
-
     // 2. Hash new password
-    const password_hash = await bcrypt.hash(password, 12);
+    const hashed = await bcrypt.hash(password, 10);
 
-    // 3. Update user
-    await db.query(
-      'UPDATE users SET password_hash = $1 WHERE email = $2',
-      [password_hash, email]
-    );
-
-    // 4. Delete token (one-time use)
-    await db.query('DELETE FROM password_reset_tokens WHERE token = $1', [token]);
-
-    res.json({ success: true, message: 'Password has been reset successfully. You can now login.' });
-  } catch (err) {
-    next(err);
-  }
-});
-
-// ----------------------------------------------------------
-// POST /api/auth/test-email
-// Diagnostic only to check SMTP
-// ----------------------------------------------------------
-router.post('/test-email', async (req, res, next) => {
-  try {
-    const { to } = req.body;
-    validators.required(to, 'Recipient email');
-
-    await transporter.sendMail({
-      from: process.env.EMAIL_FROM,
-      to,
-      subject: 'Dizitup — SMTP Test Success',
-      text: 'If you see this, your Hostinger SMTP is working perfectly with the current .env settings.',
-      html: '<b>Hostinger SMTP Success</b> — Connection and credentials are valid.',
+    // 3. Update user via Prisma
+    await prisma.users.update({
+      where: { email: record.email },
+      data: { password_hash: hashed }
     });
 
-    res.json({ success: true, message: `Test email sent to ${to}` });
+    // 4. Delete token (one-time use)
+    await prisma.PasswordResetToken.delete({
+      where: { token }
+    });
+
+    res.json({ success: true, message: 'Password has been reset successfully.' });
   } catch (err) {
-    console.error('❌ SMTP TEST FAILURE:', err);
-    res.status(500).json({ success: false, error: err.message });
+    next(err);
   }
 });
 
