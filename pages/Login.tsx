@@ -88,6 +88,10 @@ const Login: React.FC = () => {
         }
         if (password !== confirm) throw new Error('Passwords do not match')
         if (!/.+@.+\..+/.test(email)) throw new Error('Invalid email')
+        if (username.includes(' ')) throw new Error('Username cannot contain spaces')
+        if (!/^[a-zA-Z0-9_\-]+$/.test(username)) {
+          throw new Error('Username may only contain letters, numbers, underscores, and hyphens')
+        }
         await signUp({
           email, password, username,
           first_name: firstName,
@@ -139,7 +143,7 @@ const Login: React.FC = () => {
         {showWelcome && <AdminWelcome onComplete={handleWelcomeComplete} />}
       </AnimatePresence>
 
-      <div className="relative min-h-screen bg-[#050505] flex items-start sm:items-center justify-center p-4 pt-24 sm:pt-4 overflow-y-auto">
+      <div className="relative min-h-screen bg-[#050505] flex items-center justify-center p-4 py-12 sm:py-4 overflow-y-auto">
       <Toaster position="top-right" toastOptions={{ style: { background: '#111', color: '#fff', border: '1px solid rgba(255,255,255,0.1)' } }} />
 
       {/* Floating Particles */}

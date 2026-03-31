@@ -57,8 +57,25 @@ router.post('/signup', async (req, res, next) => {
     validators.password(password);
 
     // Hash the password
-    // bcrypt salt rounds: 12 is a good balance of security vs speed
     const password_hash = await bcrypt.hash(password, 12);
+
+    // Ensure username is unique
+    const usernameCheck = await db.query(
+      'SELECT 1 FROM users WHERE LOWER(username) = LOWER($1) LIMIT 1',
+      [username]
+    );
+    if (usernameCheck.rows.length > 0) {
+      throw new AppError('Username already taken. Please choose another.', 400);
+    }
+
+    // Ensure email is unique
+    const emailCheck = await db.query(
+      'SELECT 1 FROM users WHERE LOWER(email) = LOWER($1) LIMIT 1',
+      [email]
+    );
+    if (emailCheck.rows.length > 0) {
+      throw new AppError('Email already registered. Please login instead.', 400);
+    }
 
     // Insert user into database
     // $1, $2, $3 etc. are parameterised placeholders.
