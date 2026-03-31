@@ -14,22 +14,12 @@ const ResetPassword: React.FC = () => {
   const [resetSuccess, setResetSuccess] = useState(false);
 
   useEffect(() => {
-    // Robustly extract token from hash or query
-    const fullUrl = window.location.href;
-    const url = new URL(fullUrl.replace('/#/', '/')); // normalized for URLSearchParams
-    const t = url.searchParams.get('token');
-    
-    if (t) {
-      setToken(t);
-    } else {
-      // Fallback: check manual parsing of hash
-      const hashPart = window.location.hash;
-      const queryPart = hashPart.split('?')[1];
-      if (queryPart) {
-        const params = new URLSearchParams(queryPart);
-        const t2 = params.get('token');
-        if (t2) setToken(t2);
-      }
+    // Extract token from URL as requested
+    const queryPart = window.location.hash.split('?')[1];
+    if (queryPart) {
+      const params = new URLSearchParams(queryPart);
+      const t = params.get('token');
+      if (t) setToken(t);
     }
   }, []);
 
