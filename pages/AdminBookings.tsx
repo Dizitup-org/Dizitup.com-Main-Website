@@ -9,7 +9,7 @@ import { subscribeToTable } from '../utils/realtime';
 
 const ITEMS_PER_PAGE = 10;
 
-type TabKey = 'pending' | 'accepted';
+type TabKey = 'pending' | 'accepted' | 'completed';
 
 const AdminBookings: React.FC = () => {
   const navigate = useNavigate();
@@ -99,7 +99,7 @@ const AdminBookings: React.FC = () => {
     try {
       const data = await api.post<any>('/api/admin/clients/onboard', {
         booking_id: booking.id,
-        user_id: booking.id, // Using booking.id as user_id for now
+        user_id: booking.user_id,
         contact_name: booking.name || 'Unknown',
         email: booking.email || '',
         phone: booking.phone || '',
@@ -195,7 +195,9 @@ const AdminBookings: React.FC = () => {
     if (tab === 'pending') {
       result = result.filter(b => b.status === 'pending');
     } else if (tab === 'accepted') {
-      result = result.filter(b => b.status === 'accepted' || b.status === 'meeting_done');
+      result = result.filter(b => b.status === 'accepted');
+    } else if (tab === 'completed') {
+      result = result.filter(b => b.status === 'meeting_done');
     }
 
     // Filter by search query
@@ -340,7 +342,20 @@ const AdminBookings: React.FC = () => {
                 : 'text-white/60 border-b-transparent hover:text-white/80'
             }`}
           >
-            Accepted ({bookings.filter(b => (b.status === 'accepted' || b.status === 'meeting_done') && b.is_onboarded !== true && b.has_follow_up !== true).length})
+            Accepted ({bookings.filter(b => b.status === 'accepted' && b.is_onboarded !== true && b.has_follow_up !== true).length})
+          </button>
+          <button
+            onClick={() => {
+              setTab('completed');
+              setCurrentPage(1);
+            }}
+            className={`px-4 py-3 font-semibold text-sm transition-all border-b-2 ${
+              tab === 'completed'
+                ? 'text-cyan-400 border-b-cyan-400'
+                : 'text-white/60 border-b-transparent hover:text-white/80'
+            }`}
+          >
+            Completed ({bookings.filter(b => b.status === 'meeting_done' && b.is_onboarded !== true && b.has_follow_up !== true).length})
           </button>
         </div>
 
@@ -451,81 +466,61 @@ const AdminBookings: React.FC = () => {
                         </>
                       ) : (
                         <>
-                          {tab === 'pending' && booking.status !== 'accepted' && (
+                          {/* Accepted Tab Actions */}
+                          {tab === 'accepted' && (
                             <button
-                              onClick={() => handleAcceptBooking(booking)}
+                              onClick={() => handleMeetingDone(booking)}
                               disabled={actionLoading === booking.id}
-                              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-green-500/10 border border-green-500/20 text-green-400 text-xs font-semibold hover:bg-green-500/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 text-xs font-semibold hover:bg-cyan-500/20 transition-all disabled:opacity-50"
                             >
                               {actionLoading === booking.id ? (
                                 <Loader2 className="w-3.5 h-3.5 animate-spin" />
                               ) : (
                                 <CheckCircle className="w-3.5 h-3.5" />
                               )}
-                              {actionLoading === booking.id ? 'Accepting...' : 'Accept'}
+                              Meeting Done
                             </button>
                           )}
-                          <button
-                            onClick={() => handleFollowUpBooking(booking)}
-                            disabled={actionLoading === booking.id}
-                            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-yellow-500/10 border border-yellow-500/20 text-yellow-400 text-xs font-semibold hover:bg-yellow-500/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                          >
-                            {actionLoading === booking.id ? (
-                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            ) : (
-                              <PhoneCall className="w-3.5 h-3.5" />
-                            )}
-                            {actionLoading === booking.id ? 'Moving...' : 'Follow-up'}
-                          </button>
-                          {tab === 'pending' && booking.status !== 'accepted' && (
-                            <button
-                              onClick={() => handleOnboardBooking(booking)}
-                              disabled={actionLoading === booking.id}
-                              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-400 text-xs font-semibold hover:bg-blue-500/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                              {actionLoading === booking.id ? (
-                                <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                              ) : (
-                                <Users className="w-3.5 h-3.5" />
-                              )}
-                              {actionLoading === booking.id ? 'Onboarding...' : 'Onboard'}
-                            </button>
-                          )}
-                          <div className="flex items-center gap-3">
-                            {!meetingDoneChecked.has(booking.id) ? (
+
+                          {/* Completed Tab Actions */}
+                          {tab === 'completed' && (
+                            <>
                               <button
-                                onClick={() => handleMeetingDone(booking)}
+                                onClick={() => handleFollowUpBooking(booking)}
                                 disabled={actionLoading === booking.id}
-                                className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 text-xs font-semibold hover:bg-cyan-500/20 transition-all disabled:opacity-50"
+                                className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-yellow-500/10 border border-yellow-500/20 text-yellow-400 text-xs font-semibold hover:bg-yellow-500/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                               >
                                 {actionLoading === booking.id ? (
                                   <Loader2 className="w-3.5 h-3.5 animate-spin" />
                                 ) : (
-                                  <CheckCircle className="w-3.5 h-3.5" />
+                                  <PhoneCall className="w-3.5 h-3.5" />
                                 )}
-                                Meeting Done
+                                {actionLoading === booking.id ? 'Moving...' : 'Follow-up'}
                               </button>
-                            ) : (
-                              <label className="flex items-center gap-2 px-3 py-2 text-xs font-semibold text-cyan-400">
-                                <input
-                                  type="checkbox"
-                                  checked={true}
-                                  readOnly
-                                  className="w-4 h-4 rounded border-cyan-500/20 bg-cyan-500/10 accent-cyan-400 cursor-default"
-                                />
-                                Meeting Done
-                              </label>
-                            )}
-                          </div>
-                          {tab === 'pending' && (
-                            <button
-                              onClick={() => handleDeleteBooking(booking)}
-                              disabled={actionLoading === booking.id}
-                              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-white/60 text-xs font-semibold hover:bg-red-500/10 hover:border-red-500/20 hover:text-red-400 transition-all disabled:opacity-50"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
+                              <button
+                                onClick={() => handleOnboardBooking(booking)}
+                                disabled={actionLoading === booking.id}
+                                className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-400 text-xs font-semibold hover:bg-blue-500/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                              >
+                                {actionLoading === booking.id ? (
+                                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                ) : (
+                                  <Users className="w-3.5 h-3.5" />
+                                )}
+                                {actionLoading === booking.id ? 'Onboarding...' : 'Onboard'}
+                              </button>
+                            </>
                           )}
+
+                          {/* Delete Action (Shared) */}
+                          <button
+                            onClick={() => handleDeleteBooking(booking)}
+                            disabled={actionLoading === booking.id}
+                            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-white/60 text-xs font-semibold hover:bg-red-500/10 hover:border-red-500/20 hover:text-red-400 transition-all disabled:opacity-50"
+                            title="Delete Booking"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
                         </>
                       )}
                     </div>

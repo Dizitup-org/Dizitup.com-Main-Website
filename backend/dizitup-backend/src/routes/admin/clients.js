@@ -479,6 +479,35 @@ router.delete('/:id', async (req, res, next) => {
 });
 
 // ----------------------------------------------------------
+// PATCH /api/admin/clients/:id/status
+// ----------------------------------------------------------
+// Update status for an onboarded client
+// ----------------------------------------------------------
+router.patch('/:id/status', async (req, res, next) => {
+  try {
+    const { status } = req.body;
+    const { id } = req.params;
+
+    if (!id) throw new AppError('Client ID is required.', 400);
+    if (!status) throw new AppError('Status is required.', 400);
+
+    const result = await db.query(
+      `UPDATE onboard_clients SET status = $1 WHERE id = $2 RETURNING *`,
+      [status, id]
+    );
+
+    if (result.rows.length === 0) {
+      throw new AppError('Onboarded client not found.', 404);
+    }
+
+    res.json({ success: true, client: result.rows[0] });
+  } catch (err) {
+    console.error('[PATCH /clients/:id/status] Error:', err.message);
+    next(err);
+  }
+});
+
+// ----------------------------------------------------------
 // POST /api/admin/clients/:id/create-account
 // ----------------------------------------------------------
 // Create or reset the portal login for an onboarded client.

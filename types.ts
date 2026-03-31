@@ -38,6 +38,7 @@ export interface BookingRow {
   status: 'pending' | 'accepted' | 'follow_up' | 'cancelled' | string | null;
   created_at?: string | null;
   username?: string | null;
+  user_id?: string | null;
   is_onboarded?: boolean;
   has_follow_up?: boolean;
 }
