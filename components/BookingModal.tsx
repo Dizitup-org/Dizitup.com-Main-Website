@@ -135,6 +135,27 @@ const BookingModal: React.FC<Props> = ({ isOpen, onClose, prefilledPackage = '',
     return d < todayStart || d.getDay() === 0; // disable past & sundays
   };
 
+  const isTimeDisabled = (timeStr: string) => {
+    if (!selectedDate) return false;
+    
+    const [y, m, d] = selectedDate.split('-').map(Number);
+    const dateObj = new Date(y, m - 1, d);
+    const now = new Date();
+    
+    // Only check if selected date is today
+    if (dateObj.toDateString() !== now.toDateString()) return false;
+    
+    const time24 = convertTo24Hour(timeStr);
+    const [hours, minutes] = time24.split(':').map(Number);
+    
+    const slotTime = new Date(y, m - 1, d, hours, minutes);
+    
+    // Add 15 min buffer
+    const bufferTime = new Date(now.getTime() + 15 * 60000);
+    
+    return slotTime < bufferTime;
+  };
+
   const formatDate = (day: number) => `${calYear}-${String(calMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
 
   const handleDetailsNext = () => {
@@ -330,19 +351,25 @@ const BookingModal: React.FC<Props> = ({ isOpen, onClose, prefilledPackage = '',
                     <div className="mb-6">
                       <p className={labelClass + ' mb-3'}>Select Time</p>
                       <div className="grid grid-cols-3 sm:grid-cols-4 gap-1.5 sm:gap-2">
-                        {TIME_SLOTS.map(t => (
-                          <button
-                            key={t}
-                            onClick={() => setSelectedTime(t)}
-                            className={`py-1.5 sm:py-2 px-1 rounded-lg text-[11px] sm:text-xs transition-all ${
-                              selectedTime === t
-                                ? 'bg-red-600 text-white font-bold shadow-[0_0_12px_rgba(220,38,38,0.3)]'
-                                : 'bg-white/[0.04] text-white/50 hover:bg-white/10 border border-white/5'
-                            }`}
-                          >
-                            {t}
-                          </button>
-                        ))}
+                        {TIME_SLOTS.map(t => {
+                          const disabled = isTimeDisabled(t);
+                          return (
+                            <button
+                              key={t}
+                              disabled={disabled}
+                              onClick={() => setSelectedTime(t)}
+                              className={`py-1.5 sm:py-2 px-1 rounded-lg text-[11px] sm:text-xs transition-all ${
+                                disabled
+                                  ? 'opacity-20 cursor-not-allowed bg-white/5 border-transparent'
+                                  : selectedTime === t
+                                  ? 'bg-red-600 text-white font-bold shadow-[0_0_12px_rgba(220,38,38,0.3)]'
+                                  : 'bg-white/[0.04] text-white/50 hover:bg-white/10 border border-white/5'
+                              }`}
+                            >
+                              {t}
+                            </button>
+                          );
+                        })}
                       </div>
                     </div>
 

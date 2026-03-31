@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import AdminLayout from '../components/AdminLayout';
 import ChatBox from '../components/ChatBox';
-import { MessageCircle, Send, Loader2, Users, Circle } from 'lucide-react';
+import { MessageCircle, Send, Loader2, Users, Circle, ChevronLeft } from 'lucide-react';
 import { useAuth } from '../contexts/AuthProvider';
 import { getToken } from '../utils/apiClient';
 
@@ -42,6 +42,7 @@ const AdminChat: React.FC = () => {
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
   const [loadingConvs, setLoadingConvs] = useState(true);
+  const [activeView, setActiveView] = useState<'list' | 'chat'>('list');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -117,6 +118,7 @@ const AdminChat: React.FC = () => {
   const selectConversation = (conv: Conversation) => {
     setSelectedConv(conv);
     setMessages([]);
+    setActiveView('chat'); // Focus chat on mobile
     // Optimistically clear unread badge
     setConversations(prev => prev.map(c => c.id === conv.id ? { ...c, unread_count: 0 } : c));
   };
@@ -167,10 +169,12 @@ const AdminChat: React.FC = () => {
 
         {/* Tab 1: Client conversations */}
         {tab === 'clients' && (
-          <div className="flex flex-1 rounded-2xl overflow-hidden border border-white/5">
+          <div className="flex flex-1 rounded-2xl overflow-hidden border border-white/5 bg-[#0a0a0a]">
 
         {/* Left: Conversations list */}
-        <div className="w-80 flex-shrink-0 border-r border-white/5 flex flex-col bg-white/[0.01]">
+        <div className={`w-full md:w-80 flex-shrink-0 border-r border-white/5 flex flex-col bg-white/[0.01] ${
+          activeView === 'chat' ? 'hidden md:flex' : 'flex'
+        }`}>
           <div className="p-5 border-b border-white/5">
             <div className="flex items-center gap-2">
               <Users className="w-4 h-4 text-red-500" />
@@ -226,7 +230,9 @@ const AdminChat: React.FC = () => {
         </div>
 
         {/* Right: Message thread */}
-        <div className="flex-1 flex flex-col">
+        <div className={`flex-1 flex flex-col ${
+          activeView === 'list' ? 'hidden md:flex' : 'flex'
+        }`}>
           {!selectedConv ? (
             <div className="flex-1 flex items-center justify-center">
               <div className="text-center">
@@ -237,8 +243,14 @@ const AdminChat: React.FC = () => {
           ) : (
             <>
               {/* Thread header */}
-              <div className="flex items-center gap-3 px-6 py-4 border-b border-white/5 bg-white/[0.01]">
-                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-red-600 to-red-900 flex items-center justify-center font-bold text-sm">
+              <div className="flex items-center gap-3 px-4 sm:px-6 py-4 border-b border-white/5 bg-white/[0.01]">
+                <button 
+                  onClick={() => setActiveView('list')}
+                  className="md:hidden p-2 -ml-2 rounded-lg hover:bg-white/5 transition-colors"
+                >
+                  <ChevronLeft className="w-5 h-5 text-white/40" />
+                </button>
+                <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-gradient-to-br from-red-600 to-red-900 flex items-center justify-center font-bold text-xs sm:text-sm">
                   {selectedConv.username[0].toUpperCase()}
                 </div>
                 <div>
