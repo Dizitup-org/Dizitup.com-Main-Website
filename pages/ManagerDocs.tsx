@@ -184,7 +184,7 @@ const ManagerDocs: React.FC = () => {
       {showForward && forwardingId === doc.id && (
         <div className="pt-3 border-t border-white/[0.06] space-y-2">
           <p className="text-[10px] font-bold uppercase tracking-widest text-white/25">Forward to Employee</p>
-          <div className="flex gap-2">
+          <div className="flex flex-col sm:flex-row gap-2">
             <select
               value={fwdEmp}
               onChange={e => setFwdEmp(e.target.value)}
@@ -277,7 +277,7 @@ const ManagerDocs: React.FC = () => {
                   onChange={e => setUploadDesc(e.target.value)}
                   className="md:col-span-2 bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-red-600/50"
                 />
-                <div className="md:col-span-2 flex gap-3">
+                <div className="md:col-span-2 flex flex-col sm:flex-row gap-3">
                   <input
                     type="file"
                     accept="application/pdf,image/jpeg,image/png,image/webp"
