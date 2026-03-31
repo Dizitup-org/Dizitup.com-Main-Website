@@ -14,6 +14,8 @@ import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import AdminChat from './pages/AdminChat';
 import ManagerProjects from './pages/ManagerProjects';
+import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
 import ManagerTeam from './pages/ManagerTeam';
 import ManagerChat from './pages/ManagerChat';
 import ManagerTasks from './pages/ManagerTasks';
@@ -39,6 +41,8 @@ const App: React.FC = () => {
             <Route path="/" element={<Home />} />
             <Route path="/book" element={<Book />} />
             <Route path="/login" element={<Login />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
 
             {/* User Dashboard (auth only) */}
             <Route
