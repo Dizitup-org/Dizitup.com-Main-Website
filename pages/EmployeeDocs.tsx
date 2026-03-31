@@ -25,7 +25,7 @@ const EmployeeDocs: React.FC = () => {
   useEffect(() => { fetchDocs(); }, [fetchDocs]);
 
   return (
-    <AdminLayout title="Employee — Docs">
+    <AdminLayout title="Staff — Docs">
       <div className="space-y-6">
         <div>
           <h1 className="text-xl font-bold text-white tracking-tight">My Documents</h1>

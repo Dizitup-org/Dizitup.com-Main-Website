@@ -183,14 +183,14 @@ const ManagerDocs: React.FC = () => {
       {/* Forward form */}
       {showForward && forwardingId === doc.id && (
         <div className="pt-3 border-t border-white/[0.06] space-y-2">
-          <p className="text-[10px] font-bold uppercase tracking-widest text-white/25">Forward to Employee</p>
+          <p className="text-[10px] font-bold uppercase tracking-widest text-white/25">Forward to Staff Member</p>
           <div className="flex flex-col sm:flex-row gap-2">
             <select
               value={fwdEmp}
               onChange={e => setFwdEmp(e.target.value)}
               className="flex-1 bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-red-600/50"
             >
-              <option value="">Select Employee</option>
+              <option value="">Select Staff Member</option>
               {employees.map(e => <option key={e.admin_id} value={e.admin_id}>{e.first_name} {e.last_name} (@{e.username})</option>)}
             </select>
             <input
@@ -226,7 +226,7 @@ const ManagerDocs: React.FC = () => {
             <Inbox size={14} /> Inbox {inbox.length > 0 && <span className="ml-1 px-1.5 py-0.5 rounded-full bg-white/20 text-[10px]">{inbox.length}</span>}
           </button>
           <button onClick={() => setTab('sent')} className={`flex items-center gap-2 px-5 py-2 rounded-xl text-sm font-bold transition-all ${tab === 'sent' ? 'bg-red-600 text-white' : 'bg-white/5 text-white/40 hover:text-white hover:bg-white/10'}`}>
-            <Send size={14} /> Sent to Employees
+            <Send size={14} /> Sent to Staff
           </button>
         </div>
 
@@ -267,7 +267,7 @@ const ManagerDocs: React.FC = () => {
                   className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-red-600/50"
                   required
                 >
-                  <option value="">Select Employee *</option>
+                  <option value="">Select Staff Member *</option>
                   {employees.map(e => <option key={e.admin_id} value={e.admin_id}>{e.first_name} {e.last_name} (@{e.username})</option>)}
                 </select>
                 <input

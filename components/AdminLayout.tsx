@@ -178,7 +178,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, title }) => {
             <div className="flex items-center gap-2 md:gap-3 md:border-l md:border-white/10 md:pl-6">
               <div className="hidden md:block text-right">
                 <p className="text-sm font-bold">{user?.first_name} {user?.last_name}</p>
-                <p className="text-[10px] text-white/30 capitalize">{user?.adminRole ?? 'admin'}</p>
+                <p className="text-[10px] text-white/30 capitalize">{user?.adminRole === 'employee' ? 'staff' : (user?.adminRole ?? 'admin')}</p>
               </div>
               <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-gradient-to-br from-red-600 to-red-900 flex items-center justify-center font-bold text-sm flex-shrink-0">
                 {user?.first_name?.[0]}{user?.last_name?.[0]}

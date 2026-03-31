@@ -58,7 +58,7 @@ const ManagerChat: React.FC = () => {
               tab === 'employee' ? 'bg-red-600 text-white' : 'bg-white/5 text-white/40 hover:text-white hover:bg-white/10'
             }`}
           >
-            Employee Channel
+            Staff Channel
           </button>
         </div>
 
@@ -78,9 +78,9 @@ const ManagerChat: React.FC = () => {
           <div className="grid md:grid-cols-3 gap-6">
             {/* Employee list */}
             <div className="space-y-2">
-              <p className="text-[10px] font-mono font-bold uppercase tracking-widest text-white/30 mb-3">Select Employee</p>
+              <p className="text-[10px] font-mono font-bold uppercase tracking-widest text-white/30 mb-3">Select Staff</p>
               {employees.length === 0 && (
-                <p className="text-xs text-white/20 italic">No employees yet</p>
+                <p className="text-xs text-white/20 italic">No staff yet</p>
               )}
               {employees.map(emp => (
                 <button
@@ -108,7 +108,7 @@ const ManagerChat: React.FC = () => {
                 />
               ) : (
                 <div className="flex items-center justify-center h-40 rounded-2xl border border-white/10 bg-white/[0.02]">
-                  <p className="text-xs text-white/20">Select an employee to open chat</p>
+                  <p className="text-xs text-white/20">Select a staff member to open chat</p>
                 </div>
               )}
             </div>
