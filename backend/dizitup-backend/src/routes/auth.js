@@ -190,6 +190,7 @@ router.post('/forgot-password', async (req, res, next) => {
     const successMsg = { success: true, message: 'If that email is in our system, a reset link has been sent.' };
 
     if (userRes.rows.length === 0) {
+      console.log(`[forgot-password] Email not found: ${email}`);
       return res.json(successMsg);
     }
 
@@ -198,37 +199,51 @@ router.post('/forgot-password', async (req, res, next) => {
     const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 mins
 
     // 3. Save to DB
-    await db.query(
-      'INSERT INTO password_reset_tokens (email, token, expires_at) VALUES ($1, $2, $3)',
-      [email.toLowerCase().trim(), token, expiresAt]
-    );
+    try {
+      await db.query(
+        'INSERT INTO password_reset_tokens (email, token, expires_at) VALUES ($1, $2, $3)',
+        [email.toLowerCase().trim(), token, expiresAt]
+      );
+    } catch (dbErr) {
+      console.error('[forgot-password] Database Insert Error:', dbErr);
+      if (dbErr.message && dbErr.message.includes('relation "password_reset_tokens" does not exist')) {
+        throw new Error('CRITICAL: password_reset_tokens table is missing. Please run database setup.');
+      }
+      throw dbErr;
+    }
 
     // 4. Send email via Nodemailer
-    const resetLink = `http://localhost:5173/#/reset-password?token=${token}`;
+    const resetLink = `https://dizitup.com/#/reset-password?token=${token}`;
 
-    await transporter.sendMail({
-      from: process.env.EMAIL_FROM,
-      to: email,
-      subject: 'Reset your password — Dizitup',
-      html: `
-        <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; color: #333;">
-          <h2>Reset Your Password</h2>
-          <p>We received a request to reset your password for your Dizitup account.</p>
-          <p>Click the button below to set a new password. This link is valid for 15 minutes.</p>
-          <div style="margin: 30px 0;">
-            <a href="${resetLink}" style="background-color: #dc2626; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block;">Reset Password</a>
+    try {
+      await transporter.sendMail({
+        from: process.env.EMAIL_FROM,
+        to: email,
+        subject: 'Reset your password — Dizitup',
+        html: `
+          <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; color: #333;">
+            <h2>Reset Your Password</h2>
+            <p>We received a request to reset your password for your Dizitup account.</p>
+            <p>Click the button below to set a new password. This link is valid for 15 minutes.</p>
+            <div style="margin: 30px 0;">
+              <a href="${resetLink}" style="background-color: #dc2626; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block;">Reset Password</a>
+            </div>
+            <p>If you didn't request this, you can safely ignore this email.</p>
+            <p>Best regards,<br/>The Dizitup Team</p>
+            <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;" />
+            <p style="font-size: 11px; color: #999;">If the button above doesn't work, copy and paste this URL into your browser:<br/>${resetLink}</p>
           </div>
-          <p>If you didn't request this, you can safely ignore this email.</p>
-          <p>Best regards,<br/>The Dizitup Team</p>
-          <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;" />
-          <p style="font-size: 11px; color: #999;">If the button above doesn't work, copy and paste this URL into your browser:<br/>${resetLink}</p>
-        </div>
-      `,
-    });
+        `,
+      });
+      console.log(`[forgot-password] Reset email sent to: ${email}`);
+    } catch (mailErr) {
+      console.error('[forgot-password] Nodemailer Error:', mailErr);
+      throw new Error('Failed to send reset email. Please contact support.');
+    }
 
     res.json(successMsg);
   } catch (err) {
-    console.error('[forgot-password] Error:', err);
+    console.error('[forgot-password] FATAL:', err.message);
     next(err);
   }
 });
