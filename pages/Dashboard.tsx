@@ -40,6 +40,7 @@ const STATUS_LABELS: Record<string, string> = {
   accepted: 'Accepted',
   declined: 'Declined',
   onboarded: 'Onboarded',
+  meeting_done: 'Completed',
 }
 
 function StatusBadge({ status }: { status: string | null }) {
@@ -72,6 +73,7 @@ const Dashboard: React.FC = () => {
   const [bookings, setBookings] = useState<BookingRow[]>([])
   const [bookingsLoading, setBookingsLoading] = useState(true)
   const [clientStatus, setClientStatus] = useState<'none' | 'follow_up' | 'onboarded' | null>(null)
+  const [detailStatus, setDetailStatus] = useState<string | null>(null)
 
   // Chat states
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([])
@@ -119,8 +121,11 @@ const Dashboard: React.FC = () => {
     let isMounted = true
     const fetchStatus = async () => {
       try {
-        const data = await api.get<{ success: boolean; clientStatus: 'none' | 'follow_up' | 'onboarded' }>('/api/user/client-status')
-        if (isMounted && data.clientStatus) setClientStatus(data.clientStatus)
+        const data = await api.get<{ success: boolean; clientStatus: 'none' | 'follow_up' | 'onboarded'; detailStatus?: string }>('/api/user/client-status')
+        if (isMounted && data.clientStatus) {
+          setClientStatus(data.clientStatus)
+          if (data.detailStatus) setDetailStatus(data.detailStatus)
+        }
       } catch {
         // non-fatal
       }
@@ -290,7 +295,7 @@ const Dashboard: React.FC = () => {
   }
 
   return (
-    <ClientLayout title="Dashboard" activeSection={activeSection}>
+    <ClientLayout title="Dashboard" activeSection={activeSection} clientStatus={clientStatus} detailStatus={detailStatus}>
       <Toaster position="top-right" />
       <motion.div
         key={activeSection}
