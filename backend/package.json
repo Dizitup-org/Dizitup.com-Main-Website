@@ -20,7 +20,7 @@
   "devDependencies": {
     "@prisma/config": "^7.6.0",
     "dotenv": "^17.3.1",
-    "prisma": "^7.4.2",
-    "nodemon": "^3.1.0"
+    "nodemon": "^3.1.0",
+    "prisma": "^7.4.2"
   }
 }
