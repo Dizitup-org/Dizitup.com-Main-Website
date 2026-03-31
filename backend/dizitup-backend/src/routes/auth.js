@@ -213,7 +213,8 @@ router.post('/forgot-password', async (req, res, next) => {
     }
 
     // 4. Send email via Nodemailer
-    const resetLink = `https://dizitup.com/#/reset-password?token=${token}`;
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+    const resetLink = `${frontendUrl}/#/reset-password?token=${token}`;
 
     try {
       await transporter.sendMail({
@@ -243,7 +244,12 @@ router.post('/forgot-password', async (req, res, next) => {
 
     res.json(successMsg);
   } catch (err) {
-    console.error('[forgot-password] FATAL:', err.message);
+    console.error('[forgot-password] FATAL ERROR:', err);
+    console.error('Context:', {
+      hasEmailUser: !!process.env.EMAIL_USER,
+      hasEmailFrom: !!process.env.EMAIL_FROM,
+      dbUrl: process.env.DATABASE_URL ? 'PRESENT' : 'MISSING'
+    });
     next(err);
   }
 });
@@ -287,6 +293,30 @@ router.post('/reset-password', async (req, res, next) => {
     res.json({ success: true, message: 'Password has been reset successfully. You can now login.' });
   } catch (err) {
     next(err);
+  }
+});
+
+// ----------------------------------------------------------
+// POST /api/auth/test-email
+// Diagnostic only to check SMTP
+// ----------------------------------------------------------
+router.post('/test-email', async (req, res, next) => {
+  try {
+    const { to } = req.body;
+    validators.required(to, 'Recipient email');
+
+    await transporter.sendMail({
+      from: process.env.EMAIL_FROM,
+      to,
+      subject: 'Dizitup — SMTP Test Success',
+      text: 'If you see this, your Hostinger SMTP is working perfectly with the current .env settings.',
+      html: '<b>Hostinger SMTP Success</b> — Connection and credentials are valid.',
+    });
+
+    res.json({ success: true, message: `Test email sent to ${to}` });
+  } catch (err) {
+    console.error('❌ SMTP TEST FAILURE:', err);
+    res.status(500).json({ success: false, error: err.message });
   }
 });
 

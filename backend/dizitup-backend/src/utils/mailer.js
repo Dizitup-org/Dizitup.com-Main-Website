@@ -8,7 +8,15 @@ const transporter = nodemailer.createTransport({
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASS,
   },
+  tls: {
+    // This helps avoid connection issues on some hosting providers
+    rejectUnauthorized: false
+  }
 });
+
+if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+  console.error('❌ CRITICAL: EMAIL_USER or EMAIL_PASS environment variables are missing!');
+}
 
 // Verify SMTP connection on startup correctly
 transporter.verify((error, success) => {
