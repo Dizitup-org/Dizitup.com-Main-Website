@@ -88,7 +88,7 @@ router.get('/my-bookings', protect, async (req, res, next) => {
     const result = await db.query(
       `SELECT id, name, email, agency, project_type, meeting_date, meeting_time, status, notes, created_at
        FROM bookings
-       WHERE email = (SELECT email FROM users WHERE id = $1)
+       WHERE user_id = $1
          AND status != 'meeting_done'
        ORDER BY created_at DESC`,
       [req.user.id]
