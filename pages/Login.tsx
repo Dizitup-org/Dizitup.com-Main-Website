@@ -139,7 +139,7 @@ const Login: React.FC = () => {
         {showWelcome && <AdminWelcome onComplete={handleWelcomeComplete} />}
       </AnimatePresence>
 
-      <div className="relative min-h-screen bg-[#050505] flex items-center justify-center p-4 overflow-hidden">
+      <div className="relative min-h-screen bg-[#050505] flex items-start sm:items-center justify-center p-4 pt-24 sm:pt-4 overflow-y-auto">
       <Toaster position="top-right" toastOptions={{ style: { background: '#111', color: '#fff', border: '1px solid rgba(255,255,255,0.1)' } }} />
 
       {/* Floating Particles */}
