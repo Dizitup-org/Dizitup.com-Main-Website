@@ -10,28 +10,6 @@ const express = require('express');
 const db = require('../../db');
 const router = express.Router();
 
-// Auto-create tasks table if not exists; ensure manager_id column on users
-(async () => {
-  try {
-    await db.query(`
-      CREATE TABLE IF NOT EXISTS tasks (
-        id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-        project_id    UUID REFERENCES projects(id) ON DELETE CASCADE,
-        title         TEXT NOT NULL,
-        description   TEXT,
-        employee_id   UUID REFERENCES admins(id),
-        assigned_by   UUID REFERENCES admins(id),
-        status        VARCHAR(50) DEFAULT 'pending',
-        deadline      DATE,
-        manager_notes TEXT,
-        updated_at    TIMESTAMPTZ,
-        created_at    TIMESTAMPTZ DEFAULT NOW()
-      )
-    `);
-    await db.query(`ALTER TABLE tasks ADD COLUMN IF NOT EXISTS manager_notes TEXT`);
-    await db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS manager_id UUID REFERENCES users(id)`);
-  } catch (err) { console.error('Tasks table init:', err.message, err.stack); }
-})();
 
 // ----------------------------------------------------------
 // GET /api/manager/employees
@@ -62,12 +40,12 @@ router.post('/employees', async (req, res, next) => {
   const client = await db.connect();
   try {
     const { username, email, first_name, last_name, phone, role = 'employee' } = req.body;
-    
+
     // Validate role
     if (!['manager', 'employee'].includes(role)) {
       return res.status(400).json({ success: false, message: 'Role must be "manager" or "employee"' });
     }
-    
+
     const plainPassword = req.body.password || crypto.randomBytes(4).toString('hex');
     if (!username || !email || !first_name || !last_name) {
       return res.status(400).json({ success: false, message: 'username, email, first_name, and last_name are required' });
@@ -162,13 +140,13 @@ router.get('/projects', async (req, res, next) => {
     const adminResult = await db.query(`
       SELECT a.id FROM admins a WHERE a.user_id = $1
     `, [req.user.id]);
-    
+
     if (adminResult.rows.length === 0) {
       return res.json({ success: true, projects: [] });
     }
-    
+
     const adminId = adminResult.rows[0].id;
-    
+
     const result = await db.query(`
       SELECT p.id, p.title, p.description, p.notes, p.admin_notes,
              p.status, p.status_note, p.deadline, p.start_date, p.end_date, p.created_at,
