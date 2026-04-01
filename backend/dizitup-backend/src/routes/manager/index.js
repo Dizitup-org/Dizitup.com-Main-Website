@@ -15,18 +15,20 @@ const router = express.Router();
   try {
     await db.query(`
       CREATE TABLE IF NOT EXISTS tasks (
-        id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-        project_id   UUID REFERENCES projects(id) ON DELETE CASCADE,
-        title        TEXT NOT NULL,
-        description  TEXT,
-        employee_id  UUID REFERENCES admins(id),
-        assigned_by  UUID REFERENCES admins(id),
-        status       VARCHAR(50) DEFAULT 'pending',
-        deadline     DATE,
-        updated_at   TIMESTAMPTZ,
-        created_at   TIMESTAMPTZ DEFAULT NOW()
+        id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        project_id    UUID REFERENCES projects(id) ON DELETE CASCADE,
+        title         TEXT NOT NULL,
+        description   TEXT,
+        employee_id   UUID REFERENCES admins(id),
+        assigned_by   UUID REFERENCES admins(id),
+        status        VARCHAR(50) DEFAULT 'pending',
+        deadline      DATE,
+        manager_notes TEXT,
+        updated_at    TIMESTAMPTZ,
+        created_at    TIMESTAMPTZ DEFAULT NOW()
       )
     `);
+    await db.query(`ALTER TABLE tasks ADD COLUMN IF NOT EXISTS manager_notes TEXT`);
     await db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS manager_id UUID REFERENCES users(id)`);
   } catch (err) { console.error('Tasks table init:', err.message, err.stack); }
 })();
