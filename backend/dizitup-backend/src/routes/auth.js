@@ -218,7 +218,7 @@ router.post('/forgot-password', async (req, res, next) => {
 
     try {
       await resend.emails.send({
-        from: 'Dizitup <onboarding@resend.dev>', // Update this to your verified domain in production
+        from: process.env.EMAIL_FROM || 'Dizitup <resetpwd@dizitup.com>',
         to: email,
         subject: 'Reset Your Password',
         html: `

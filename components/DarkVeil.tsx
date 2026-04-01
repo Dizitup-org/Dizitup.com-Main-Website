@@ -99,15 +99,23 @@ export default function DarkVeil({
 
     const renderer = new Renderer({
       dpr: Math.min(window.devicePixelRatio, 2),
-      canvas
+      canvas,
+      alpha: true,
+      premultipliedAlpha: false
     });
-
     const gl = renderer.gl;
     const geometry = new Triangle(gl);
 
+    // Initial resolution scale adjustment for mobile
+    const isMobile = window.innerWidth < 768;
+    const effectiveResScale = isMobile ? Math.min(resolutionScale, 0.75) : resolutionScale;
+
     const program = new Program(gl, {
       vertex,
-      fragment,
+      fragment: fragment.replace(
+        'vec2 uv=fragCoord/uResolution.xy*2.-1.;',
+        'vec2 res = uResolution.xy; vec2 uv = (fragCoord * 2.0 - res) / min(res.x, res.y);'
+      ),
       uniforms: {
         uTime: { value: 0 },
         uResolution: { value: new Vec2() },
@@ -124,11 +132,16 @@ export default function DarkVeil({
     const resize = () => {
       const w = parent.clientWidth,
         h = parent.clientHeight;
-      renderer.setSize(w * resolutionScale, h * resolutionScale);
-      program.uniforms.uResolution.value.set(w, h);
+      if (!w || !h) return;
+      
+      renderer.setSize(w * effectiveResScale, h * effectiveResScale);
+      program.uniforms.uResolution.value.set(w * effectiveResScale, h * effectiveResScale);
     };
 
-    window.addEventListener('resize', resize);
+    const resizeObserver = new ResizeObserver(() => {
+      requestAnimationFrame(resize);
+    });
+    resizeObserver.observe(parent);
     resize();
 
     const start = performance.now();
@@ -149,7 +162,7 @@ export default function DarkVeil({
 
     return () => {
       cancelAnimationFrame(frame);
-      window.removeEventListener('resize', resize);
+      resizeObserver.disconnect();
     };
   }, [hueShift, noiseIntensity, scanlineIntensity, speed, scanlineFrequency, warpAmount, resolutionScale]);
   return <canvas ref={ref} className="w-full h-full block" />;
