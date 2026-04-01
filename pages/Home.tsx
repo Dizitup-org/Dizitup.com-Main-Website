@@ -82,12 +82,12 @@ const Home: React.FC = () => {
         <div className="absolute inset-0 mix-blend-lighten opacity-50">
           <div className="w-full h-full" style={{ filter: 'hue-rotate(330deg) saturate(1.5)' }}>
             <DarkVeil
-              hueShift={227}
-              noiseIntensity={0}
+              hueShift={235}
+              noiseIntensity={0.05}
               scanlineIntensity={0}
-              speed={0.5}
-              scanlineFrequency={0}
-              warpAmount={0}
+              speed={0.4}
+              warpAmount={0.3}
+              resolutionScale={1}
             />
           </div>
         </div>

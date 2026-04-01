@@ -84,7 +84,7 @@ type Props = {
 };
 
 export default function DarkVeil({
-  hueShift = 0,
+  hueShift = 235,
   noiseIntensity = 0,
   scanlineIntensity = 0,
   speed = 0.5,
@@ -106,16 +106,9 @@ export default function DarkVeil({
     const gl = renderer.gl;
     const geometry = new Triangle(gl);
 
-    // Initial resolution scale adjustment for mobile
-    const isMobile = window.innerWidth < 768;
-    const effectiveResScale = isMobile ? Math.min(resolutionScale, 0.75) : resolutionScale;
-
     const program = new Program(gl, {
       vertex,
-      fragment: fragment.replace(
-        'vec2 uv=fragCoord/uResolution.xy*2.-1.;',
-        'vec2 res = uResolution.xy; vec2 uv = (fragCoord * 2.0 - res) / min(res.x, res.y);'
-      ),
+      fragment,
       uniforms: {
         uTime: { value: 0 },
         uResolution: { value: new Vec2() },
@@ -130,12 +123,11 @@ export default function DarkVeil({
     const mesh = new Mesh(gl, { geometry, program });
 
     const resize = () => {
-      const w = parent.clientWidth,
-        h = parent.clientHeight;
+      const w = parent.clientWidth;
+      const h = parent.clientHeight;
       if (!w || !h) return;
-      
-      renderer.setSize(w * effectiveResScale, h * effectiveResScale);
-      program.uniforms.uResolution.value.set(w * effectiveResScale, h * effectiveResScale);
+      renderer.setSize(w * resolutionScale, h * resolutionScale);
+      program.uniforms.uResolution.value.set(w * resolutionScale, h * resolutionScale);
     };
 
     const resizeObserver = new ResizeObserver(() => {
