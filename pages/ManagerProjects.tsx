@@ -203,7 +203,7 @@ const ManagerProjects: React.FC = () => {
             {projects.map(p => (
               <div key={p.id} className="rounded-2xl bg-white/[0.03] border border-white/[0.08] hover:border-white/20 transition-all overflow-hidden">
                 {/* Project header row */}
-                <div role="button" tabIndex={0} onClick={() => openProjectModal(p)} onKeyDown={e => e.key === 'Enter' && openProjectModal(p)} className="w-full flex items-center justify-between px-6 py-4 gap-4 cursor-pointer select-none">
+                <div role="button" tabIndex={0} onClick={() => openProjectModal(p)} onKeyDown={e => e.key === 'Enter' && openProjectModal(p)} className="w-full flex flex-col sm:flex-row sm:items-center justify-between px-6 py-4 gap-4 cursor-pointer select-none">
                   <div className="flex items-center gap-4 min-w-0">
                     <div className="w-9 h-9 rounded-xl bg-red-600/10 border border-red-500/20 flex items-center justify-center flex-shrink-0">
                       <FolderOpen size={15} className="text-red-400" />
@@ -218,12 +218,12 @@ const ManagerProjects: React.FC = () => {
                       )}
                     </div>
                   </div>
-                  <div className="flex items-center gap-2 flex-shrink-0">
+                  <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap sm:flex-shrink-0">
                     <StatusBadge status={p.status} />
-                    <div className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white/5 text-xs text-white/50">
+                    <div className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white/5 text-[10px] text-white/50">
                       <Users size={11} /> {p.employee_count}
                     </div>
-                    <div className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white/5 text-xs text-white/50">
+                    <div className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white/5 text-[10px] text-white/50">
                       <CheckSquare size={11} /> {p.completed_tasks}/{p.task_count}
                     </div>
                     <button
@@ -232,11 +232,13 @@ const ManagerProjects: React.FC = () => {
                         setAddingTask(addingTask === p.id ? null : p.id);
                         if (expandedId !== p.id) { setExpandedId(p.id); loadProjectDetails(p.id); }
                       }}
-                      className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-red-600/10 hover:bg-red-600/20 border border-red-500/20 text-[10px] text-red-400 font-bold transition-all"
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-600/10 hover:bg-red-600/20 border border-red-500/20 text-[10px] text-red-400 font-bold transition-all"
                     >
-                      <Plus size={10} /> Task
+                      <Plus size={11} /> Task
                     </button>
-                    {expandedId === p.id ? <ChevronUp size={15} className="text-white/30" /> : <ChevronDown size={15} className="text-white/30" />}
+                    <div className="hidden sm:block">
+                      {expandedId === p.id ? <ChevronUp size={15} className="text-white/30" /> : <ChevronDown size={15} className="text-white/30" />}
+                    </div>
                   </div>
                 </div>
 
@@ -343,17 +345,17 @@ const ManagerProjects: React.FC = () => {
                                 rows={2}
                                 className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white placeholder-white/20 focus:outline-none focus:border-red-600/50 resize-none"
                               />
-                              <div className="grid grid-cols-2 gap-2">
+                              <div className="flex flex-col sm:grid sm:grid-cols-2 gap-2">
                                 <input
                                   type="date"
                                   value={newTask.deadline}
                                   onChange={e => setNewTask(t => ({ ...t, deadline: e.target.value }))}
-                                  className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-red-600/50"
+                                  className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-red-600/50"
                                 />
                                 <select
                                   value={newTask.employee_id}
                                   onChange={e => setNewTask(t => ({ ...t, employee_id: e.target.value }))}
-                                  className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-red-600/50"
+                                  className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-red-600/50"
                                 >
                                   <option value="">Assign to…</option>
                                   {employees.map(e => (
