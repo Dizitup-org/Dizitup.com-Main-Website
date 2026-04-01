@@ -301,28 +301,31 @@ const AdminChat: React.FC = () => {
                   >
                     <div className="relative max-w-[65%] group">
                       {(hoveredId === msg.id || activeMenuId === msg.id) && (
-                        <div className={`absolute top-0 ${msg.sender_type === 'admin' ? '-left-8' : '-right-8'} z-20`}>
+                        <div className={`absolute top-0 ${msg.sender_type === 'admin' ? '-left-9' : '-right-9'} z-20`}>
                           <button
                             onClick={() => setActiveMenuId(activeMenuId === msg.id ? null : msg.id)}
-                            className="w-7 h-7 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 flex items-center justify-center transition-all text-white/50 hover:text-white"
+                            className="w-8 h-8 rounded-lg bg-black/20 hover:bg-black/40 backdrop-blur-md border border-white/10 flex items-center justify-center transition-all text-white/50 hover:text-white"
+                            title="Message Options"
                           >
                             <MoreHorizontal size={14} />
                           </button>
 
                           {activeMenuId === msg.id && (
-                            <div className={`absolute top-8 ${msg.sender_type === 'admin' ? 'left-0' : 'right-0'} w-24 rounded-xl bg-[#161616] border border-white/10 shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-150`}>
+                            <div className={`absolute top-9 ${msg.sender_type === 'admin' ? 'left-0' : 'right-0'} w-28 rounded-xl bg-[#1a1a1a] border border-white/10 shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-150 ring-1 ring-black/50`}>
                               <button
                                 onClick={() => copyToClipboard(msg.message)}
-                                className="w-full flex items-center gap-2 px-3 py-2 text-[10px] font-bold text-white/60 hover:text-white hover:bg-white/5 transition-all text-left"
+                                className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-[11px] font-bold text-white/60 hover:text-white hover:bg-white/5 transition-all text-left"
                               >
-                                <Copy size={11} /> Copy
+                                <Copy size={12} /> Copy
                               </button>
-                              <button
-                                onClick={() => deleteMessage(msg.id)}
-                                className="w-full flex items-center gap-2 px-3 py-2 text-[10px] font-bold text-red-400 hover:bg-red-500/10 transition-all text-left border-t border-white/5"
-                              >
-                                <Trash2 size={11} /> Delete
-                              </button>
+                              {msg.sender_type === 'admin' && (
+                                <button
+                                  onClick={() => deleteMessage(msg.id)}
+                                  className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-[11px] font-bold text-red-400 hover:bg-red-500/10 transition-all text-left border-t border-white/5"
+                                >
+                                  <Trash2 size={12} /> Delete
+                                </button>
+                              )}
                             </div>
                           )}
                         </div>
