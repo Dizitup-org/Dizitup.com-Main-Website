@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import AdminLayout from '../components/AdminLayout';
 import { getToken } from '../utils/apiClient';
-import { FileText, Upload, Send, Loader2, Trash2, Users, X, CheckCircle } from 'lucide-react';
+import { FileText, Upload, Send, Loader2, Trash2, Users, X, CheckCircle, Download } from 'lucide-react';
+import { downloadFile } from '../utils/fileUtils';
 import toast from 'react-hot-toast';
 
 const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000';
@@ -202,9 +203,13 @@ const AdminDocs: React.FC = () => {
                 </p>
               </div>
               <div className="flex items-center gap-2 flex-shrink-0">
-                <a href={doc.file_url} target="_blank" rel="noopener noreferrer" className="px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-[11px] text-white/60 hover:text-white transition-all">
-                  View
-                </a>
+                <button
+                  onClick={() => downloadFile(doc.file_url, doc.file_name || doc.title)}
+                  className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-white/60 hover:text-white transition-all"
+                  title="Download Document"
+                >
+                  <Download size={13} />
+                </button>
                 <button onClick={() => handleDelete(doc.id)} className="w-7 h-7 rounded-lg bg-white/5 hover:bg-red-500/20 border border-white/10 flex items-center justify-center transition-all">
                   <Trash2 size={11} className="text-white/40 hover:text-red-400" />
                 </button>

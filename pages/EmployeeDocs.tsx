@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import AdminLayout from '../components/AdminLayout';
 import { getToken } from '../utils/apiClient';
-import { FileText, Loader2, Download, ExternalLink } from 'lucide-react';
+import { FileText, Loader2, Download } from 'lucide-react';
+import { downloadFile } from '../utils/fileUtils';
 
 const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000';
 const authH = (): Record<string, string> => { const t = getToken(); return t ? { Authorization: `Bearer ${t}` } : {}; };
@@ -68,21 +69,13 @@ const EmployeeDocs: React.FC = () => {
                 </div>
               </div>
               <div className="flex items-center gap-2 flex-shrink-0">
-                <a
-                  href={doc.file_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-[11px] text-white/60 group-hover:text-white transition-all"
+                <button
+                  onClick={() => downloadFile(doc.file_url, doc.file_name || doc.title)}
+                  className="px-3 py-1.5 rounded-lg bg-red-600/10 hover:bg-red-600/20 border border-red-500/20 text-[11px] text-red-400 transition-all flex items-center gap-1.5"
+                  title="Download Document"
                 >
-                  <ExternalLink size={11} /> View
-                </a>
-                <a
-                  href={doc.file_url}
-                  download={doc.file_name}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-600/10 hover:bg-red-600/20 border border-red-500/20 text-[11px] text-red-400 transition-all"
-                >
-                  <Download size={11} /> Download
-                </a>
+                  <Download size={12} /> Download
+                </button>
               </div>
             </div>
           ))}
