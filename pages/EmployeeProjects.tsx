@@ -140,9 +140,6 @@ const EmployeeProjects: React.FC = () => {
 
   useEffect(() => { 
     fetchAll(); 
-    // Auto-refresh every 5 seconds for real-time updates
-    const interval = setInterval(fetchAll, 5000);
-    return () => clearInterval(interval);
   }, [fetchAll]);
 
   const active = projects.filter(p => ['pending', 'in_progress'].includes(p.status));

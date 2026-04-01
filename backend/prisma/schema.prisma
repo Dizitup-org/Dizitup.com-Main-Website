@@ -8,7 +8,7 @@ datasource db {
 }
 
 model PasswordResetToken {
-  id        String   @id
+  id        String   @id @default(cuid())
   email     String
   token     String   @unique
   expiresAt DateTime
