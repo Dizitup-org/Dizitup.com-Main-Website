@@ -324,7 +324,7 @@ const EmployeeTasks: React.FC = () => {
   const totalActive = tasks.filter(t => t.status !== 'completed').length;
 
   return (
-    <AdminLayout title="Employee — Tasks">
+    <AdminLayout title="Staff — Tasks">
       <motion.div
         initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}

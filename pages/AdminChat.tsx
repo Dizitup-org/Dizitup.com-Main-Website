@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import AdminLayout from '../components/AdminLayout';
 import ChatBox from '../components/ChatBox';
-import { MessageCircle, Send, Loader2, Users, Circle } from 'lucide-react';
+import { MessageCircle, Send, Loader2, Users, Circle, ChevronLeft, MoreHorizontal, Copy, Trash2 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthProvider';
 import { getToken } from '../utils/apiClient';
 
@@ -42,6 +42,9 @@ const AdminChat: React.FC = () => {
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
   const [loadingConvs, setLoadingConvs] = useState(true);
+  const [activeView, setActiveView] = useState<'list' | 'chat'>('list');
+  const [hoveredId, setHoveredId] = useState<string | null>(null);
+  const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -110,6 +113,26 @@ const AdminChat: React.FC = () => {
     }
   };
 
+  const deleteMessage = async (msgId: string) => {
+    if (!window.confirm('Delete this message?')) return;
+    try {
+      const res = await fetch(`${BASE_URL}/api/admin/chat/messages/${msgId}`, {
+        method: 'DELETE',
+        headers: authHeaders(),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setMessages(prev => prev.filter(m => m.id !== msgId));
+        setActiveMenuId(null);
+      }
+    } catch { /* silent */ }
+  };
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    setActiveMenuId(null);
+  };
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
   };
@@ -117,6 +140,7 @@ const AdminChat: React.FC = () => {
   const selectConversation = (conv: Conversation) => {
     setSelectedConv(conv);
     setMessages([]);
+    setActiveView('chat'); // Focus chat on mobile
     // Optimistically clear unread badge
     setConversations(prev => prev.map(c => c.id === conv.id ? { ...c, unread_count: 0 } : c));
   };
@@ -167,10 +191,12 @@ const AdminChat: React.FC = () => {
 
         {/* Tab 1: Client conversations */}
         {tab === 'clients' && (
-          <div className="flex flex-1 rounded-2xl overflow-hidden border border-white/5">
+          <div className="flex flex-1 rounded-2xl overflow-hidden border border-white/5 bg-[#0a0a0a]">
 
         {/* Left: Conversations list */}
-        <div className="w-80 flex-shrink-0 border-r border-white/5 flex flex-col bg-white/[0.01]">
+        <div className={`w-full md:w-80 flex-shrink-0 border-r border-white/5 flex flex-col bg-white/[0.01] ${
+          activeView === 'chat' ? 'hidden md:flex' : 'flex'
+        }`}>
           <div className="p-5 border-b border-white/5">
             <div className="flex items-center gap-2">
               <Users className="w-4 h-4 text-red-500" />
@@ -226,7 +252,9 @@ const AdminChat: React.FC = () => {
         </div>
 
         {/* Right: Message thread */}
-        <div className="flex-1 flex flex-col">
+        <div className={`flex-1 flex flex-col ${
+          activeView === 'list' ? 'hidden md:flex' : 'flex'
+        }`}>
           {!selectedConv ? (
             <div className="flex-1 flex items-center justify-center">
               <div className="text-center">
@@ -237,8 +265,14 @@ const AdminChat: React.FC = () => {
           ) : (
             <>
               {/* Thread header */}
-              <div className="flex items-center gap-3 px-6 py-4 border-b border-white/5 bg-white/[0.01]">
-                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-red-600 to-red-900 flex items-center justify-center font-bold text-sm">
+              <div className="flex items-center gap-3 px-4 sm:px-6 py-4 border-b border-white/5 bg-white/[0.01]">
+                <button 
+                  onClick={() => setActiveView('list')}
+                  className="md:hidden p-2 -ml-2 rounded-lg hover:bg-white/5 transition-colors"
+                >
+                  <ChevronLeft className="w-5 h-5 text-white/40" />
+                </button>
+                <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-gradient-to-br from-red-600 to-red-900 flex items-center justify-center font-bold text-xs sm:text-sm">
                   {selectedConv.username[0].toUpperCase()}
                 </div>
                 <div>
@@ -262,23 +296,57 @@ const AdminChat: React.FC = () => {
                   <div
                     key={msg.id}
                     className={`flex ${msg.sender_type === 'admin' ? 'justify-end' : 'justify-start'}`}
+                    onMouseEnter={() => setHoveredId(msg.id)}
+                    onMouseLeave={() => setHoveredId(null)}
                   >
-                    <div
-                      className={`max-w-[65%] px-4 py-3 rounded-2xl text-sm leading-relaxed ${
-                        msg.sender_type === 'admin'
-                          ? 'bg-red-600 text-white rounded-br-sm'
-                          : 'bg-white/[0.06] border border-white/10 text-white/80 rounded-bl-sm'
-                      }`}
-                    >
-                      {msg.sender_type === 'user' && (
-                        <p className="text-[9px] font-bold uppercase tracking-wider text-white/40 mb-1">
-                          @{selectedConv.username}
-                        </p>
+                    <div className="relative max-w-[65%] group">
+                      {(hoveredId === msg.id || activeMenuId === msg.id) && (
+                        <div className={`absolute top-0 ${msg.sender_type === 'admin' ? '-left-9' : '-right-9'} z-20`}>
+                          <button
+                            onClick={() => setActiveMenuId(activeMenuId === msg.id ? null : msg.id)}
+                            className="w-8 h-8 rounded-lg bg-black/20 hover:bg-black/40 backdrop-blur-md border border-white/10 flex items-center justify-center transition-all text-white/50 hover:text-white"
+                            title="Message Options"
+                          >
+                            <MoreHorizontal size={14} />
+                          </button>
+
+                          {activeMenuId === msg.id && (
+                            <div className={`absolute top-9 ${msg.sender_type === 'admin' ? 'left-0' : 'right-0'} w-28 rounded-xl bg-[#1a1a1a] border border-white/10 shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-150 ring-1 ring-black/50`}>
+                              <button
+                                onClick={() => copyToClipboard(msg.message)}
+                                className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-[11px] font-bold text-white/60 hover:text-white hover:bg-white/5 transition-all text-left"
+                              >
+                                <Copy size={12} /> Copy
+                              </button>
+                              {msg.sender_type === 'admin' && (
+                                <button
+                                  onClick={() => deleteMessage(msg.id)}
+                                  className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-[11px] font-bold text-red-400 hover:bg-red-500/10 transition-all text-left border-t border-white/5"
+                                >
+                                  <Trash2 size={12} /> Delete
+                                </button>
+                              )}
+                            </div>
+                          )}
+                        </div>
                       )}
-                      {msg.message}
-                      <p className={`text-[9px] mt-1 ${msg.sender_type === 'admin' ? 'text-white/50' : 'text-white/30'}`}>
-                        {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                      </p>
+                      <div
+                        className={`px-4 py-3 rounded-2xl text-sm leading-relaxed ${
+                          msg.sender_type === 'admin'
+                            ? 'bg-red-600 text-white rounded-br-sm'
+                            : 'bg-white/[0.06] border border-white/10 text-white/80 rounded-bl-sm'
+                        }`}
+                      >
+                       {msg.sender_type === 'user' && (
+                         <p className="text-[9px] font-bold uppercase tracking-wider text-white/40 mb-1">
+                           @{selectedConv.username}
+                         </p>
+                       )}
+                       {msg.message}
+                       <p className={`text-[9px] mt-1 ${msg.sender_type === 'admin' ? 'text-white/50' : 'text-white/30'}`}>
+                         {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                       </p>
+                      </div>
                     </div>
                   </div>
                 ))}

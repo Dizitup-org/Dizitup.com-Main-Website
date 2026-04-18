@@ -6,14 +6,14 @@ import { MessageCircle, Info } from 'lucide-react';
 
 const EmployeeChat: React.FC = () => {
   const { user } = useAuth();
-  const senderName = `${user?.first_name || ''} ${user?.last_name || ''}`.trim() || 'Employee';
+  const senderName = `${user?.first_name || ''} ${user?.last_name || ''}`.trim() || 'Staff';
 
   // Channel is keyed by the employee's user-id, same as what the tasks page used.
   // Backend validates: manager_employee_{userId} — employee can only access their own channel.
   const channel = user?.id ? `manager_employee_${user.id}` : null;
 
   return (
-    <AdminLayout title="Employee — Manager Chat">
+    <AdminLayout title="Staff — Manager Chat">
       <div className="space-y-4">
         {/* Info banner */}
         <div className="flex items-start gap-3 px-4 py-3 rounded-xl border border-white/[0.06] bg-white/[0.02]">

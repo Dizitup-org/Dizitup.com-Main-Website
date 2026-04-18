@@ -84,7 +84,7 @@ type Props = {
 };
 
 export default function DarkVeil({
-  hueShift = 0,
+  hueShift = 235,
   noiseIntensity = 0,
   scanlineIntensity = 0,
   speed = 0.5,
@@ -99,9 +99,10 @@ export default function DarkVeil({
 
     const renderer = new Renderer({
       dpr: Math.min(window.devicePixelRatio, 2),
-      canvas
+      canvas,
+      alpha: true,
+      premultipliedAlpha: false
     });
-
     const gl = renderer.gl;
     const geometry = new Triangle(gl);
 
@@ -122,13 +123,17 @@ export default function DarkVeil({
     const mesh = new Mesh(gl, { geometry, program });
 
     const resize = () => {
-      const w = parent.clientWidth,
-        h = parent.clientHeight;
+      const w = parent.clientWidth;
+      const h = parent.clientHeight;
+      if (!w || !h) return;
       renderer.setSize(w * resolutionScale, h * resolutionScale);
-      program.uniforms.uResolution.value.set(w, h);
+      program.uniforms.uResolution.value.set(w * resolutionScale, h * resolutionScale);
     };
 
-    window.addEventListener('resize', resize);
+    const resizeObserver = new ResizeObserver(() => {
+      requestAnimationFrame(resize);
+    });
+    resizeObserver.observe(parent);
     resize();
 
     const start = performance.now();
@@ -149,7 +154,7 @@ export default function DarkVeil({
 
     return () => {
       cancelAnimationFrame(frame);
-      window.removeEventListener('resize', resize);
+      resizeObserver.disconnect();
     };
   }, [hueShift, noiseIntensity, scanlineIntensity, speed, scanlineFrequency, warpAmount, resolutionScale]);
   return <canvas ref={ref} className="w-full h-full block" />;

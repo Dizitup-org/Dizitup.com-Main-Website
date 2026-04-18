@@ -88,6 +88,10 @@ const Login: React.FC = () => {
         }
         if (password !== confirm) throw new Error('Passwords do not match')
         if (!/.+@.+\..+/.test(email)) throw new Error('Invalid email')
+        if (username.includes(' ')) throw new Error('Username cannot contain spaces')
+        if (!/^[a-zA-Z0-9_\-]+$/.test(username)) {
+          throw new Error('Username may only contain letters, numbers, underscores, and hyphens')
+        }
         await signUp({
           email, password, username,
           first_name: firstName,
@@ -140,7 +144,7 @@ const Login: React.FC = () => {
         {showWelcome && <AdminWelcome onComplete={handleWelcomeComplete} />}
       </AnimatePresence>
 
-      <div className="relative min-h-screen bg-[#050505] flex items-center justify-center p-4 overflow-hidden">
+      <div className="relative min-h-screen bg-[#050505] flex items-center justify-center p-4 py-12 sm:py-4 overflow-y-auto">
       <Toaster position="top-right" toastOptions={{ style: { background: '#111', color: '#fff', border: '1px solid rgba(255,255,255,0.1)' } }} />
 
       {/* Floating Particles */}
@@ -266,12 +270,12 @@ const Login: React.FC = () => {
               {mode === 'login' ? "Don't have an account? Sign up" : 'Already have an account? Login'}
             </button>
             {mode === 'login' && (
-              <button
-                onClick={handleReset}
+              <Link
+                to="/forgot-password"
                 className="text-xs text-white/40 hover:text-red-400 transition-colors underline underline-offset-2"
               >
                 Forgot password?
-              </button>
+              </Link>
             )}
           </div>
         </div>

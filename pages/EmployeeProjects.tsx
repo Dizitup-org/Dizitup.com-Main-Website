@@ -140,9 +140,6 @@ const EmployeeProjects: React.FC = () => {
 
   useEffect(() => { 
     fetchAll(); 
-    // Auto-refresh every 5 seconds for real-time updates
-    const interval = setInterval(fetchAll, 5000);
-    return () => clearInterval(interval);
   }, [fetchAll]);
 
   const active = projects.filter(p => ['pending', 'in_progress'].includes(p.status));
@@ -150,7 +147,7 @@ const EmployeeProjects: React.FC = () => {
   const blocked = projects.filter(p => p.status === 'blocked');
 
   return (
-    <AdminLayout title="Employee — Projects">
+    <AdminLayout title="Staff — Projects">
       <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }} className="space-y-6">
         <div className="flex items-center justify-between">
           <div>

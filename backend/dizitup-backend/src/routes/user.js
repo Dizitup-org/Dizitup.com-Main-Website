@@ -85,11 +85,20 @@ router.post('/avatar', protect, upload.single('avatar'), async (req, res, next) 
 // ----------------------------------------------------------
 router.get('/my-bookings', protect, async (req, res, next) => {
   try {
+    // If the client is already onboarded, the strategy call details should disappear from "My Bookings"
+    // We check by user_id AND email for robustness
+    const onboardedRes = await db.query(
+      'SELECT 1 FROM onboard_clients WHERE user_id = $1 OR email = $2 LIMIT 1',
+      [req.user.id, req.user.email]
+    );
+    if (onboardedRes.rows.length > 0) {
+      return res.json({ success: true, bookings: [] });
+    }
+
     const result = await db.query(
       `SELECT id, name, email, agency, project_type, meeting_date, meeting_time, status, notes, created_at
        FROM bookings
-       WHERE email = (SELECT email FROM users WHERE id = $1)
-         AND status != 'meeting_done'
+       WHERE user_id = $1
        ORDER BY created_at DESC`,
       [req.user.id]
     );
@@ -107,12 +116,17 @@ router.get('/my-bookings', protect, async (req, res, next) => {
 // ----------------------------------------------------------
 router.get('/client-status', protect, async (req, res, next) => {
   try {
+    // Check by user_id OR email for robustness
     const onboarded = await db.query(
-      'SELECT id FROM onboard_clients WHERE user_id = $1 LIMIT 1',
-      [req.user.id]
+      'SELECT id, status FROM onboard_clients WHERE user_id = $1 OR email = $2 LIMIT 1',
+      [req.user.id, req.user.email]
     );
     if (onboarded.rows.length > 0) {
-      return res.json({ success: true, clientStatus: 'onboarded' });
+      return res.json({ 
+        success: true, 
+        clientStatus: 'onboarded', 
+        detailStatus: onboarded.rows[0].status 
+      });
     }
     const followUp = await db.query(
       'SELECT id FROM query_clients WHERE user_id = $1 LIMIT 1',

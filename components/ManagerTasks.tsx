@@ -448,7 +448,7 @@ const ManagerTasks: React.FC = () => {
             }
           }
         }
-        toast.success(`Task created and assigned to ${newTask.employee_ids.length || 'no'} employee(s)`);
+        toast.success(`Task created and assigned to ${newTask.employee_ids.length || 'no'} staff member(s)`);
         setNewTask({ title: '', description: '', project_id: '', employee_ids: [], deadline: '', priority: 'medium', manager_notes: '' });
         setShowCreateForm(false);
         setShowEmployeeDropdown(false);
@@ -565,7 +565,7 @@ const ManagerTasks: React.FC = () => {
 
                 {/* Employee picker */}
                 <div>
-                  <label className="block text-[11px] font-semibold uppercase tracking-wider text-white/40 mb-1.5">Assign to Employees</label>
+                  <label className="block text-[11px] font-semibold uppercase tracking-wider text-white/40 mb-1.5">Assign to Staff</label>
                   <div className="relative">
                     <button
                       type="button"
@@ -573,7 +573,7 @@ const ManagerTasks: React.FC = () => {
                       className="w-full bg-black/40 border border-white/[0.08] rounded-lg px-3 py-2 text-sm text-white focus:outline-none text-left flex items-center justify-between"
                     >
                       <span className={newTask.employee_ids.length === 0 ? 'text-white/25' : 'text-white'}>
-                        {newTask.employee_ids.length === 0 ? 'Select employees' : `${newTask.employee_ids.length} selected`}
+                        {newTask.employee_ids.length === 0 ? 'Select staff' : `${newTask.employee_ids.length} selected`}
                       </span>
                       <ChevronDown size={14} className={`text-white/30 transition-transform ${showEmployeeDropdown ? 'rotate-180' : ''}`} />
                     </button>
@@ -586,7 +586,7 @@ const ManagerTasks: React.FC = () => {
                           className="absolute top-full left-0 right-0 mt-2 bg-[#0f0f0f] border border-white/10 rounded-xl shadow-2xl z-50 max-h-52 overflow-y-auto"
                         >
                           {employees.length === 0 ? (
-                            <div className="p-3 text-sm text-white/30">No employees available</div>
+                            <div className="p-3 text-sm text-white/30">No staff available</div>
                           ) : employees.map(emp => (
                             <label
                               key={emp.admin_id}
@@ -660,7 +660,7 @@ const ManagerTasks: React.FC = () => {
 
                 <div>
                   <label className="block text-[11px] font-semibold uppercase tracking-wider text-white/40 mb-1.5">Urgency</label>
-                  <div className="grid grid-cols-5 gap-1.5">
+                  <div className="grid grid-cols-3 sm:grid-cols-5 gap-1.5">
                     {([
                       { value: 'no_priority', label: 'None',   emoji: '—',  cls: 'text-white/30 border-white/[0.08] hover:border-white/20 hover:bg-white/[0.04]',                       activeCls: 'bg-white/[0.08] border-white/20 text-white/70' },
                       { value: 'low',         label: 'Low',    emoji: '↓',  cls: 'text-white/40 border-white/[0.08] hover:border-blue-400/30 hover:bg-blue-400/[0.06]',           activeCls: 'bg-blue-400/10 border-blue-400/40 text-blue-300' },

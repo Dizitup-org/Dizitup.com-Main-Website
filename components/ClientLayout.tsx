@@ -9,9 +9,11 @@ interface ClientLayoutProps {
   children: React.ReactNode;
   title: string;
   activeSection?: 'profile' | 'bookings' | 'projects' | 'accounts';
+  clientStatus?: 'none' | 'follow_up' | 'onboarded' | null;
+  detailStatus?: string | null;
 }
 
-const ClientLayout: React.FC<ClientLayoutProps> = ({ children, title, activeSection }) => {
+const ClientLayout: React.FC<ClientLayoutProps> = ({ children, title, activeSection, clientStatus, detailStatus }) => {
   const navigate = useNavigate();
   const { signOut, user } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -29,7 +31,19 @@ const ClientLayout: React.FC<ClientLayoutProps> = ({ children, title, activeSect
       <div className="p-6">
         <Link to="/" className="text-xl font-bold font-heading tracking-tight flex items-center gap-2" onClick={() => setMobileOpen(false)}>
           <div className="w-3 h-3 bg-red-600 rounded-full" />
-          DIZITUP <span className="text-[10px] text-red-500 font-black tracking-widest px-1.5 py-0.5 rounded bg-red-500/10 border border-red-500/20">CLIENT</span>
+          DIZITUP 
+          {clientStatus === 'follow_up' ? (
+            <span className="text-[9px] text-orange-500 font-black tracking-widest px-1.5 py-0.5 rounded bg-orange-500/10 border border-orange-500/20">FOLLOW-UP</span>
+          ) : clientStatus === 'onboarded' ? (
+            <div className="flex items-center gap-1">
+              <span className="text-[9px] text-blue-500 font-black tracking-widest px-1.5 py-0.5 rounded bg-blue-500/10 border border-blue-500/20">ONBOARDED</span>
+              {detailStatus && (
+                <span className="text-[9px] text-emerald-500 font-black tracking-widest px-1.5 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/20">{detailStatus.toUpperCase()}</span>
+              )}
+            </div>
+          ) : (
+            <span className="text-[10px] text-red-500 font-black tracking-widest px-1.5 py-0.5 rounded bg-red-500/10 border border-red-500/20">CLIENT</span>
+          )}
         </Link>
         {/* User info card */}
         <div className="mt-5 p-4 bg-white/5 rounded-xl border border-white/10">
@@ -135,7 +149,13 @@ const ClientLayout: React.FC<ClientLayoutProps> = ({ children, title, activeSect
           <div className="flex items-center gap-2 md:gap-3 flex-shrink-0 md:border-l md:border-white/10 md:pl-6">
             <div className="hidden md:block text-right">
               <p className="text-sm font-bold">{user?.first_name} {user?.last_name}</p>
-              <p className="text-[10px] text-white/30">Client Portal</p>
+              {clientStatus === 'onboarded' ? (
+                <p className="text-[9px] font-bold text-emerald-400 uppercase tracking-wider">Active Client</p>
+              ) : clientStatus === 'follow_up' ? (
+                <p className="text-[9px] font-bold text-orange-400 uppercase tracking-wider">Follow-up Phase</p>
+              ) : (
+                <p className="text-[10px] text-white/30">Client Portal</p>
+              )}
             </div>
             <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-gradient-to-br from-red-600 to-red-900 flex items-center justify-center font-bold text-sm flex-shrink-0">
               {user?.first_name?.[0]}{user?.last_name?.[0]}

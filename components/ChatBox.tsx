@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Send, Loader2, MessageCircle, X, Paperclip, FileText, Image as ImageIcon, ExternalLink } from 'lucide-react';
+import { Send, Loader2, MessageCircle, X, Paperclip, FileText, Image as ImageIcon, Download, MoreHorizontal, Copy, Trash2 } from 'lucide-react';
+import { downloadFile } from '../utils/fileUtils';
 import { getToken } from '../utils/apiClient';
 import { useAuth } from '../contexts/AuthProvider';
 
@@ -35,6 +36,7 @@ const ChatBox: React.FC<ChatBoxProps> = ({
   const [sending, setSending] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [hoveredId, setHoveredId] = useState<string | null>(null);
+  const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef   = useRef<HTMLInputElement>(null);
 
@@ -110,6 +112,7 @@ const ChatBox: React.FC<ChatBoxProps> = ({
   // ── Delete message ─────────────────────────────────────────
   const deleteMessage = async (msgId: string) => {
     setMessages(prev => prev.filter(m => m.id !== msgId));
+    setActiveMenuId(null);
     try {
       const t = getToken();
       await fetch(`${BASE_URL}${apiBase}/${channel}/messages/${msgId}`, {
@@ -119,11 +122,16 @@ const ChatBox: React.FC<ChatBoxProps> = ({
     } catch { /* silent */ }
   };
 
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    setActiveMenuId(null);
+  };
+
   // ── Render a single message bubble ────────────────────────
   const renderBubble = (msg: TeamMessage) => {
-    const isOwn    = msg.sender_name === senderName;
-    const canDelete = isOwn && msg.sender_id === user?.id;
-
+    // ── Types ──────────────────────────────────────────────────
+    const isOwn = msg.sender_name === senderName;
+    const canDelete = isOwn; // Only sender can delete their own
     let content: React.ReactNode;
 
     if (msg.media_type === 'image' && msg.media_url) {
@@ -135,18 +143,11 @@ const ChatBox: React.FC<ChatBoxProps> = ({
             className="max-w-full rounded-lg max-h-48 object-cover border border-white/10"
           />
           <button
-            onClick={() => {
-              const link = document.createElement('a');
-              link.href = msg.media_url!;
-              link.setAttribute('download', msg.file_name || 'image.jpg');
-              document.body.appendChild(link);
-              link.click();
-              document.body.removeChild(link);
-            }}
+            onClick={() => downloadFile(msg.media_url!, msg.file_name || 'image.jpg')}
             className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover/img:opacity-100 transition-opacity rounded-lg"
           >
             <div className="bg-white/10 backdrop-blur-md border border-white/20 p-2 rounded-full">
-              <ExternalLink size={16} className="text-white" />
+              <Download size={16} className="text-white" />
             </div>
           </button>
         </div>
@@ -154,19 +155,12 @@ const ChatBox: React.FC<ChatBoxProps> = ({
     } else if (msg.media_type === 'pdf' && msg.media_url) {
       content = (
         <button
-          onClick={() => {
-            const link = document.createElement('a');
-            link.href = msg.media_url!;
-            link.setAttribute('download', msg.file_name || 'document.pdf');
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-          }}
+          onClick={() => downloadFile(msg.media_url!, msg.file_name || 'document.pdf')}
           className={`flex items-center gap-2 px-1 py-0.5 rounded-lg group/pdf w-full text-left transition-colors hover:bg-white/5 ${isOwn ? 'text-white' : 'text-white/80'}`}
         >
           <FileText size={16} className="flex-shrink-0 opacity-80" />
           <span className="text-xs font-medium truncate max-w-[160px]">{msg.file_name || 'Document.pdf'}</span>
-          <ExternalLink size={10} className="flex-shrink-0 opacity-60 group-hover/pdf:opacity-100" />
+          <Download size={10} className="flex-shrink-0 opacity-60 group-hover/pdf:opacity-100" />
         </button>
       );
     } else {
@@ -181,13 +175,35 @@ const ChatBox: React.FC<ChatBoxProps> = ({
         onMouseLeave={() => setHoveredId(null)}
       >
         <div className="relative max-w-[72%]">
-          {canDelete && hoveredId === msg.id && (
-            <button
-              onClick={() => deleteMessage(msg.id)}
-              className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-red-600 hover:bg-red-500 flex items-center justify-center z-10 shadow-md transition-all"
-            >
-              <X size={8} />
-            </button>
+          {(hoveredId === msg.id || activeMenuId === msg.id) && (
+            <div className={`absolute top-0 ${isOwn ? '-left-9' : '-right-9'} z-20`}>
+              <button
+                onClick={() => setActiveMenuId(activeMenuId === msg.id ? null : msg.id)}
+                className="w-8 h-8 rounded-lg bg-black/20 hover:bg-black/40 backdrop-blur-md border border-white/10 flex items-center justify-center transition-all text-white/50 hover:text-white"
+                title="Message Options"
+              >
+                <MoreHorizontal size={14} />
+              </button>
+
+              {activeMenuId === msg.id && (
+                <div className={`absolute top-9 ${isOwn ? 'left-0' : 'right-0'} w-28 rounded-xl bg-[#1a1a1a] border border-white/10 shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-150 ring-1 ring-black/50`}>
+                  <button
+                    onClick={() => copyToClipboard(msg.message || msg.file_name || '')}
+                    className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-[11px] font-bold text-white/60 hover:text-white hover:bg-white/5 transition-all text-left"
+                  >
+                    <Copy size={12} /> Copy
+                  </button>
+                  {canDelete && (
+                    <button
+                      onClick={() => deleteMessage(msg.id)}
+                      className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-[11px] font-bold text-red-400 hover:bg-red-500/10 transition-all text-left border-t border-white/5"
+                    >
+                      <Trash2 size={12} /> Delete
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
           )}
           <div
             className={`px-3 py-2 rounded-xl ${
