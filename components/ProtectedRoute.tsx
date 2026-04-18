@@ -40,7 +40,13 @@ export const RequireAdmin: React.FC<{ children: React.ReactNode }> = ({ children
       </div>
     )
   }
-  
+
+  // They are an admin. If they are staff, restrict them to their default dashboard
+  if (user.adminRole === 'sales') return <Navigate to="/sales" replace />
+  if (user.adminRole === 'manager') return <Navigate to="/admin/manager/projects" replace />
+  if (user.adminRole === 'employee') return <Navigate to="/admin/employee/tasks" replace />
+
+  // Only 'admin' and 'superadmin' proceed
   return <>{children}</>
 }
 
@@ -60,3 +66,20 @@ export const RequireRole: React.FC<{ roles: string[], children: React.ReactNode 
   return <>{children}</>
 }
 
+export const RequireSales: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { user, loading } = useAuth()
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#050505] flex items-center justify-center">
+        <div className="text-white animate-pulse">Authenticating...</div>
+      </div>
+    )
+  }
+
+  if (!user || !user.isAdmin) return <Navigate to="/admin-login" replace />
+  if (user.adminRole !== 'sales' && user.adminRole !== 'admin' && user.adminRole !== 'superadmin') {
+    return <Navigate to="/admin-login" replace />
+  }
+  return <>{children}</>
+}

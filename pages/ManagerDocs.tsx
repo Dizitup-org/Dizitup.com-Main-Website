@@ -54,7 +54,7 @@ const ManagerDocs: React.FC = () => {
       const data = await res.json();
       if (data.success) {
         setEmployees((data.employees as any[])
-          .filter(e => e.role === 'employee')
+          .filter(e => e.role === 'employee' || e.role === 'sales')
           .map(e => ({ admin_id: e.admin_id || e.id, user_id: e.user_id || e.id, first_name: e.first_name, last_name: e.last_name, username: e.username }))
         );
       }
@@ -139,8 +139,8 @@ const ManagerDocs: React.FC = () => {
     } catch { toast.error('Network error'); }
   };
 
-  const DocCard = ({ doc, showForward }: { doc: Doc; showForward?: boolean }) => (
-    <div className="p-4 rounded-xl border border-white/[0.06] bg-white/[0.02] space-y-3">
+  const renderDocCard = (doc: Doc, showForward?: boolean) => (
+    <div key={doc.id} className="p-4 rounded-xl border border-white/[0.06] bg-white/[0.02] space-y-3">
       <div className="flex items-start gap-3">
         <div className="flex-shrink-0 w-9 h-9 rounded-xl bg-red-600/10 border border-red-500/20 flex items-center justify-center mt-0.5">
           <FileText size={16} className="text-red-400" />
@@ -187,8 +187,8 @@ const ManagerDocs: React.FC = () => {
       {/* Forward form */}
       {showForward && forwardingId === doc.id && (
         <div className="pt-3 border-t border-white/[0.06] space-y-2">
-          <p className="text-[10px] font-bold uppercase tracking-widest text-white/25">Forward to Staff Member</p>
-          <div className="flex flex-col sm:flex-row gap-2">
+          <p className="text-[10px] font-bold uppercase tracking-widest text-white/25">Forward to Staff</p>
+          <div className="flex gap-2">
             <select
               value={fwdEmp}
               onChange={e => setFwdEmp(e.target.value)}
@@ -221,7 +221,7 @@ const ManagerDocs: React.FC = () => {
       <div className="space-y-6">
         <div>
           <h1 className="text-xl font-bold text-white tracking-tight">Documents</h1>
-          <p className="text-[12px] text-white/35 mt-0.5">Receive from admin · Forward to employees</p>
+          <p className="text-[12px] text-white/35 mt-0.5">Receive from admin · Forward to staff members</p>
         </div>
 
         {/* Tab bar */}
@@ -245,7 +245,7 @@ const ManagerDocs: React.FC = () => {
                 <p className="text-xs text-white/25">No documents received yet</p>
               </div>
             ) : (
-              inbox.map(doc => <DocCard key={doc.id} doc={doc} showForward />)
+              inbox.map(doc => renderDocCard(doc, true))
             )}
           </div>
         )}
@@ -307,7 +307,7 @@ const ManagerDocs: React.FC = () => {
                 <p className="text-xs text-white/25">Nothing forwarded yet</p>
               </div>
             ) : (
-              sent.map(doc => <DocCard key={doc.id} doc={doc} />)
+              sent.map(doc => renderDocCard(doc, false))
             )}
             </div>
           </div>

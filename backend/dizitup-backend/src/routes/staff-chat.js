@@ -72,7 +72,7 @@ const validateChannelAccess = (channel, userRole, userId) => {
   if (channel.startsWith('manager_employee_')) {
     if (userRole === 'admin' || userRole === 'manager') return true;
     const employeeIdInChannel = channel.replace('manager_employee_', '');
-    return userRole === 'employee' && userId === employeeIdInChannel;
+    return (userRole === 'employee' || userRole === 'sales') && userId === employeeIdInChannel;
   }
   return true;
 };

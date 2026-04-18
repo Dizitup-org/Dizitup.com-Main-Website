@@ -22,7 +22,7 @@ router.get('/employees', async (req, res, next) => {
       SELECT a.id as admin_id, a.user_id, a.role,
              u.username, u.email, u.first_name, u.last_name, u.phone, u.created_at
       FROM admins a JOIN users u ON u.id = a.user_id
-      WHERE a.role IN ('manager', 'employee')
+      WHERE a.role IN ('manager', 'employee', 'sales')
       ORDER BY a.role, u.first_name
     `);
     res.json({ success: true, employees: result.rows });
@@ -42,8 +42,8 @@ router.post('/employees', async (req, res, next) => {
     const { username, email, first_name, last_name, phone, role = 'employee' } = req.body;
 
     // Validate role
-    if (!['manager', 'employee'].includes(role)) {
-      return res.status(400).json({ success: false, message: 'Role must be "manager" or "employee"' });
+    if (!['manager', 'employee', 'sales'].includes(role)) {
+      return res.status(400).json({ success: false, message: 'Role must be "manager", "employee", or "sales"' });
     }
 
     const plainPassword = req.body.password || crypto.randomBytes(4).toString('hex');
@@ -106,6 +106,29 @@ router.delete('/employees/:id', async (req, res, next) => {
     }
     res.json({ success: true });
   } catch (err) { console.error('[DELETE /manager/employees/:id]', err.message, err.stack); next(err); }
+});
+
+// ----------------------------------------------------------
+// PATCH /api/manager/employees/:id — change staff role
+// ----------------------------------------------------------
+router.patch('/employees/:id', async (req, res, next) => {
+  try {
+    const { role } = req.body;
+    if (!['manager', 'employee', 'sales'].includes(role)) {
+      return res.status(400).json({ success: false, message: 'Role must be "manager", "employee", or "sales"' });
+    }
+
+    const result = await db.query(
+      `UPDATE admins SET role = $1 WHERE id = $2 AND role != 'admin' RETURNING *`,
+      [role, req.params.id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Staff member not found or cannot modify admin' });
+    }
+
+    res.json({ success: true, staff: result.rows[0] });
+  } catch (err) { console.error('[PATCH /manager/employees/:id]', err.message, err.stack); next(err); }
 });
 
 // ----------------------------------------------------------

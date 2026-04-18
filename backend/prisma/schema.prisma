@@ -320,9 +320,52 @@ model users {
   query_clients         query_clients[]
   subscriptions         subscriptions[]
   task_notes            task_notes[]
+  sales_leads           sales_leads[]
+  sales_documents       sales_documents[]
+  sales_messages        sales_messages[]
 
   @@index([email], map: "idx_users_email")
   @@index([username], map: "idx_users_username")
+}
+
+model sales_leads {
+  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  added_by      String?   @db.Uuid
+  region        String    @default("india") @db.VarChar(20)
+  name          String    @db.VarChar(200)
+  email         String?   @db.VarChar(255)
+  phone         String?   @db.VarChar(30)
+  company       String?   @db.VarChar(200)
+  status        String    @default("cold") @db.VarChar(30)
+  followup_date DateTime? @db.Timestamptz(6)
+  notes         String?
+  converted     Boolean   @default(false)
+  created_at    DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at    DateTime  @default(now()) @db.Timestamptz(6)
+  users         users?    @relation(fields: [added_by], references: [id], onDelete: SetNull, onUpdate: NoAction)
+
+  @@index([region], map: "idx_sales_leads_region")
+  @@index([status], map: "idx_sales_leads_status")
+}
+
+model sales_documents {
+  id                  String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  title               String    @db.VarChar(300)
+  file_url            String
+  uploaded_by_user_id String?   @db.Uuid
+  created_at          DateTime  @default(now()) @db.Timestamptz(6)
+  users               users?    @relation(fields: [uploaded_by_user_id], references: [id], onDelete: SetNull, onUpdate: NoAction)
+}
+
+model sales_messages {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  sender_id   String?   @db.Uuid
+  sender_name String    @db.VarChar(255)
+  message     String
+  created_at  DateTime  @default(now()) @db.Timestamptz(6)
+  users       users?    @relation(fields: [sender_id], references: [id], onDelete: SetNull, onUpdate: NoAction)
+
+  @@index([created_at], map: "idx_sales_messages_created")
 }
 
 model visitor_leads {
