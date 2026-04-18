@@ -297,8 +297,53 @@ const initializeSchema = async () => {
 
     // ---- ALTER TABLE statements (idempotent) ----
     await db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS manager_id UUID REFERENCES users(id)`).catch(() => {});
+    await db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url TEXT`).catch(() => {});
 
-    console.log('✅ Schema initialization complete.');
+    // 18. sales_leads (independent — managed by sales team)
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS sales_leads (
+        id            UUID         PRIMARY KEY DEFAULT gen_random_uuid(),
+        added_by      UUID         REFERENCES users(id) ON DELETE SET NULL,
+        region        VARCHAR(20)  NOT NULL DEFAULT 'india' CHECK (region IN ('india','foreign')),
+        name          VARCHAR(200) NOT NULL,
+        email         VARCHAR(255),
+        phone         VARCHAR(30),
+        company       VARCHAR(200),
+        status        VARCHAR(30)  NOT NULL DEFAULT 'cold' CHECK (status IN ('cold','followup','onboarded','dropped')),
+        followup_date TIMESTAMPTZ,
+        notes         TEXT,
+        converted     BOOLEAN      NOT NULL DEFAULT false,
+        created_at    TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+        updated_at    TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+      )
+    `);
+    await db.query(`CREATE INDEX IF NOT EXISTS idx_sales_leads_region ON sales_leads(region)`).catch(() => {});
+    await db.query(`CREATE INDEX IF NOT EXISTS idx_sales_leads_status ON sales_leads(status)`).catch(() => {});
+
+    // 19. sales_documents (admin uploads visible to sales team)
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS sales_documents (
+        id                 UUID         PRIMARY KEY DEFAULT gen_random_uuid(),
+        title              VARCHAR(300) NOT NULL,
+        file_url           TEXT         NOT NULL,
+        uploaded_by_user_id UUID        REFERENCES users(id) ON DELETE SET NULL,
+        created_at         TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+      )
+    `);
+
+    // 20. sales_messages (sales team channel chat)
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS sales_messages (
+        id          UUID         PRIMARY KEY DEFAULT gen_random_uuid(),
+        sender_id   UUID         REFERENCES users(id) ON DELETE SET NULL,
+        sender_name VARCHAR(255) NOT NULL,
+        message     TEXT         NOT NULL,
+        created_at  TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+      )
+    `);
+    await db.query(`CREATE INDEX IF NOT EXISTS idx_sales_messages_created ON sales_messages(created_at)`).catch(() => {});
+
+    console.log('\u2705 Schema initialization complete.');
   } catch (err) {
     console.error('❌ Schema initialization failed:', err.message);
     throw err; // abort startup if core schema fails

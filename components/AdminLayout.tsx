@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { NavLink, Link, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, BarChart3, Users, LogOut, Search, Layout, Home as HomeIcon, Shield, FolderOpen, UserPlus, MessageCircle, CheckSquare, Calendar, FileText, Menu, X, ChevronRight } from 'lucide-react';
+import { LayoutDashboard, BarChart3, Users, LogOut, Search, Layout, Home as HomeIcon, Shield, FolderOpen, UserPlus, MessageCircle, CheckSquare, Calendar, FileText, Menu, X, ChevronRight, TrendingUp } from 'lucide-react';
 import { useAuth } from '../contexts/AuthProvider';
 import { getToken } from '../utils/apiClient';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -32,6 +32,10 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, title }) => {
         { to: '/admin/employee/chat', icon: MessageCircle, label: 'Chat' },
         { to: '/admin/employee/docs', icon: FileText, label: 'Docs' },
       ]
+    : user?.adminRole === 'sales'
+    ? [
+        { to: '/sales', icon: TrendingUp, label: 'Sales Dashboard' },
+      ]
     : [
         { to: '/admin', icon: LayoutDashboard, label: 'Overview' },
         { to: '/admin/bookings', icon: Calendar, label: 'Bookings' },
@@ -51,7 +55,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, title }) => {
         <Link to="/" className="text-xl font-bold font-heading tracking-tight flex items-center gap-2" onClick={() => setMobileOpen(false)}>
           <div className="w-3 h-3 bg-red-600 rounded-full" />
           DIZITUP <span className="text-[10px] text-red-500 font-black tracking-widest px-1.5 py-0.5 rounded bg-red-500/10 border border-red-500/20 uppercase">
-            {user?.adminRole === 'manager' ? 'MANAGER' : user?.adminRole === 'employee' ? 'STAFF' : 'ADMIN'}
+          {user?.adminRole === 'manager' ? 'MANAGER' : user?.adminRole === 'employee' ? 'STAFF' : user?.adminRole === 'sales' ? 'SALES' : 'ADMIN'}
           </span>
         </Link>
 

@@ -28,7 +28,7 @@ router.get('/staff', async (req, res, next) => {
       SELECT a.id as admin_id, a.role, a.user_id,
              u.username, u.email, u.first_name, u.last_name, u.phone, u.created_at
       FROM admins a JOIN users u ON u.id = a.user_id
-      WHERE a.role IN ('manager', 'employee')
+      WHERE a.role IN ('manager', 'employee', 'sales')
       ORDER BY a.role, u.first_name
     `);
     res.json({ success: true, staff: result.rows });
@@ -45,8 +45,8 @@ router.post('/staff', async (req, res, next) => {
   try {
     const { username, email, password, first_name, last_name, phone, role } = req.body;
 
-    if (!['manager', 'employee'].includes(role)) {
-      return res.status(400).json({ success: false, message: 'Role must be "manager" or "employee"' });
+    if (!['manager', 'employee', 'sales'].includes(role)) {
+      return res.status(400).json({ success: false, message: 'Role must be "manager", "employee", or "sales"' });
     }
     if (!username || !email || !password || !first_name || !last_name) {
       return res.status(400).json({ success: false, message: 'username, email, password, first_name, last_name are required' });
@@ -89,8 +89,8 @@ router.post('/staff', async (req, res, next) => {
 router.patch('/staff/:adminId', async (req, res, next) => {
   try {
     const { role } = req.body;
-    if (!['manager', 'employee'].includes(role)) {
-      return res.status(400).json({ success: false, message: 'Role must be "manager" or "employee"' });
+    if (!['manager', 'employee', 'sales'].includes(role)) {
+      return res.status(400).json({ success: false, message: 'Role must be "manager", "employee", or "sales"' });
     }
 
     const result = await db.query(

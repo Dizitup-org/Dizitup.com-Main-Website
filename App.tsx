@@ -23,9 +23,10 @@ import EmployeeChat from './pages/EmployeeChat';
 import AdminDocs from './pages/AdminDocs';
 import ManagerDocs from './pages/ManagerDocs';
 import EmployeeDocs from './pages/EmployeeDocs';
+import SalesDashboard from './pages/SalesDashboard';
 import { AuthProvider } from './contexts/AuthProvider';
 import { BookingProvider } from './contexts/BookingContext';
-import { RequireAdmin, RequireAuth, RequireRole } from './components/ProtectedRoute';
+import { RequireAdmin, RequireAuth, RequireRole, RequireSales } from './components/ProtectedRoute';
 import { Toaster } from 'react-hot-toast';
 
 const App: React.FC = () => {
@@ -199,6 +200,16 @@ const App: React.FC = () => {
                 <RequireRole roles={['admin', 'manager', 'employee']}>
                   <EmployeeDocs />
                 </RequireRole>
+              )}
+            />
+
+            {/* ─── Sales Dashboard ─── */}
+            <Route
+              path="/sales"
+              element={(
+                <RequireSales>
+                  <SalesDashboard />
+                </RequireSales>
               )}
             />
 

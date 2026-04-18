@@ -21,8 +21,9 @@ interface StaffMember {
 }
 
 const ROLE_COLORS: Record<string, string> = {
-  manager: 'text-blue-400 bg-blue-500/10 border-blue-500/20',
+  manager:  'text-blue-400 bg-blue-500/10 border-blue-500/20',
   employee: 'text-green-400 bg-green-500/10 border-green-500/20',
+  sales:    'text-violet-400 bg-violet-500/10 border-violet-500/20',
 };
 
 const defaultForm = { username: '', email: '', password: '', first_name: '', last_name: '', phone: '', role: 'employee' };
@@ -42,11 +43,15 @@ const ManagerTeam: React.FC = () => {
 
   const fetchStaff = useCallback(async () => {
     try {
-      const res = await fetch(`${BASE_URL}/api/manager/employees`, { headers: authHeaders() });
+      const isAdmin = user?.adminRole === 'admin' || user?.adminRole === 'superadmin';
+      const url = isAdmin
+        ? `${BASE_URL}/api/admin/users/staff`
+        : `${BASE_URL}/api/manager/employees`;
+      const res  = await fetch(url, { headers: authHeaders() });
       const data = await res.json();
-      if (data.success) setStaff(data.employees);
+      if (data.success) setStaff(data.staff ?? data.employees ?? []);
     } catch { toast.error('Failed to load team'); } finally { setLoading(false); }
-  }, []);
+  }, [user]);
 
   useEffect(() => { fetchStaff(); }, [fetchStaff]);
 
@@ -57,7 +62,11 @@ const ManagerTeam: React.FC = () => {
     }
     setSubmitting(true);
     try {
-      const res = await fetch(`${BASE_URL}/api/manager/employees`, {
+      const isAdmin = user?.adminRole === 'admin' || user?.adminRole === 'superadmin';
+      const url = isAdmin
+        ? `${BASE_URL}/api/admin/users/staff`
+        : `${BASE_URL}/api/manager/employees`;
+      const res = await fetch(url, {
         method: 'POST',
         headers: authHeaders(),
         body: JSON.stringify(form),
@@ -65,7 +74,8 @@ const ManagerTeam: React.FC = () => {
       const data = await res.json();
       if (data.success) {
         setErrorMsg('');
-        setCredentials({ email: data.employee.email, password: data.temp_password });
+        const pw = form.password || data.temp_password || 'Auto-generated';
+        setCredentials({ email: form.email, password: pw });
         setForm(defaultForm);
         fetchStaff();
       } else {
@@ -83,7 +93,11 @@ const ManagerTeam: React.FC = () => {
 
   const changeRole = async (adminId: string, newRole: string) => {
     try {
-      const res = await fetch(`${BASE_URL}/api/admin/users/staff/${adminId}`, {
+      const isAdmin = user?.adminRole === 'admin' || user?.adminRole === 'superadmin';
+      const url = isAdmin
+        ? `${BASE_URL}/api/admin/users/staff/${adminId}`
+        : `${BASE_URL}/api/manager/employees/${adminId}`;
+      const res = await fetch(url, {
         method: 'PATCH',
         headers: authHeaders(),
         body: JSON.stringify({ role: newRole }),
@@ -97,7 +111,11 @@ const ManagerTeam: React.FC = () => {
   const removeAccess = async (adminId: string, name: string) => {
     if (!window.confirm(`Remove ${name}'s staff access? Their user account will remain.`)) return;
     try {
-      const res = await fetch(`${BASE_URL}/api/admin/users/staff/${adminId}`, {
+      const isAdmin = user?.adminRole === 'admin' || user?.adminRole === 'superadmin';
+      const url = isAdmin
+        ? `${BASE_URL}/api/admin/users/staff/${adminId}`
+        : `${BASE_URL}/api/manager/employees/${adminId}`;
+      const res = await fetch(url, {
         method: 'DELETE',
         headers: authHeaders(),
       });
@@ -107,8 +125,9 @@ const ManagerTeam: React.FC = () => {
     } catch { toast.error('Network error'); }
   };
 
-  const managers = staff.filter(s => s.role === 'manager');
+  const managers  = staff.filter(s => s.role === 'manager');
   const employees = staff.filter(s => s.role === 'employee');
+  const salesTeam = staff.filter(s => s.role === 'sales');
 
   return (
     <AdminLayout title="Manager — Team">
@@ -138,8 +157,15 @@ const ManagerTeam: React.FC = () => {
         ) : (
           <div className="space-y-8">
             {(user?.adminRole === 'manager'
-              ? [{ label: 'Employees', data: employees, role: 'employee' }]
-              : [{ label: 'Managers', data: managers, role: 'manager' }, { label: 'Employees', data: employees, role: 'employee' }]
+              ? [
+                  { label: 'Employees',          data: employees, role: 'employee' },
+                  { label: 'Sales Executives',   data: salesTeam, role: 'sales'   },
+                ]
+              : [
+                  { label: 'Managers',           data: managers,  role: 'manager'  },
+                  { label: 'Employees',          data: employees, role: 'employee' },
+                  { label: 'Sales Executives',   data: salesTeam, role: 'sales'   },
+                ]
             ).map(({ label, data }) => (
               <div key={label}>
                 <div className="flex items-center gap-3 mb-4">
@@ -185,8 +211,9 @@ const ManagerTeam: React.FC = () => {
                                 onChange={e => setEditRole(e.target.value)}
                                 className="flex-1 bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-xs text-white focus:outline-none"
                               >
-                                <option value="manager" style={{ color: '#000000', backgroundColor: '#ffffff' }}>Manager</option>
+                                <option value="manager"  style={{ color: '#000000', backgroundColor: '#ffffff' }}>Manager</option>
                                 <option value="employee" style={{ color: '#000000', backgroundColor: '#ffffff' }}>Employee</option>
+                                <option value="sales"    style={{ color: '#000000', backgroundColor: '#ffffff' }}>Sales Executive</option>
                               </select>
                               <button onClick={() => changeRole(s.admin_id, editRole)} className="px-2.5 py-1.5 rounded-lg bg-red-600 hover:bg-red-500 text-xs font-bold transition-all">Save</button>
                               <button onClick={() => setEditingId(null)} className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 transition-all"><X size={12} className="text-white/40" /></button>
@@ -287,8 +314,9 @@ const ManagerTeam: React.FC = () => {
                   className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder-white/20 focus:outline-none focus:border-red-600/50" />
                 <select value={form.role} onChange={e => setForm(f => ({ ...f, role: e.target.value }))}
                   className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-red-600/50">
-                  <option value="employee" style={{ color: '#000000', backgroundColor: '#ffffff' }}>Employee</option>
-                  <option value="manager" style={{ color: '#000000', backgroundColor: '#ffffff' }}>Manager</option>
+                <option value="employee" style={{ color: '#000000', backgroundColor: '#ffffff' }}>Employee</option>
+                  <option value="manager"  style={{ color: '#000000', backgroundColor: '#ffffff' }}>Manager</option>
+                  <option value="sales"    style={{ color: '#000000', backgroundColor: '#ffffff' }}>Sales Executive</option>
                 </select>
                 {errorMsg && (
                   <p className="text-red-400 text-[13px] px-1">{errorMsg}</p>

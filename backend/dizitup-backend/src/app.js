@@ -40,6 +40,7 @@ const staffChatRoutes       = require('./routes/staff-chat');
 const adminDocsRoutes       = require('./routes/admin/docs');
 const managerDocsRoutes     = require('./routes/manager/docs');
 const employeeDocsRoutes    = require('./routes/employee/docs');
+const salesDashboardRoutes  = require('./routes/sales');
 
 // Middleware
 const { protect } = require('./middleware/auth');
@@ -118,19 +119,24 @@ app.use('/api/manager', protect, isAdmin, requireRole('admin', 'manager'), manag
 // ============================================================
 // EMPLOYEE ROUTES — accessible by admin + manager + employee
 // ============================================================
+app.use('/api/employee/docs', protect, isAdmin, requireRole('admin', 'manager', 'employee', 'sales'), employeeDocsRoutes);
 app.use('/api/employee', protect, isAdmin, requireRole('admin', 'manager', 'employee'), employeeRoutes);
 
 // ============================================================
-// STAFF CHANNEL CHAT — accessible by admin + manager + employee
+// STAFF CHANNEL CHAT — accessible by admin + manager + employee + sales
 // ============================================================
-app.use('/api/staff/chat', protect, isAdmin, requireRole('admin', 'manager', 'employee'), staffChatRoutes);
+app.use('/api/staff/chat', protect, isAdmin, requireRole('admin', 'manager', 'employee', 'sales'), staffChatRoutes);
 
 // ============================================================
 // DOCS ROUTES — official document chain (admin→manager→employee)
 // ============================================================
 app.use('/api/admin/docs',    protect, isAdmin, requireRole('admin'), adminDocsRoutes);
 app.use('/api/manager/docs',  protect, isAdmin, requireRole('admin', 'manager'), managerDocsRoutes);
-app.use('/api/employee/docs', protect, isAdmin, requireRole('admin', 'manager', 'employee'), employeeDocsRoutes);
+
+// ============================================================
+// SALES DASHBOARD ROUTES — accessible by admin + sales
+// ============================================================
+app.use('/api/sales', protect, isAdmin, requireRole('admin', 'sales'), salesDashboardRoutes);
 
 // User chat (protect applied inside chat.js per-route)
 app.use('/api/chat',            chatRoutes);

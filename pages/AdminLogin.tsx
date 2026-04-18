@@ -40,6 +40,7 @@ const AdminLogin: React.FC = () => {
     const role = user?.adminRole;
     if (role === 'manager') navigate('/admin/manager/projects');
     else if (role === 'employee') navigate('/admin/employee/tasks');
+    else if (role === 'sales') navigate('/sales');
     else navigate('/admin');
   };
 
