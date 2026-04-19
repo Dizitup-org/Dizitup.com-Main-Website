@@ -10,7 +10,7 @@ interface TeamMessage {
   sender_id?: string;
   message?: string;
   media_url?: string;
-  media_type?: 'image' | 'pdf';
+  media_type?: 'image' | 'pdf' | 'doc' | 'excel' | 'file';
   file_name?: string;
   created_at: string;
 }
