@@ -16,9 +16,30 @@ const { uploadToCloudinary } = require('../../utils/cloudinary');
 
 const router = express.Router();
 
+// Accepted document mimetypes
+const ALLOWED_DOC_MIMETYPES = [
+  'application/pdf',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/vnd.ms-excel',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+];
+
+const ALLOWED_ALL_MIMETYPES = [
+  ...ALLOWED_DOC_MIMETYPES,
+  'image/jpeg', 'image/png', 'image/webp',
+];
+
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
+  limits: { fileSize: 20 * 1024 * 1024 }, // 20MB
+  fileFilter: (_req, file, cb) => {
+    if (ALLOWED_ALL_MIMETYPES.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only PDF, Word (doc/docx), Excel (xls/xlsx), and images are allowed'));
+    }
+  },
 });
 
 // ----------------------------------------------------------
@@ -136,10 +157,16 @@ router.post('/upload', upload.single('file'), async (req, res, next) => {
       return res.status(400).json({ success: false, message: 'Title and employee_id are required' });
     }
 
-    const isPdf = req.file.mimetype === 'application/pdf';
+    const isImage = req.file.mimetype.startsWith('image/');
+    const isPdf   = req.file.mimetype === 'application/pdf';
     const uploaded = await uploadToCloudinary(req.file.buffer, {
-      folder: 'dizitup/docs',
-      resource_type: isPdf ? 'raw' : 'image',
+      folder:          'dizitup/docs',
+      resource_type:   isImage ? 'image' : 'raw',
+      ...(!isImage && {
+        use_filename:    true,
+        unique_filename: true,
+        ...(isPdf && { format: 'pdf' }),
+      }),
     });
 
     const mgr = await db.query(

@@ -17,14 +17,23 @@ const { uploadToCloudinary } = require('../../utils/cloudinary');
 
 const router = express.Router();
 
+// Accepted document mimetypes (all treated as raw uploads)
+const ALLOWED_DOC_MIMETYPES = [
+  'application/pdf',
+  'application/msword',                                                         // .doc
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',    // .docx
+  'application/vnd.ms-excel',                                                   // .xls
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',          // .xlsx
+];
+
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits:  { fileSize: 20 * 1024 * 1024 }, // 20MB for documents
+  limits:  { fileSize: 20 * 1024 * 1024 }, // 20MB
   fileFilter: (_req, file, cb) => {
-    if (file.mimetype === 'application/pdf') {
+    if (ALLOWED_DOC_MIMETYPES.includes(file.mimetype)) {
       cb(null, true);
     } else {
-      cb(new Error('Only PDF files are allowed in Docs'));
+      cb(new Error('Only PDF, Word (doc/docx), and Excel (xls/xlsx) files are allowed'));
     }
   },
 });
@@ -89,10 +98,14 @@ router.post('/', upload.single('file'), async (req, res, next) => {
       return res.status(400).json({ success: false, message: 'manager_id is required' });
     }
 
-    // Upload to Cloudinary
+    // Upload to Cloudinary — raw resource type for all documents
+    // Only PDFs get format:'pdf' (ensures .pdf extension in URL)
     const uploaded = await uploadToCloudinary(req.file.buffer, {
-      folder:        'dizitup/docs',
-      resource_type: 'raw',
+      folder:          'dizitup/docs',
+      resource_type:   'raw',
+      use_filename:    true,
+      unique_filename: true,
+      ...(req.file.mimetype === 'application/pdf' && { format: 'pdf' }),
     });
 
     // Get uploader's name

@@ -284,7 +284,7 @@ const ManagerDocs: React.FC = () => {
                 <div className="md:col-span-2 flex flex-col sm:flex-row gap-3">
                   <input
                     type="file"
-                    accept="application/pdf,image/jpeg,image/png,image/webp"
+                    accept="application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,image/jpeg,image/png,image/webp"
                     onChange={e => e.target.files && setUploadFile(e.target.files[0])}
                     className="flex-1 bg-white/5 border border-white/10 rounded-xl px-3 py-1.5 text-sm text-white/70 file:mr-4 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-red-600/20 file:text-red-400 hover:file:bg-red-600/30 transition-all cursor-pointer focus:outline-none focus:border-red-600/50"
                     required

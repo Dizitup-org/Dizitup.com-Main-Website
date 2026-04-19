@@ -57,14 +57,22 @@ const AdminDocs: React.FC = () => {
 
   useEffect(() => { fetchManagers(); fetchDocs(); }, [fetchManagers, fetchDocs]);
 
+  const ALLOWED_TYPES = [
+    'application/pdf',
+    'application/msword',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'application/vnd.ms-excel',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  ];
+
   const handleFile = (f: File) => {
-    if (f.type !== 'application/pdf') { toast.error('Only PDF files allowed'); return; }
-    if (f.size > 20 * 1024 * 1024) { toast.error('Max 20MB per PDF'); return; }
+    if (!ALLOWED_TYPES.includes(f.type)) { toast.error('Only PDF, Word (.doc/.docx), and Excel (.xls/.xlsx) files allowed'); return; }
+    if (f.size > 20 * 1024 * 1024) { toast.error('Max 20MB per file'); return; }
     setFile(f);
   };
 
   const handleSend = async () => {
-    if (!file) { toast.error('Please select a PDF'); return; }
+    if (!file) { toast.error('Please select a document'); return; }
     if (!title.trim()) { toast.error('Title is required'); return; }
     if (!selectedMgr) { toast.error('Select a manager'); return; }
 
@@ -122,7 +130,7 @@ const AdminDocs: React.FC = () => {
               dragOver ? 'border-red-500/60 bg-red-500/5' : file ? 'border-green-500/40 bg-green-500/5' : 'border-white/10 hover:border-white/20 hover:bg-white/[0.02]'
             }`}
           >
-            <input ref={fileRef} type="file" accept="application/pdf" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f); e.target.value = ''; }} />
+            <input ref={fileRef} type="file" accept="application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f); e.target.value = ''; }} />
             {file ? (
               <>
                 <CheckCircle size={22} className="text-green-400" />
@@ -135,8 +143,8 @@ const AdminDocs: React.FC = () => {
             ) : (
               <>
                 <Upload size={20} className="text-white/25" />
-                <p className="text-sm text-white/40">Drag &amp; drop PDF or <span className="text-red-400">browse</span></p>
-                <p className="text-[10px] text-white/20">PDF only · Max 20MB</p>
+                <p className="text-sm text-white/40">Drag &amp; drop or <span className="text-red-400">browse</span></p>
+                <p className="text-[10px] text-white/20">PDF, Word, Excel · Max 20MB</p>
               </>
             )}
           </div>
