@@ -1,55 +1,53 @@
 /**
- * A utility to force-download a file from a URL.
- * Refined to support Cloudinary fl_attachment:filename for robust cross-origin downloads.
+ * Force-download a file from a URL.
+ * For Cloudinary URLs, injects fl_attachment flag to trigger browser download.
+ * Works correctly for both /image/upload/ and /raw/upload/ resource types.
  */
 export async function downloadFile(url: string, fileName: string = 'download') {
   try {
-    // 1. Sanitize filename (Cloudinary doesn't like spaces/special chars in fl_attachment)
+    // Sanitize filename — strip unsafe chars for use as HTML download attribute
     const cleanFileName = fileName
       .replace(/\s+/g, '_')
       .replace(/[^\w.-]/g, '') || 'document';
-    
-    const extension = url.split('.').pop()?.split('?')[0] || '';
-    const finalName = cleanFileName.endsWith(extension) ? cleanFileName : `${cleanFileName}.${extension}`;
 
-    // 2. Cloudinary-specific logic: inject fl_attachment for forced download.
-    // Works for both /image/upload/ and /raw/upload/ resource types.
-    if (url.includes('cloudinary.com')) {
-      const parts = url.split('/upload/');
-      if (parts.length === 2) {
-        // Inject fl_attachment:<cleanFileName> directly after /upload/
-        // e.g. https://res.cloudinary.com/.../raw/upload/fl_attachment:file/v1.../file.pdf
-        const downloadUrl = `${parts[0]}/upload/fl_attachment:${cleanFileName}/${parts[1]}`;
+    // Ensure the filename has the right extension
+    const urlExtension = url.split('?')[0].split('.').pop()?.toLowerCase() || '';
+    const nameHasExt   = cleanFileName.toLowerCase().endsWith(`.${urlExtension}`);
+    const finalName    = nameHasExt ? cleanFileName : `${cleanFileName}.${urlExtension}`;
 
-        const link = document.createElement('a');
-        link.href = downloadUrl;
-        link.setAttribute('download', finalName);
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        return;
-      }
+    // Cloudinary: inject fl_attachment immediately after /upload/
+    // Correct format: /upload/fl_attachment/v.../folder/file.pdf
+    // ❌ WRONG: /upload/fl_attachment:filename/... (only works for image type)
+    if (url.includes('cloudinary.com') && url.includes('/upload/')) {
+      const downloadUrl = url.replace('/upload/', '/upload/fl_attachment/');
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.setAttribute('download', finalName);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      return;
     }
 
-    // 3. Fallback: Fetch as blob to bypass CORS/Browser Preview
+    // Fallback: fetch as blob (handles non-Cloudinary or CORS-restricted URLs)
     const response = await fetch(url);
     if (!response.ok) throw new Error('Network response was not ok');
-    
+
     const blobData = await response.blob();
     const localUrl = window.URL.createObjectURL(blobData);
-    
+
     const link = document.createElement('a');
     link.href = localUrl;
     link.setAttribute('download', finalName);
     document.body.appendChild(link);
     link.click();
-    
-    // Cleanup
     document.body.removeChild(link);
     window.URL.revokeObjectURL(localUrl);
+
   } catch (error) {
     console.error('Download failed:', error);
     // Last resort: open in new tab
     window.open(url, '_blank', 'noopener,noreferrer');
   }
 }
+

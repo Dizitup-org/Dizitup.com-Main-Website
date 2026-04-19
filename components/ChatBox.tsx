@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Send, Loader2, MessageCircle, X, Paperclip, FileText, Image as ImageIcon, Download, MoreHorizontal, Copy, Trash2 } from 'lucide-react';
+import { Send, Loader2, MessageCircle, X, Paperclip, FileText, Image as ImageIcon, Download, MoreHorizontal, Copy, Trash2, FileSpreadsheet, File } from 'lucide-react';
 import { downloadFile } from '../utils/fileUtils';
 import { getToken } from '../utils/apiClient';
 import { useAuth } from '../contexts/AuthProvider';
@@ -161,9 +161,23 @@ const ChatBox: React.FC<ChatBoxProps> = ({
           onClick={() => downloadFile(msg.media_url!, msg.file_name || 'document.pdf')}
           className={`flex items-center gap-2 px-1 py-0.5 rounded-lg group/pdf w-full text-left transition-colors hover:bg-white/5 ${isOwn ? 'text-white' : 'text-white/80'}`}
         >
-          <FileText size={16} className="flex-shrink-0 opacity-80" />
+          <FileText size={16} className="flex-shrink-0 opacity-80 text-red-400" />
           <span className="text-xs font-medium truncate max-w-[160px]">{msg.file_name || 'Document.pdf'}</span>
           <Download size={10} className="flex-shrink-0 opacity-60 group-hover/pdf:opacity-100" />
+        </button>
+      );
+    } else if ((msg.media_type === 'doc' || msg.media_type === 'excel' || msg.media_type === 'file') && msg.media_url) {
+      const Icon = msg.media_type === 'excel' ? FileSpreadsheet : msg.media_type === 'doc' ? FileText : File;
+      const iconColor = msg.media_type === 'excel' ? 'text-green-400' : msg.media_type === 'doc' ? 'text-blue-400' : 'text-zinc-400';
+      const fallbackName = msg.media_type === 'excel' ? 'spreadsheet.xlsx' : msg.media_type === 'doc' ? 'document.docx' : 'file';
+      content = (
+        <button
+          onClick={() => downloadFile(msg.media_url!, msg.file_name || fallbackName)}
+          className={`flex items-center gap-2 px-1 py-0.5 rounded-lg group/doc w-full text-left transition-colors hover:bg-white/5 ${isOwn ? 'text-white' : 'text-white/80'}`}
+        >
+          <Icon size={16} className={`flex-shrink-0 opacity-80 ${iconColor}`} />
+          <span className="text-xs font-medium truncate max-w-[160px]">{msg.file_name || fallbackName}</span>
+          <Download size={10} className="flex-shrink-0 opacity-60 group-hover/doc:opacity-100" />
         </button>
       );
     } else {
@@ -258,7 +272,7 @@ const ChatBox: React.FC<ChatBoxProps> = ({
         <input
           ref={fileInputRef}
           type="file"
-          accept="image/jpeg,image/png,image/webp,image/gif,application/pdf"
+          accept="image/jpeg,image/png,image/webp,image/gif,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
           className="hidden"
           onChange={handleFileChange}
         />

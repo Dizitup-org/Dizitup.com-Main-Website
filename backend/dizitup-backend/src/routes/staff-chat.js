@@ -22,13 +22,20 @@ const router = express.Router();
 // multer: memory storage — file lands in req.file.buffer
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits:  { fileSize: 10 * 1024 * 1024 }, // 10MB max
+  limits:  { fileSize: 20 * 1024 * 1024 }, // 20MB max
   fileFilter: (_req, file, cb) => {
-    const allowed = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'application/pdf'];
+    const allowed = [
+      'image/jpeg', 'image/png', 'image/webp', 'image/gif',
+      'application/pdf',
+      'application/msword',                                                      // .doc
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // .docx
+      'application/vnd.ms-excel',                                                // .xls
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',       // .xlsx
+    ];
     if (allowed.includes(file.mimetype)) {
       cb(null, true);
     } else {
-      cb(new Error('Only images (JPEG/PNG/WEBP/GIF) and PDFs are allowed'));
+      cb(new Error('Only images, PDFs, Word, and Excel files are allowed'));
     }
   },
 });
@@ -114,14 +121,24 @@ router.post('/:channel/upload', upload.single('file'), async (req, res, next) =>
 
     const { sender_name, sender_id } = req.body;
 
-    // Upload to Cloudinary — PDFs must use 'raw' to avoid image transformation
-    const isPdf = req.file.mimetype === 'application/pdf';
+    // Upload to Cloudinary — images use 'image', all documents use 'raw'
+    const isImage = req.file.mimetype.startsWith('image/');
+    const isPdf   = req.file.mimetype === 'application/pdf';
+    const isWord  = ['application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'].includes(req.file.mimetype);
+    const isExcel = ['application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'].includes(req.file.mimetype);
+
     const uploaded = await uploadToCloudinary(req.file.buffer, {
-      folder:        'dizitup/chat',
-      resource_type: isPdf ? 'raw' : 'image',
+      folder:          'dizitup/chat',
+      resource_type:   isImage ? 'image' : 'raw',
+      ...(!isImage && {
+        use_filename:    true,
+        unique_filename: true,
+        ...(isPdf && { format: 'pdf' }),
+      }),
     });
 
-    const mediaType = isPdf ? 'pdf' : 'image';
+    // media_type tells the frontend how to render the bubble
+    const mediaType = isImage ? 'image' : isPdf ? 'pdf' : isWord ? 'doc' : isExcel ? 'excel' : 'file';
     const name      = (sender_name || 'Unknown').trim();
 
     const result = await db.query(
