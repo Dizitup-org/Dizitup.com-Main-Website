@@ -139,7 +139,7 @@ router.post('/upload', upload.single('file'), async (req, res, next) => {
     const isPdf = req.file.mimetype === 'application/pdf';
     const uploaded = await uploadToCloudinary(req.file.buffer, {
       folder: 'dizitup/docs',
-      resource_type: 'auto',
+      resource_type: isPdf ? 'raw' : 'image',
     });
 
     const mgr = await db.query(

@@ -12,22 +12,15 @@ export async function downloadFile(url: string, fileName: string = 'download') {
     const extension = url.split('.').pop()?.split('?')[0] || '';
     const finalName = cleanFileName.endsWith(extension) ? cleanFileName : `${cleanFileName}.${extension}`;
 
-    // 2. Cloudinary-specific logic: fl_attachment:filename
+    // 2. Cloudinary-specific logic: inject fl_attachment for forced download.
+    // Works for both /image/upload/ and /raw/upload/ resource types.
     if (url.includes('cloudinary.com')) {
       const parts = url.split('/upload/');
       if (parts.length === 2) {
-        // If the URL already has some transformations, we need to handle that.
-        // We inject fl_attachment:<filename> as a transformation.
-        const [transformations, rest] = parts[1].includes('/') 
-          ? [parts[1].substring(0, parts[1].indexOf('/')), parts[1].substring(parts[1].indexOf('/'))]
-          : ['', '/' + parts[1]];
-        
-        const newTransform = transformations 
-          ? `${transformations},fl_attachment:${cleanFileName}` 
-          : `fl_attachment:${cleanFileName}`;
-          
-        const downloadUrl = `${parts[0]}/upload/${newTransform}${rest}`;
-        
+        // Inject fl_attachment:<cleanFileName> directly after /upload/
+        // e.g. https://res.cloudinary.com/.../raw/upload/fl_attachment:file/v1.../file.pdf
+        const downloadUrl = `${parts[0]}/upload/fl_attachment:${cleanFileName}/${parts[1]}`;
+
         const link = document.createElement('a');
         link.href = downloadUrl;
         link.setAttribute('download', finalName);

@@ -113,12 +113,12 @@ router.post('/:channel/upload', upload.single('file'), async (req, res, next) =>
     }
 
     const { sender_name, sender_id } = req.body;
-    const isPdf = req.file.mimetype === 'application/pdf';
 
-    // Upload to Cloudinary
+    // Upload to Cloudinary — PDFs must use 'raw' to avoid image transformation
+    const isPdf = req.file.mimetype === 'application/pdf';
     const uploaded = await uploadToCloudinary(req.file.buffer, {
       folder:        'dizitup/chat',
-      resource_type: 'auto',
+      resource_type: isPdf ? 'raw' : 'image',
     });
 
     const mediaType = isPdf ? 'pdf' : 'image';
