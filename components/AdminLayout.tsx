@@ -17,6 +17,9 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, title }) => {
   const token = getToken();
   const [mobileOpen, setMobileOpen] = useState(false);
 
+  // Sales role gets a violet/purple accent; everyone else keeps red
+  const isSales = user?.adminRole === 'sales';
+
   const navItems = user?.adminRole === 'manager'
     ? [
         { to: '/admin/manager/projects', icon: FolderOpen, label: 'Projects' },
@@ -53,8 +56,12 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, title }) => {
       {/* Logo */}
       <div className="p-6">
         <Link to="/" className="text-xl font-bold font-heading tracking-tight flex items-center gap-2" onClick={() => setMobileOpen(false)}>
-          <div className="w-3 h-3 bg-red-600 rounded-full" />
-          DIZITUP <span className="text-[10px] text-red-500 font-black tracking-widest px-1.5 py-0.5 rounded bg-red-500/10 border border-red-500/20 uppercase">
+          <div className={`w-3 h-3 rounded-full ${isSales ? 'bg-violet-600' : 'bg-red-600'}`} />
+          DIZITUP <span className={`text-[10px] font-black tracking-widest px-1.5 py-0.5 rounded uppercase ${
+            isSales
+              ? 'text-violet-400 bg-violet-500/10 border border-violet-500/20'
+              : 'text-red-500 bg-red-500/10 border border-red-500/20'
+          }`}>
           {user?.adminRole === 'manager' ? 'MANAGER' : user?.adminRole === 'employee' ? 'STAFF' : user?.adminRole === 'sales' ? 'SALES' : 'ADMIN'}
           </span>
         </Link>
@@ -75,14 +82,14 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, title }) => {
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 min-h-0 px-3 space-y-1 overflow-y-auto" style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(220,38,38,0.3) transparent' }}>
+      <nav className="flex-1 min-h-0 px-3 space-y-1 overflow-y-auto" style={{ scrollbarWidth: 'thin', scrollbarColor: isSales ? 'rgba(139,92,246,0.3) transparent' : 'rgba(220,38,38,0.3) transparent' }}>
         {navItems.map((item, i) => (
           <NavLink
             key={i}
             to={item.to}
             onClick={() => setMobileOpen(false)}
             className={({ isActive }) =>
-              `flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${isActive ? 'bg-red-600 text-white' : 'text-white/40 hover:bg-white/5 hover:text-white'}`
+              `flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${isActive ? (isSales ? 'bg-violet-600 text-white' : 'bg-red-600 text-white') : 'text-white/40 hover:bg-white/5 hover:text-white'}`
             }
           >
             <item.icon className="w-5 h-5 flex-shrink-0" />
@@ -176,7 +183,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, title }) => {
             {/* Search — hide on small */}
             <div className="relative hidden lg:block">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/20" />
-              <input type="text" placeholder="Search..." className="bg-white/5 border border-white/10 rounded-full pl-10 pr-4 py-2 text-sm focus:outline-none focus:border-red-600/50 w-52 transition-all" />
+              <input type="text" placeholder="Search..." className={`bg-white/5 border border-white/10 rounded-full pl-10 pr-4 py-2 text-sm focus:outline-none w-52 transition-all ${isSales ? 'focus:border-violet-500/50' : 'focus:border-red-600/50'}`} />
             </div>
             {/* User info */}
             <div className="flex items-center gap-2 md:gap-3 md:border-l md:border-white/10 md:pl-6">
@@ -184,7 +191,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, title }) => {
                 <p className="text-sm font-bold">{user?.first_name} {user?.last_name}</p>
                 <p className="text-[10px] text-white/30 capitalize">{user?.adminRole === 'employee' ? 'staff' : (user?.adminRole ?? 'admin')}</p>
               </div>
-              <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-gradient-to-br from-red-600 to-red-900 flex items-center justify-center font-bold text-sm flex-shrink-0">
+              <div className={`w-8 h-8 md:w-10 md:h-10 rounded-full flex items-center justify-center font-bold text-sm flex-shrink-0 bg-gradient-to-br ${isSales ? 'from-violet-600 to-violet-900' : 'from-red-600 to-red-900'}`}>
                 {user?.first_name?.[0]}{user?.last_name?.[0]}
               </div>
             </div>
@@ -194,7 +201,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, title }) => {
         {/* Page content */}
         <div
           className="flex-1 p-4 md:p-10 overflow-y-auto"
-          style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(220,38,38,0.3) transparent' }}
+          style={{ scrollbarWidth: 'thin', scrollbarColor: isSales ? 'rgba(139,92,246,0.3) transparent' : 'rgba(220,38,38,0.3) transparent' }}
         >
           {children}
         </div>
