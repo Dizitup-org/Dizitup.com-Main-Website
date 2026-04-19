@@ -415,14 +415,32 @@ const seedAdmin = async () => {
   // ----------------------------------------------------------
   // ADDITIONAL STAFF ACCOUNTS
   // ----------------------------------------------------------
+  // Passwords marked as `envKey` are read from environment variables.
+  // They are re-hashed and updated on EVERY server restart (same
+  // behaviour as ADMIN_PASSWORD), so changing the env var + redeploying
+  // is all you need to rotate them.
+  // Accounts with a hardcoded `password` are legacy — migrate them to
+  // envKey when ready.
+  // ----------------------------------------------------------
+  const managerPassword = process.env.MANAGER_PASSWORD;
+  if (!managerPassword) {
+    console.warn('⚠️  MANAGER_PASSWORD not set in .env — piyush@dizitup.com password will NOT be updated.');
+  }
+
   const staffAccounts = [
-    { email: 'roybrothers@gmail.com',  password: 'crores123',  first_name: 'Roy',    last_name: 'Brothers', username: 'roybrothers', role: 'admin'    },
-    { email: 'atanu@dizitup.com',      password: 'atanu123',   first_name: 'Atanu',  last_name: 'Roy',      username: 'atanu',      role: 'admin'    },
-    { email: 'piyush@dizitup.com',     password: 'piyush123',  first_name: 'Piyush', last_name: 'Paul',     username: 'piyush',     role: 'manager'  },
-    { email: 'diziteam@dizitup.com',   password: 'team123',    first_name: 'Dizi',   last_name: 'Team',     username: 'diziteam',   role: 'employee' },
+    { email: 'atanu@dizitup.com',    password: 'atanu123',  first_name: 'Atanu',  last_name: 'Roy',  username: 'atanu',    role: 'admin'    },
+    { email: 'piyush@dizitup.com',   envKey: managerPassword, first_name: 'Piyush', last_name: 'Paul', username: 'piyush',   role: 'manager'  },
+    { email: 'diziteam@dizitup.com', password: 'team123',   first_name: 'Dizi',   last_name: 'Team', username: 'diziteam', role: 'employee' },
   ];
 
   for (const staff of staffAccounts) {
+    // Resolve the password to use — envKey (env-controlled) takes priority over hardcoded
+    const resolvedPassword = staff.envKey || staff.password;
+
+    if (!resolvedPassword) {
+      console.warn(`⚠️  Skipping password update for ${staff.email} — no password source available.`);
+    }
+
     try {
       // Check if user already exists
       const existing = await db.query(
@@ -433,15 +451,29 @@ const seedAdmin = async () => {
       let staffUserId;
 
       if (existing.rows.length > 0) {
-        // User exists — ensure last_name is up to date
         staffUserId = existing.rows[0].id;
+
+        // Always sync last_name in case it was manually changed
         await db.query(
           'UPDATE users SET last_name = $1 WHERE id = $2',
           [staff.last_name, staffUserId]
         );
+
+        // Update password hash on every restart if a password is available
+        if (resolvedPassword) {
+          const hash = await bcrypt.hash(resolvedPassword, 12);
+          await db.query(
+            'UPDATE users SET password_hash = $1 WHERE id = $2',
+            [hash, staffUserId]
+          );
+        }
       } else {
+        if (!resolvedPassword) {
+          console.warn(`⚠️  Cannot create ${staff.email} — no password available. Set the env var and restart.`);
+          continue;
+        }
         // Create user
-        const hash = await bcrypt.hash(staff.password, 12);
+        const hash = await bcrypt.hash(resolvedPassword, 12);
         const inserted = await db.query(
           `INSERT INTO users (username, email, password_hash, first_name, last_name)
            VALUES ($1, $2, $3, $4, $5)
