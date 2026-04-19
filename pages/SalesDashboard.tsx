@@ -535,6 +535,7 @@ const SalesDashboard: React.FC = () => {
             channel={channel}
             senderName={`${user?.first_name || ''} ${user?.last_name || ''}`.trim() || 'Sales'}
             label="Chat with Manager"
+            variant="purple"
           />
         ) : (
           <div className="flex flex-col items-center justify-center flex-1 rounded-2xl border border-zinc-800 bg-zinc-900 gap-3">

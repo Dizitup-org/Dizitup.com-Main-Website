@@ -20,6 +20,7 @@ interface ChatBoxProps {
   senderName: string;
   apiBase?: string;
   label?: string;
+  variant?: 'default' | 'purple'; // 'purple' → violet accent (Sales), 'default' → red (everyone else)
 }
 
 const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000';
@@ -29,8 +30,10 @@ const ChatBox: React.FC<ChatBoxProps> = ({
   senderName,
   apiBase = '/api/staff/chat',
   label = 'Team Chat',
+  variant = 'default',
 }) => {
   const { user } = useAuth();
+  const isPurple = variant === 'purple';
   const [messages, setMessages] = useState<TeamMessage[]>([]);
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
@@ -208,7 +211,9 @@ const ChatBox: React.FC<ChatBoxProps> = ({
           <div
             className={`px-3 py-2 rounded-xl ${
               isOwn
-                ? 'bg-red-600 text-white rounded-br-sm shadow-[0_2px_8px_rgba(220,38,38,0.25)]'
+                ? isPurple
+                  ? 'bg-violet-600 text-white rounded-br-sm shadow-[0_2px_8px_rgba(139,92,246,0.30)]'
+                  : 'bg-red-600 text-white rounded-br-sm shadow-[0_2px_8px_rgba(220,38,38,0.25)]'
                 : 'bg-white/[0.06] border border-white/10 text-white/80 rounded-bl-sm'
             }`}
           >
@@ -231,7 +236,7 @@ const ChatBox: React.FC<ChatBoxProps> = ({
     <div className="flex flex-col rounded-2xl border border-white/10 bg-white/[0.02] overflow-hidden" style={{ height: '420px' }}>
       {/* Header */}
       <div className="flex items-center gap-2 px-4 py-3 border-b border-white/[0.06] bg-white/[0.02] flex-shrink-0">
-        <MessageCircle size={14} className="text-red-400" />
+        <MessageCircle size={14} className={isPurple ? 'text-violet-400' : 'text-red-400'} />
         <span className="text-xs font-bold uppercase tracking-widest text-white/50">{label}</span>
         <span className="ml-auto w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
       </div>
@@ -276,12 +281,12 @@ const ChatBox: React.FC<ChatBoxProps> = ({
           onChange={e => setInput(e.target.value)}
           onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); }}}
           placeholder="Type a message…"
-          className="flex-1 bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white placeholder-white/20 focus:outline-none focus:border-red-600/50 transition-all"
+          className={`flex-1 bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white placeholder-white/20 focus:outline-none transition-all ${isPurple ? 'focus:border-violet-500/50' : 'focus:border-red-600/50'}`}
         />
         <button
           onClick={send}
           disabled={!input.trim() || sending}
-          className="w-9 h-9 flex-shrink-0 rounded-xl bg-red-600 hover:bg-red-500 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center transition-all"
+          className={`w-9 h-9 flex-shrink-0 rounded-xl disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center transition-all ${isPurple ? 'bg-violet-600 hover:bg-violet-500' : 'bg-red-600 hover:bg-red-500'}`}
         >
           {sending ? <Loader2 size={13} className="animate-spin" /> : <Send size={13} />}
         </button>
