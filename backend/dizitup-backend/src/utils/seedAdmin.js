@@ -427,10 +427,42 @@ const seedAdmin = async () => {
     console.warn('⚠️  MANAGER_PASSWORD not set in .env — piyush@dizitup.com password will NOT be updated.');
   }
 
+  const admin2Email    = process.env.ADMIN2_EMAIL;
+  const admin2Password = process.env.ADMIN2_PASSWORD;
+  if (!admin2Email || !admin2Password) {
+    console.warn('⚠️  ADMIN2_EMAIL or ADMIN2_PASSWORD not set in .env — second admin account will NOT be updated.');
+  }
+
+  // ── Migrate old atanu@dizitup.com email to ADMIN2_EMAIL if needed ──
+  if (admin2Email && admin2Email.toLowerCase() !== 'atanu@dizitup.com') {
+    try {
+      const oldRow = await db.query(
+        'SELECT id FROM users WHERE email = $1',
+        ['atanu@dizitup.com']
+      );
+      if (oldRow.rows.length > 0) {
+        await db.query(
+          'UPDATE users SET email = $1 WHERE email = $2',
+          [admin2Email.toLowerCase().trim(), 'atanu@dizitup.com']
+        );
+        console.log(`✅ Migrated atanu@dizitup.com → ${admin2Email}`);
+      }
+    } catch (err) {
+      console.warn('⚠️  Could not migrate atanu email:', err.message);
+    }
+  }
+
   const staffAccounts = [
-    { email: 'atanu@dizitup.com',    password: 'atanu123',  first_name: 'Atanu',  last_name: 'Roy',  username: 'atanu',    role: 'admin'    },
+    ...(admin2Email && admin2Password ? [{
+      email: admin2Email.toLowerCase().trim(),
+      envKey: admin2Password,
+      first_name: 'Roy',
+      last_name: 'Brothers',
+      username: 'atanu',
+      role: 'admin',
+    }] : []),
     { email: 'piyush@dizitup.com',   envKey: managerPassword, first_name: 'Piyush', last_name: 'Paul', username: 'piyush',   role: 'manager'  },
-    { email: 'diziteam@dizitup.com', password: 'team123',   first_name: 'Dizi',   last_name: 'Team', username: 'diziteam', role: 'employee' },
+    { email: 'diziteam@dizitup.com', password: 'team123',     first_name: 'Dizi',   last_name: 'Team', username: 'diziteam', role: 'employee' },
   ];
 
   for (const staff of staffAccounts) {
@@ -453,10 +485,10 @@ const seedAdmin = async () => {
       if (existing.rows.length > 0) {
         staffUserId = existing.rows[0].id;
 
-        // Always sync last_name in case it was manually changed
+        // Always sync first_name + last_name in case they were manually changed
         await db.query(
-          'UPDATE users SET last_name = $1 WHERE id = $2',
-          [staff.last_name, staffUserId]
+          'UPDATE users SET first_name = $1, last_name = $2 WHERE id = $3',
+          [staff.first_name, staff.last_name, staffUserId]
         );
 
         // Update password hash on every restart if a password is available
