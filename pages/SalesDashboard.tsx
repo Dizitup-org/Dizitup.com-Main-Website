@@ -145,7 +145,6 @@ const SalesDashboard: React.FC = () => {
   const [docs,      setDocs]      = useState<SalesDoc[]>([]);
   const [managerDocs, setManagerDocs] = useState<any[]>([]);
   const [loading,   setLoading]   = useState(false);
-  const [sending,   setSending]   = useState(false);
   const pollRef    = useRef<ReturnType<typeof setInterval> | null>(null);
   const [creatingProfile, setCreatingProfile] = useState<string | null>(null);
   const [profiledLeads, setProfiledLeads] = useState<Set<string>>(new Set());
@@ -281,24 +280,7 @@ const SalesDashboard: React.FC = () => {
     } catch { toast.error('Network error'); } finally { setCreatingProfile(null); }
   };
 
-  // ── Send message ─────────────────────────────────────────
-  const sendMessage = async () => {
-    if (!chatInput.trim()) return;
-    setSending(true);
-    try {
-      const res  = await fetch(`${BASE_URL}/api/sales/messages`, {
-        method:  'POST',
-        headers: authHeaders(),
-        body:    JSON.stringify({ message: chatInput.trim() }),
-      });
-      const data = await res.json();
-      if (data.success) {
-        setMessages(prev => [...prev, data.message]);
-        setChatInput('');
-        setTimeout(() => chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
-      } else toast.error(data.message || 'Failed to send');
-    } catch { toast.error('Network error'); } finally { setSending(false); }
-  };
+  // Chat is handled by <ChatBox> component — no local sendMessage needed
 
   // ═══════════════════════════════════════════════════════
   // SUB-RENDERS
@@ -685,8 +667,8 @@ const SalesDashboard: React.FC = () => {
               if (activeTab === 'india') fetchLeads('india');
               else if (activeTab === 'foreign') fetchLeads('foreign');
               else if (['onboarded', 'followup'].includes(activeTab)) fetchLeads();
-              else if (activeTab === 'documents') fetchDocs();
-              else if (activeTab === 'chat') fetchMessages();
+              else if (activeTab === 'documents') { fetchDocs(); fetchManagerDocs(); }
+              // chat tab: ChatBox component handles its own refresh
             }}
             className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-zinc-800 text-sm transition-all"
           >
