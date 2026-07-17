@@ -1,7 +1,6 @@
-
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Globe, Palette, Cpu, Workflow, ArrowRight } from 'lucide-react';
+import { Globe, Layers, Cpu, Workflow, ArrowRight } from 'lucide-react';
 import type { Country } from './PersonalizationFlow';
 
 interface CustomProject {
@@ -12,24 +11,24 @@ interface CustomProject {
 
 const PROJECTS: CustomProject[] = [
   {
-    name: 'Conversion Website Development',
+    name: 'High-Conversion Landing Pages',
     icon: <Globe className="w-6 h-6" />,
-    description: 'High-converting websites engineered for lead capture, speed, and authority positioning.',
+    description: 'Pages engineered to turn visitors into leads — with persuasive copy, strategic structure, and conversion-first design.',
   },
   {
-    name: 'AI Content System Setup',
-    icon: <Palette className="w-6 h-6" />,
-    description: 'Automated content pipelines — ideation, generation, scheduling, and analytics in one system.',
+    name: 'AI Content & Lead Nurture System',
+    icon: <Layers className="w-6 h-6" />,
+    description: 'Automated content pipelines that build authority, nurture prospects, and keep your brand top-of-mind — without manual effort.',
   },
   {
-    name: 'Custom AI Platform / App',
+    name: 'Custom Growth Platform',
     icon: <Cpu className="w-6 h-6" />,
-    description: 'Bespoke AI-powered platforms tailored to your unique business logic and workflows.',
+    description: 'Bespoke AI-powered platforms tailored to your business model — built for performance, scale, and revenue generation.',
   },
   {
-    name: 'Advanced Workflow Automation',
+    name: 'Business Process Automation',
     icon: <Workflow className="w-6 h-6" />,
-    description: 'End-to-end process automation connecting your tools, teams, and data into one intelligent flow.',
+    description: 'End-to-end automation connecting your tools, teams, and data — eliminating bottlenecks and accelerating your operations.',
   },
 ];
 
@@ -43,7 +42,7 @@ const CustomProjects: React.FC<Props> = ({ country: _country, onBookCall }) => {
     <section className="py-16 sm:py-32 md:py-40 bg-transparent relative overflow-hidden">
       <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[700px] h-[400px] bg-red-600/[0.03] blur-[120px] rounded-full pointer-events-none" />
 
-        <div className="container mx-auto px-4 sm:px-6 relative z-10">
+      <div className="container mx-auto px-4 sm:px-6 relative z-10">
         <div className="text-center max-w-3xl mx-auto mb-12 sm:mb-20">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -52,13 +51,13 @@ const CustomProjects: React.FC<Props> = ({ country: _country, onBookCall }) => {
           >
             <div className="inline-flex items-center gap-2 px-4 py-2 bg-white/[0.04] border border-white/10 rounded-full mb-8">
               <Cpu className="w-3 h-3 text-red-500" />
-              <span className="text-[10px] font-mono uppercase tracking-[0.3em] text-white/50">Custom Builds & One-Time Projects</span>
+              <span className="text-[10px] font-mono uppercase tracking-[0.3em] text-white/50">Enhance Your Growth System</span>
             </div>
             <h2 className="text-3xl sm:text-4xl md:text-6xl font-heading font-bold tracking-tighter mb-4 sm:mb-6">
-              Tailored <span className="text-white/20 italic font-light">Solutions.</span>
+              Add-On Growth <span className="text-white/20 italic font-light">Services.</span>
             </h2>
             <p className="text-lg text-white/40 font-light">
-              One-time builds designed to fit your exact requirements.
+              Complement your core growth system with targeted add-ons designed to accelerate specific outcomes.
             </p>
           </motion.div>
         </div>
@@ -86,7 +85,7 @@ const CustomProjects: React.FC<Props> = ({ country: _country, onBookCall }) => {
                 onClick={() => onBookCall(proj.name)}
                 className="w-full py-3 px-5 rounded-xl bg-white/[0.04] border border-white/10 hover:bg-red-600/10 hover:border-red-500/30 text-white/60 hover:text-white text-[11px] font-bold uppercase tracking-widest transition-all flex items-center justify-center gap-2 group/cta"
               >
-                Get a Custom Quote
+                Book a Discovery Call
                 <ArrowRight className="w-3.5 h-3.5 group-hover/cta:translate-x-1 transition-transform" />
               </motion.button>
             </motion.div>

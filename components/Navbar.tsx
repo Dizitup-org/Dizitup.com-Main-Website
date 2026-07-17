@@ -1,27 +1,32 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { motion, useScroll, useSpring, useTransform, AnimatePresence } from 'framer-motion';
-import { Menu, X, LogOut, LayoutDashboard } from 'lucide-react';
+import { motion, useScroll, useSpring, AnimatePresence } from 'framer-motion';
+import { Menu, X, LogOut, LayoutDashboard, Calendar } from 'lucide-react';
 import { useAuth } from '../contexts/AuthProvider';
+import { useBooking } from '../contexts/BookingContext';
 
 const Navbar: React.FC = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const navigate = useNavigate();
   const { user, isAdmin, signOut } = useAuth();
+  const { openBooking } = useBooking();
 
-  // Track scroll position for the Apple-style pill transition
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 60);
     window.addEventListener('scroll', onScroll, { passive: true });
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
 
-  // Progress bar
   const { scrollYProgress } = useScroll();
   const scaleX = useSpring(scrollYProgress, { stiffness: 180, damping: 28, restDelta: 0.001 });
 
-  const navItems = ['Capabilities', 'Works', 'Pricing'];
+  const navItems = [
+    { label: 'Growth Systems', href: '#growth-systems' },
+    { label: 'Case Studies', href: '#case-studies' },
+    { label: 'Process', href: '#process' },
+    { label: 'Pricing', href: '#pricing' },
+  ];
 
   const displayName = user
     ? user.first_name || user.username || user.email.split('@')[0]
@@ -40,7 +45,7 @@ const Navbar: React.FC = () => {
         style={{ scaleX, opacity: scrollYProgress }}
       />
 
-      {/* ── Navbar ── Apple-style: full-width when at top, pills after scroll */}
+      {/* ── Navbar — Apple-style pill after scroll */}
       <motion.nav
         className="fixed z-50 left-0 right-0"
         animate={{
@@ -75,19 +80,19 @@ const Navbar: React.FC = () => {
               <div className="hidden md:flex items-center gap-6 lg:gap-8">
                 {navItems.map((item) => (
                   <motion.a
-                    key={item}
-                    href={`#${item.toLowerCase()}`}
+                    key={item.label}
+                    href={item.href}
                     className="text-[11px] font-mono font-bold uppercase tracking-[0.18em] text-white/50 hover:text-white transition-colors relative group"
                     whileHover={{ y: -1 }}
                     transition={{ type: 'spring', stiffness: 400, damping: 20 }}
                   >
-                    {item}
+                    {item.label}
                     <span className="absolute -bottom-0.5 left-0 right-0 h-px bg-white/40 scale-x-0 group-hover:scale-x-100 transition-transform origin-left duration-300" />
                   </motion.a>
                 ))}
               </div>
 
-              {/* Right — Auth */}
+              {/* Right — Auth / Book Audit */}
               <div className="hidden md:flex items-center gap-3">
                 {user ? (
                   <div className="flex items-center gap-2">
@@ -116,21 +121,22 @@ const Navbar: React.FC = () => {
                     </motion.button>
                   </div>
                 ) : (
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-3">
                     <motion.button
                       whileHover={{ y: -1 }}
                       onClick={() => navigate('/login')}
-                      className="text-[11px] font-mono font-bold uppercase tracking-[0.18em] text-white/50 hover:text-white transition-colors"
+                      className="text-[11px] font-mono font-bold uppercase tracking-[0.18em] text-white/40 hover:text-white transition-colors"
                     >
                       Sign In
                     </motion.button>
                     <motion.button
                       whileHover={{ scale: 1.04, y: -1 }}
                       whileTap={{ scale: 0.97 }}
-                      onClick={() => navigate('/login', { state: { mode: 'signup' } })}
-                      className="px-4 py-2 bg-white text-black text-[11px] font-black rounded-full hover:bg-white/90 transition-colors tracking-wider uppercase shadow-[0_0_16px_rgba(255,255,255,0.1)]"
+                      onClick={() => openBooking()}
+                      className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white text-[11px] font-black rounded-full hover:bg-red-500 transition-all tracking-wider uppercase shadow-[0_0_20px_rgba(220,38,38,0.3)]"
                     >
-                      Get Started
+                      <Calendar className="w-3 h-3" />
+                      Book Audit
                     </motion.button>
                   </div>
                 )}
@@ -170,15 +176,15 @@ const Navbar: React.FC = () => {
                 <div className="px-5 py-4 space-y-1">
                   {navItems.map((item, i) => (
                     <motion.a
-                      key={item}
-                      href={`#${item.toLowerCase()}`}
+                      key={item.label}
+                      href={item.href}
                       initial={{ x: -10, opacity: 0 }}
                       animate={{ x: 0, opacity: 1 }}
                       transition={{ delay: i * 0.055 }}
                       onClick={() => setMobileMenuOpen(false)}
                       className="block py-3 text-[11px] font-mono font-bold uppercase tracking-[0.18em] text-white/50 hover:text-white transition-colors border-b border-white/5 last:border-0"
                     >
-                      {item}
+                      {item.label}
                     </motion.a>
                   ))}
                   <div className="pt-3 flex gap-2">
@@ -221,10 +227,10 @@ const Navbar: React.FC = () => {
                           initial={{ y: 6, opacity: 0 }}
                           animate={{ y: 0, opacity: 1 }}
                           transition={{ delay: 0.22 }}
-                          onClick={() => { navigate('/login', { state: { mode: 'signup' } }); setMobileMenuOpen(false); }}
-                          className="flex-1 py-2.5 bg-white text-black text-xs font-black rounded-full hover:bg-white/90 transition-colors tracking-wider uppercase"
+                          onClick={() => { openBooking(); setMobileMenuOpen(false); }}
+                          className="flex-1 py-2.5 bg-red-600 text-white text-xs font-black rounded-full hover:bg-red-500 transition-colors tracking-wider uppercase"
                         >
-                          Get Started
+                          Book Audit
                         </motion.button>
                       </>
                     )}
