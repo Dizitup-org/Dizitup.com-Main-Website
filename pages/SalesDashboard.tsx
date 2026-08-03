@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
 import {
   Users, Globe, UserCheck, Calendar, MessageCircle, FileText,
-  Plus, Trash2, Send, Download, ExternalLink, RefreshCw,
+  Plus, Trash2, ExternalLink, RefreshCw,
   CheckCircle, Clock, XCircle, Loader2, ChevronDown,
 } from 'lucide-react';
 import { getToken } from '../utils/apiClient';
@@ -41,14 +41,6 @@ interface SalesDoc {
   file_url: string;
   uploaded_by_user_id: string;
   uploaded_by_name: string | null;
-  created_at: string;
-}
-
-interface SalesMessage {
-  id: string;
-  sender_id: string;
-  sender_name: string;
-  message: string;
   created_at: string;
 }
 
