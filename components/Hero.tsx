@@ -1,12 +1,11 @@
-
 import React, { useRef } from 'react';
 import { motion, useScroll, useTransform } from 'framer-motion';
-import { ArrowUpRight, Cpu } from 'lucide-react';
+import { ArrowUpRight, TrendingUp } from 'lucide-react';
 import MagneticButton from './MagneticButton';
 import TextShimmer from './TextShimmer';
 import { useBooking } from '../contexts/BookingContext';
 
-// Floating particles data — small, subtle dots
+// Floating particles data
 const PARTICLES = [
   { size: 3, x: '10%', y: '20%', color: 'rgba(220,38,38,0.3)', duration: '14s', delay: '0s' },
   { size: 2, x: '80%', y: '15%', color: 'rgba(255,255,255,0.15)', duration: '18s', delay: '2s' },
@@ -17,12 +16,11 @@ const PARTICLES = [
 ];
 
 const Hero: React.FC = () => {
-
   const { openBooking } = useBooking();
   const targetRef = useRef(null);
   const { scrollYProgress } = useScroll({
     target: targetRef,
-    offset: ["start start", "end start"]
+    offset: ['start start', 'end start'],
   });
 
   const textOpacity = useTransform(scrollYProgress, [0, 0.3], [1, 0]);
@@ -53,19 +51,32 @@ const Hero: React.FC = () => {
           style={{ opacity: textOpacity, y }}
           className="w-full"
         >
-          
+          {/* Eyebrow label */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.1 }}
+            className="flex justify-center mb-8"
+          >
+            <div className="inline-flex items-center gap-2 px-4 py-2 bg-white/[0.04] border border-white/10 rounded-full">
+              <TrendingUp className="w-3 h-3 text-red-500" />
+              <span className="text-[10px] font-mono uppercase tracking-[0.3em] text-white/50">AI Business Growth Partner</span>
+            </div>
+          </motion.div>
 
-          <h1 className="text-[clamp(2rem,6vw,4.5rem)] xl:text-[clamp(2.5rem,7vw,5.5rem)] font-heading font-bold leading-[1.1] sm:leading-[1.1] tracking-[-0.04em] mb-6 sm:mb-8 hero-title text-center">
-            <TextShimmer>POSITION</TextShimmer> <span className="text-white/20 italic mr-4">WITH</span> LOGIC.
+          <h1 className="text-[clamp(2rem,6vw,4.5rem)] xl:text-[clamp(2.5rem,7vw,5.5rem)] font-heading font-bold leading-[1.05] tracking-[-0.04em] mb-6 sm:mb-8 hero-title text-center">
+            <TextShimmer>GROW</TextShimmer>{' '}
+            <span className="text-white/20 italic mr-2">YOUR</span>
+            REVENUE.
           </h1>
 
           <div className="space-y-6 text-center">
-            <div className="space-y-4 md:space-y-5 max-w-[90%] md:max-w-[600px] mx-auto">
+            <div className="space-y-4 md:space-y-5 max-w-[90%] md:max-w-[620px] mx-auto">
               <p className="text-sm sm:text-base md:text-lg lg:text-xl text-white leading-relaxed font-medium tracking-tight">
-                Stop wondering where AI fits.
+                We build AI-powered business growth systems that generate qualified customers, automate your operations, and scale your revenue — predictably.
               </p>
               <p className="text-sm sm:text-base md:text-lg text-white/40 leading-relaxed font-light">
-                Dizitup architects autonomous systems that automate your friction—reducing overhead so you can focus on building your empire.
+                Not a website company. Not an agency. A long-term growth partner that embeds into your business and drives measurable results every month.
               </p>
             </div>
 
@@ -75,16 +86,35 @@ const Hero: React.FC = () => {
                   onClick={() => openBooking()}
                   className="w-full sm:w-auto px-7 sm:px-9 py-3 sm:py-4 bg-white text-black rounded-full font-bold text-xs uppercase tracking-widest hover:bg-red-600 hover:text-white transition-all duration-500 flex items-center justify-center gap-2 shadow-[0_20px_50px_rgba(255,255,255,0.1)]"
                 >
-                  Book a Call <ArrowUpRight className="w-4 h-4" />
+                  Book a Free Growth Audit <ArrowUpRight className="w-4 h-4" />
                 </button>
               </MagneticButton>
               <a
-                href="#works"
-                className="w-full sm:w-auto px-7 sm:px-9 py-3 sm:py-4 bg-transparent border border-white/10 text-white rounded-full font-bold text-xs uppercase tracking-widest hover:border-white transition-all text-center"
+                href="#growth-systems"
+                className="w-full sm:w-auto px-7 sm:px-9 py-3 sm:py-4 bg-transparent border border-white/10 text-white rounded-full font-bold text-xs uppercase tracking-widest hover:border-white/40 hover:bg-white/5 transition-all text-center"
               >
-                Our Work
+                Explore Our Growth Systems
               </a>
             </div>
+
+            {/* Trust signals */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 1, delay: 0.8 }}
+              className="flex flex-wrap items-center justify-center gap-6 pt-4"
+            >
+              {[
+                '40+ Businesses Served',
+                '3× Revenue Growth',
+                '60%+ Lead Increase',
+              ].map((signal, i) => (
+                <div key={i} className="flex items-center gap-2">
+                  <div className="w-1 h-1 rounded-full bg-red-600" />
+                  <span className="text-[10px] font-mono uppercase tracking-[0.25em] text-white/30">{signal}</span>
+                </div>
+              ))}
+            </motion.div>
           </div>
         </motion.div>
       </div>

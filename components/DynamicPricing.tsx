@@ -1,13 +1,13 @@
-
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Check, Sparkles, Zap, BarChart3, BrainCircuit } from 'lucide-react';
+import { Check, Sparkles, Zap, BarChart3, BrainCircuit, ArrowUpRight } from 'lucide-react';
 import type { Country } from './PersonalizationFlow';
 import { getPricingRegion, type PricingRegion } from './PersonalizationFlow';
 import TiltCard from './TiltCard';
 
 interface PricingTier {
   name: string;
+  shortName: string;
   icon: React.ReactNode;
   description: string;
   pricing: Record<PricingRegion, { setup: string; monthly: string }>;
@@ -18,9 +18,10 @@ interface PricingTier {
 
 const CORE_TIERS: PricingTier[] = [
   {
-    name: 'AI Lead Engine',
+    name: 'AI Customer Acquisition System',
+    shortName: 'Acquisition',
     icon: <Zap className="w-6 h-6" />,
-    description: 'Automated lead capture, instant response, CRM integration, smart follow-ups, and appointment booking automation.',
+    description: 'A complete system to generate, capture, and convert qualified customers on autopilot — so you have a predictable pipeline every month.',
     pricing: {
       'India': { setup: '₹25,000', monthly: '₹10,000/mo' },
       'United States': { setup: '$900', monthly: '$350/mo' },
@@ -28,17 +29,18 @@ const CORE_TIERS: PricingTier[] = [
       'Other': { setup: '$900', monthly: '$350/mo' },
     },
     features: [
-      'Automated lead capture forms',
-      'Instant AI-powered response',
-      'CRM integration & sync',
-      'Smart follow-up sequences',
-      'Appointment booking automation',
+      'Business Audit & ICP Definition',
+      'High-converting landing page',
+      'Lead capture & CRM setup',
+      'WhatsApp / email automation',
+      'Conversion tracking & analytics',
     ],
   },
   {
-    name: 'AI Operations System',
+    name: 'AI Business Operations System',
+    shortName: 'Operations',
     icon: <BarChart3 className="w-6 h-6" />,
-    description: 'Client onboarding automation, workflow systems, KPI dashboards, and reporting automation.',
+    description: 'Automate your business workflows, eliminate manual tasks, and build scalable operations — so your team focuses on growth, not admin.',
     pricing: {
       'India': { setup: '₹45,000', monthly: '₹15,000/mo' },
       'United States': { setup: '$1,600', monthly: '$550/mo' },
@@ -46,17 +48,18 @@ const CORE_TIERS: PricingTier[] = [
       'Other': { setup: '$1,600', monthly: '$550/mo' },
     },
     features: [
+      'Business process audit',
+      'Workflow automation setup',
       'Client onboarding automation',
-      'Workflow orchestration',
-      'KPI dashboards',
-      'Automated reporting',
-      'Team collaboration tools',
+      'KPI dashboard & reporting',
+      'CRM & pipeline configuration',
     ],
   },
   {
-    name: 'AI Growth Intelligence Stack',
+    name: 'AI Growth Partner',
+    shortName: 'Growth Partner',
     icon: <BrainCircuit className="w-6 h-6" />,
-    description: 'Complete AI-powered growth stack combining lead engine, operations automation, revenue dashboards, and strategic AI insights.',
+    description: 'Our flagship recurring partnership. We manage both acquisition and operations systems, report results weekly, and continuously optimize for maximum revenue growth.',
     pricing: {
       'India': { setup: '₹60,000', monthly: '₹20,000/mo' },
       'United States': { setup: '$2,400', monthly: '$800/mo' },
@@ -64,14 +67,14 @@ const CORE_TIERS: PricingTier[] = [
       'Other': { setup: '$2,400', monthly: '$800/mo' },
     },
     features: [
-      'Everything in Lead Engine',
-      'Everything in Operations',
-      'Revenue intelligence dashboards',
-      'Strategic AI insights & forecasting',
+      'Everything in Acquisition System',
+      'Everything in Operations System',
+      'Weekly KPI reviews',
+      'Monthly executive growth reports',
       'Priority support & consulting',
     ],
     popular: true,
-    note: 'Most agencies recover setup cost with 1–2 new client acquisitions.',
+    note: 'Most Growth Partners recover their investment within 60–90 days through increased revenue.',
   },
 ];
 
@@ -82,8 +85,9 @@ interface Props {
 
 const DynamicPricing: React.FC<Props> = ({ country, onBookCall }) => {
   const pricingKey = getPricingRegion(country);
+
   return (
-    <section className="py-16 sm:py-32 md:py-40 bg-transparent relative overflow-hidden">
+    <section id="pricing" className="py-16 sm:py-32 md:py-40 bg-transparent relative overflow-hidden">
       {/* bg glow */}
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[900px] h-[900px] bg-red-600/[0.04] blur-[150px] rounded-full pointer-events-none" />
 
@@ -97,13 +101,13 @@ const DynamicPricing: React.FC<Props> = ({ country, onBookCall }) => {
           >
             <div className="inline-flex items-center gap-2 px-4 py-2 bg-white/[0.04] border border-white/10 rounded-full mb-8">
               <Sparkles className="w-3 h-3 text-red-500" />
-              <span className="text-[10px] font-mono uppercase tracking-[0.3em] text-white/50">Monthly Retainers · Long-Term Growth</span>
+              <span className="text-[10px] font-mono uppercase tracking-[0.3em] text-white/50">AI Business Growth Systems · Custom Pricing</span>
             </div>
             <h2 className="text-3xl sm:text-4xl md:text-7xl font-heading font-bold tracking-tighter mb-4 sm:mb-6">
               Growth <span className="text-white/20 italic font-light">Partnerships.</span>
             </h2>
             <p className="text-base sm:text-lg text-white/40 font-light max-w-xl mx-auto">
-              Long-term commitments, not one-off projects. We embed into your business as your ongoing AI growth partners — building, scaling, and optimizing every month.
+              Long-term partnerships, not one-off projects. We embed into your business as your dedicated AI Growth Partner — building, scaling, and optimizing every month.
             </p>
           </motion.div>
         </div>
@@ -111,7 +115,6 @@ const DynamicPricing: React.FC<Props> = ({ country, onBookCall }) => {
         {/* Pricing Cards */}
         <div className="grid lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8 items-stretch max-w-6xl mx-auto">
           {CORE_TIERS.map((tier, i) => {
-            const price = tier.pricing[pricingKey];
             return (
               <TiltCard key={tier.name} className="flex flex-col">
                 <motion.div
@@ -120,14 +123,14 @@ const DynamicPricing: React.FC<Props> = ({ country, onBookCall }) => {
                   viewport={{ once: true }}
                   transition={{ delay: i * 0.12 }}
                   className={`relative p-6 sm:p-8 md:p-10 lg:p-12 rounded-[1.5rem] sm:rounded-[2rem] lg:rounded-[2.5rem] border flex flex-col group transition-all duration-700 h-full ${tier.popular
-                      ? 'bg-gradient-to-b from-white/[0.06] to-white/[0.02] border-red-600/40 shadow-[0_0_60px_-15px_rgba(220,38,38,0.25)]'
-                      : 'bg-white/[0.02] border-white/10 hover:border-white/20'
+                    ? 'bg-gradient-to-b from-white/[0.06] to-white/[0.02] border-red-600/40 shadow-[0_0_60px_-15px_rgba(220,38,38,0.25)]'
+                    : 'bg-white/[0.02] border-white/10 hover:border-white/20'
                     }`}
                 >
                   {/* Popular badge */}
                   {tier.popular && (
                     <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-red-600 text-white px-5 py-1.5 rounded-full text-[10px] font-black tracking-widest uppercase shadow-lg z-20 whitespace-nowrap">
-                      Most Popular
+                      Recommended
                     </div>
                   )}
 
@@ -136,14 +139,15 @@ const DynamicPricing: React.FC<Props> = ({ country, onBookCall }) => {
                     <div className={`p-2.5 rounded-xl ${tier.popular ? 'bg-red-600/20 text-red-400' : 'bg-white/5 text-white/50'}`}>
                       {tier.icon}
                     </div>
-                    <h3 className="text-lg font-bold tracking-tight uppercase text-white/60">{tier.name}</h3>
+                    <h3 className="text-sm font-bold tracking-tight uppercase text-white/60">{tier.shortName}</h3>
                   </div>
 
-                  {/* Pricing hidden — contact for pricing */}
-                  <div className="mb-6 flex items-center gap-2">
-                    <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-widest ${
-                      tier.popular ? 'bg-red-600/15 text-red-400 border border-red-500/20' : 'bg-white/5 text-white/30 border border-white/10'
-                    }`}>
+                  {/* Custom Pricing Badge */}
+                  <div className="mb-5 flex items-center gap-2">
+                    <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-widest ${tier.popular
+                      ? 'bg-red-600/15 text-red-400 border border-red-500/20'
+                      : 'bg-white/5 text-white/30 border border-white/10'
+                      }`}>
                       <span className="w-1.5 h-1.5 rounded-full bg-current animate-pulse" />
                       Custom Pricing
                     </div>
@@ -156,8 +160,7 @@ const DynamicPricing: React.FC<Props> = ({ country, onBookCall }) => {
                   <div className="space-y-4 mb-10 flex-grow">
                     {tier.features.map((f, idx) => (
                       <div key={idx} className="flex items-start gap-3">
-                        <div className={`mt-0.5 flex-shrink-0 w-4 h-4 rounded-full flex items-center justify-center ${tier.popular ? 'bg-red-600 text-white' : 'bg-white/10 text-red-500'
-                          }`}>
+                        <div className={`mt-0.5 flex-shrink-0 w-4 h-4 rounded-full flex items-center justify-center ${tier.popular ? 'bg-red-600 text-white' : 'bg-white/10 text-red-500'}`}>
                           <Check className="w-2.5 h-2.5" />
                         </div>
                         <span className="text-sm text-white/60 tracking-tight">{f}</span>
@@ -177,12 +180,13 @@ const DynamicPricing: React.FC<Props> = ({ country, onBookCall }) => {
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
                     onClick={() => onBookCall(tier.name)}
-                    className={`w-full py-4 rounded-full font-bold text-sm uppercase tracking-widest transition-all ${tier.popular
-                        ? 'bg-red-600 text-white hover:bg-red-500 shadow-[0_0_30px_-5px_rgba(220,38,38,0.4)]'
-                        : 'bg-white/[0.05] border border-white/10 text-white hover:bg-white/10'
+                    className={`w-full py-4 rounded-full font-bold text-sm uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${tier.popular
+                      ? 'bg-red-600 text-white hover:bg-red-500 shadow-[0_0_30px_-5px_rgba(220,38,38,0.4)]'
+                      : 'bg-white/[0.05] border border-white/10 text-white hover:bg-white/10'
                       }`}
                   >
-                    Book Strategy Call
+                    Book Free Growth Audit
+                    <ArrowUpRight className="w-4 h-4" />
                   </motion.button>
                 </motion.div>
               </TiltCard>
